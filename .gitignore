@@ -1,32 +1,24 @@
-# Prerequisites
-*.d
+CMakeCache.txt
+CMakeFiles/*
+Makefile
+cmake/*
+cmake_install.cmake
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+DistAgent
+DistCoordinator
+DistClient
 
-# Precompiled Headers
-*.gch
-*.pch
+src/CMakeFiles/*
+src/common/CMakeFiles/*
+src/common/*.a
+src/util/CMakeFiles/*
+src/util/*.a
+src/ec/CMakeFiles/*
+src/*/*.a
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+src/*.swp
+src/*/*.swp
 
-# Fortran module files
-*.mod
-*.smod
+src/protocol/CMakeFiles/*
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+coor_output

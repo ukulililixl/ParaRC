@@ -1,0 +1,16 @@
+<setting>
+<attribute><name>controller.addr</name><value>192.168.3.123</value></attribute>
+<attribute><name>agents.addr</name>
+<value>/default/192.168.3.124</value>
+<value>/default/192.168.3.133</value>
+<value>/default/192.168.3.137</value>
+<value>/default/192.168.3.138</value>
+<value>/default/192.168.3.140</value>
+</attribute>
+<attribute><name>controller.thread.num</name><value>1</value></attribute>
+<attribute><name>agent.thread.num</name><value>5</value></attribute>
+<attribute><name>cmddist.thread.num</name><value>10</value></attribute>
+<attribute><name>local.addr</name><value>192.168.3.140</value></attribute>
+<attribute><name>block.size</name><value>67108864</value></attribute>
+<attribute><name>packet.size</name><value>1048576</value></attribute>
+<attribute><name>block.directory</name><value>/home/xiaolu/HDFS/hadoop-3.0.0-src/hadoop-dist/target/hadoop-3.0.0/dfs/data/current/BP-1802938661-192.168.3.123-1648717182846/current/finalized/subdir0/subdir0</value></attribute><attribute><name>stripestore.directory</name><value>/home/xiaolu/spdist/SPDist/stripeStore</value></attribute></setting>

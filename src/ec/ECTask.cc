@@ -4,6 +4,10 @@ ECTask::ECTask() {
 }
 
 ECTask::~ECTask() {
+  if (_computeTaskList.size()) {
+    for (auto t: _computeTaskList)
+      delete t;
+  }
 }
 
 void ECTask::buildReadDisk(int type,
@@ -52,6 +56,14 @@ void ECTask::buildConcatenate(int type,
   _stripeName = stripename;
   _blockName = blockname;
   _ecw = ecw;
+}
+
+int ECTask::getType() {
+  return _type;
+}
+
+vector<ComputeTask*> ECTask::getComputeTaskList() {
+  return _computeTaskList;
 }
 
 string ECTask::dumpStr() {

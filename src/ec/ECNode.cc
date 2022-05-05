@@ -68,6 +68,15 @@ vector<int> ECNode::getCoefs() {
   return _coefs;
 }
 
+vector<int> ECNode::getChildIndices() {
+  vector<int> toret;
+  for (int i=0; i<_childNodes.size(); i++) {
+    int idx = _childNodes[i]->getNodeId();
+    toret.push_back(idx);
+  }
+  return toret;
+}
+
 //int ECNode::getChildNum() {
 //  return _childNodes.size();
 //}
@@ -152,6 +161,7 @@ vector<int> ECNode::getCoefs() {
 //  if (_hasConstraint) _consId = id;
 //}
 //
+
 void ECNode::dump(int parent) {
   if (parent == -1) parent = _nodeId;
   cout << "(data" << _nodeId;

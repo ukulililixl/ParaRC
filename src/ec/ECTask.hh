@@ -79,6 +79,8 @@ class ECTask {
                string blockname,
                int ecw);
 
+    int getType();
+    vector<ComputeTask*> getComputeTaskList();
     string dumpStr();
     AGCommand* genAGCommand();
 };

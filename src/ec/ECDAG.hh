@@ -7,6 +7,8 @@
 //#include "Cluster.hh"
 #include "ECNode.hh"
 #include "SimpleGraph.hh"
+#include "ECUnit.hh"
+#include "ECCluster.hh"
 #include "../util/BlockingQueue.hh"
 #include "../util/LoadVector.hh"
 
@@ -18,6 +20,8 @@ using namespace std;
 
 #define REQUESTOR 32767
 #define SGSTART 0
+#define USTART 0
+#define CSTART 0
 
 class ECDAG {
   private:
@@ -33,6 +37,16 @@ class ECDAG {
 
     // for coloring
     unordered_map<int, unsigned int> _idx2ip;
+
+    // for ECUnits
+    int _unitId = USTART;
+    unordered_map<int, ECUnit*> _ecUnitMap;
+    vector<int> _ecUnitList;
+
+    // for ECClusters
+    int _clusterId = CSTART;
+    unordered_map<int, ECCluster*> _ecClusterMap;
+    vector<int> _ecClusterList;
     
 //    vector<Cluster*> _clusterMap;
 //    int _bindId = BINDSTART;
@@ -56,62 +70,19 @@ class ECDAG {
     void genECTasks(vector<ECTask*>& tasklist,
                     int ecn, int eck, int ecw,
                     string stripename, vector<string> blocklist); 
-//
-//    int BindXAligned(vector<int> idxs);
-//    int BindXNotAligned(vector<int> idxs);
-//
-//    // topological sorting
-//    vector<int> toposort();
-//    ECNode* getNode(int cidx);
-//    vector<int> getHeaders();
-//    vector<int> getLeaves();
-//
-//    // ecdag reconstruction
-//    void reconstruct(int opt);
-//    void optimize(int opt, 
-//                  unordered_map<int, pair<string, unsigned int>> objlist,
-//                  unordered_map<unsigned int, string> ip2Rack,
-//                  int ecn,
-//                  int eck,
-//                  int ecw);
-//    void optimize2(int opt, 
-//                  unordered_map<int, unsigned int>& cid2ip,
-//                  unordered_map<unsigned int, string> ip2Rack,
-//                  int ecn, int eck, int ecw,
-//                  unordered_map<int, unsigned int> sid2ip,
-//                  vector<unsigned int> allIps,
-//                  bool locality);
-//    void Opt0();
-//    void Opt1();
-//    void Opt2(unordered_map<int, string> n2Rack);
-//    void Opt3();
-//
-//    // parse cmd
-//    unordered_map<int, AGCommand*> parseForOEC(unordered_map<int, unsigned int> cid2ip,
-//                                   string stripename, 
-//                                   int n, int k, int w, int num,
-//                                   unordered_map<int, pair<string, unsigned int>> objlist);
-//    unordered_map<int, AGCommand*> parseForOECWithVirtualLeaves(unordered_map<int, unsigned int> cid2ip,
-//                                   unordered_map<int, int> virleaves,
-//                                   string stripename, 
-//                                   int n, int k, int w, int num,
-//                                   unordered_map<int, pair<string, unsigned int>> objlist);
-//    vector<AGCommand*> persist(unordered_map<int, unsigned int> cid2ip, 
-//                                  string stripename,
-//                                  int n, int k, int w, int num,
-//                                  unordered_map<int, pair<string, unsigned int>> objlist);
-//
-//    vector<AGCommand*> persistWithInfo(unordered_map<int, unsigned int> cid2ip, 
-//            string stripename,
-//            int n, int k, int w, int num,
-//            unordered_map<int, pair<string, unsigned int>> objlist,
-//            vector<int> psid);
-//    vector<AGCommand*> persistLayerWithInfo(unordered_map<int, unsigned int> cid2ip, 
-//            string stripename,
-//            int n, int k, int w, int num,
-//            unordered_map<int, pair<string, unsigned int>> objlist,
-//            vector<int> psid, string layer);
-//
+    void simulateLoc();
+
+    void genECUnits();
+    void clearECCluster();
+    void genECCluster(unordered_map<int, int> coloring);
+    void genStat(unordered_map<int, int> coloring, unordered_map<int, int>& inmap, unordered_map<int, int>& outmap);
+
+    unordered_map<int, ECNode*> getECNodeMap();
+    vector<int> getECHeaders();
+    vector<int> getECLeaves();
+    unordered_map<int, ECUnit*> getUnitMap();
+    vector<int> getUnitList();
+
     // for debug
     void dump();
 };

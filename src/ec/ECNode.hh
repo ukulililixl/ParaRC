@@ -51,6 +51,7 @@ class ECNode {
     vector<ECNode*> getChildNodes();
     vector<ECNode*> getParentNodes();
     vector<int> getCoefs();
+    vector<int> getChildIndices();
 //    int getChildNum();
 //    vector<ECNode*> getChildren();
 //    ECNode* getChildNode(int cid);

@@ -17,6 +17,8 @@ class ComputeTask {
       _dstlist = dstlist;
       _coefs = coefs;
     }
+    ~ComputeTask() {
+    }
 };
 
 /*

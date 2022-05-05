@@ -12,10 +12,11 @@ StripeStore::StripeStore(Config* conf) {
     cout << fullpath << endl;
     vector<string> splititem = DistUtil::splitStr(item, ".");
     StripeMeta* meta = new StripeMeta(splititem[0], fullpath); 
-    _stripeMetaMap.insert(make_pair(item, meta));
+    string stripename = meta->getStripeName();
+    _stripeMetaMap.insert(make_pair(stripename, meta));
 
     for (string blkname: meta->getBlockList()) {
-      _blk2stripe.insert(make_pair(blkname, item));
+      _blk2stripe.insert(make_pair(blkname, stripename));
     }
   }
 
@@ -71,6 +72,14 @@ StripeMeta* StripeStore::getStripeMetaFromBlockName(string blockname) {
     toret = _stripeMetaMap[stripename];
   }
 
+  return toret;
+}
+
+StripeMeta* StripeStore::getStripeMetaFromStripeName(string stripename) {
+  StripeMeta* toret = NULL;
+  if (_stripeMetaMap.find(stripename) != _stripeMetaMap.end()) {
+    toret = _stripeMetaMap[stripename];
+  }
   return toret;
 }
 

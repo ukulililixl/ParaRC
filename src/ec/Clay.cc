@@ -107,48 +107,48 @@ int Clay::pow_int(int a, int x) {
     return power;
 }
 
-//void Clay::get_erasure_coordinates(vector<int> erased_chunk,
-//        Erasure_t** erasures) {
-//    int eclen=erased_chunk.size();
-//    for (int idx=0; idx<eclen; idx++) {
-//        int i=erased_chunk[idx];
-//        int x = i%_q;
-//        int y = i/_q;
-//        erasures[idx] = new Erasure_t(x, y);
-//    }
-//}
-//
-//void Clay::get_weight_vector(Erasure_t** erasures,
-//        int* weight_vec) {
-//    int i;
-//    memset(weight_vec, 0, sizeof(int)*_t);
-//    for (i=0; i<_m; i++) {
-//        weight_vec[erasures[i]->_y]++;
-//    }
-//}
-//
-//int Clay::get_hamming_weight(int* weight_vec) {
-//    int i;
-//    int weight=0;
-//    for (i=0; i<_t; i++) {
-//        if (weight_vec[i] != 0) weight++;
-//    }
-//    return weight;
-//}
-//
-//void Clay::set_planes_sequential_decoding_order(int* order, Erasure_t** erasures) {
-//    int z, i;
-//    int z_vec[_t];
-//    for (z=0; z<_sub_chunk_no; z++) {
-//        get_plane_vector(z, z_vec);
-//        order[z] = 0;
-//        for (i=0; i<_m; i++) {
-//            if (erasures[i]->_x == z_vec[erasures[i]->_y]) {
-//                order[z] = order[z]+1;
-//            }
-//        }
-//    }
-//}
+void Clay::get_erasure_coordinates(vector<int> erased_chunk,
+        Erasure_t** erasures) {
+    int eclen=erased_chunk.size();
+    for (int idx=0; idx<eclen; idx++) {
+        int i=erased_chunk[idx];
+        int x = i%_q;
+        int y = i/_q;
+        erasures[idx] = new Erasure_t(x, y);
+    }
+}
+
+void Clay::get_weight_vector(Erasure_t** erasures,
+        int* weight_vec) {
+    int i;
+    memset(weight_vec, 0, sizeof(int)*_t);
+    for (i=0; i<_m; i++) {
+        weight_vec[erasures[i]->_y]++;
+    }
+}
+
+int Clay::get_hamming_weight(int* weight_vec) {
+    int i;
+    int weight=0;
+    for (i=0; i<_t; i++) {
+        if (weight_vec[i] != 0) weight++;
+    }
+    return weight;
+}
+
+void Clay::set_planes_sequential_decoding_order(int* order, Erasure_t** erasures) {
+    int z, i;
+    int z_vec[_t];
+    for (z=0; z<_sub_chunk_no; z++) {
+        get_plane_vector(z, z_vec);
+        order[z] = 0;
+        for (i=0; i<_m; i++) {
+            if (erasures[i]->_x == z_vec[erasures[i]->_y]) {
+                order[z] = order[z]+1;
+            }
+        }
+    }
+}
 
 void Clay::get_plane_vector(int z, int* z_vec) {
     int i;
@@ -158,133 +158,133 @@ void Clay::get_plane_vector(int z, int* z_vec) {
     }
 }
 
-//ECDAG* Clay::Encode() {
-//    ECDAG* ecdag = new ECDAG();
-//
-//    vector<int> erased_chunks;
-//    
-//    // xiaolu comment
-//    for (int idx=_k+_nu; idx<_n+_nu; idx++) {
-//        erased_chunks.push_back(idx);
-//    }
-//
-//    int i;
-//    int x, y;
-//    int hm_w;
-//    int z, node_xy, node_sw;
-//
-//    int num_erasures = erased_chunks.size();
-//    assert(num_erasures > 0);
-//    assert(num_erasures == _m);
-//
-//    Erasure_t** erasures = (Erasure_t**)calloc(num_erasures, sizeof(Erasure_t*));
-//    int weight_vec[_t];
-//
-//    // get the (x, y) coordinate of a node_xy
-//    get_erasure_coordinates(erased_chunks, erasures);
-//    cout << "Clay::decode_layered() erasures:" << endl;
-//    for (int i=0; i<num_erasures; i++) {
-//        cout << " ";
-//        erasures[i]->dump();
-//    }
-//
-//    // get the number of failures in each y
-//    get_weight_vector(erasures, weight_vec);
-//
-//    cout << "Clay::decode_layered() weight_vector: " ;
-//    for (int i=0; i<_t; i++) cout << weight_vec[i] << " ";
-//    cout << endl;
-//
-//    // get the number of non-zero bit in the weight vector
-//    int max_weight = get_hamming_weight(weight_vec);
-//    cout << "Clay::decode_layered() max_weight: " << max_weight << endl;
-//
-//    // the number of unpaired symbols in each plane
-//    int order[_sub_chunk_no];
-//    int z_vec[_t];
-//    
-//    // in each plane, get the number of symbols that are unpaired from the node that we should
-//    // encode
-//    set_planes_sequential_decoding_order(order, erasures);
-//
-//    cout << "Clay::decode_layer() order: ";
-//    for (int j=0; j<_sub_chunk_no; j++) cout << order[j] << " ";
-//    cout << endl;
-//
-//    for (hm_w = 0; hm_w <= max_weight; hm_w++) {
-//        for (z = 0; z < _sub_chunk_no; z++) {
-//            if (order[z]==hm_w) {
-//                // for available nodes, we get uncoupled data from coupled data
-//                // only used in encode_chunks
-//                decode_erasures(erased_chunks, z, ecdag);
-//            }
-//        }
-//
-//        // from uncoupled to coupled data
-//        for (z=0; z<_sub_chunk_no; z++) {
-//            if (order[z] == hm_w) {
-//                get_plane_vector(z,z_vec);
-//                for (i = 0; i<num_erasures; i++) {
-//                    x = erasures[i]->_x;
-//                    y = erasures[i]->_y;
-//                    node_xy = y*_q+x;
-//                    node_sw = y*_q+z_vec[y];
-//
-//                    if (z_vec[y] == x) {
-//                        int uncoupled_idx = node_xy * _w + z + (_n+_nu) * _w;
-//                        int coupled_idx = node_xy * _w + z;
-//                        //ecdag->Join(coupled_idx, {uncoupled_idx}, {1});
-//                        
-//                        int real_coupled_idx = get_real_from_short(coupled_idx);
-//                        int real_uncoupled_idx = get_real_from_short(uncoupled_idx);
-//
-////                        cout << "239::old: Join(" << coupled_idx << "; [" << uncoupled_idx << "])" << endl;
-//                        ecdag->Join(real_coupled_idx, {real_uncoupled_idx}, {1});
-//                    
-//                    } else if (z_vec[y] < x) {
-//                        get_coupled_from_uncoupled(x, y, z, z_vec, ecdag);
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    return ecdag;
-//}
-//
-//void Clay::decode_erasures(vector<int> erased_chunks, int z, ECDAG* ecdag) {
-//    int x, y;
-//    int node_xy, node_sw;
-//    int z_vec[_t];
-//
-//    get_plane_vector(z,z_vec);
-//
-//    for (x=0; x < _q; x++) {
-//        for (y=0; y < _t; y++) {
-//            node_xy = _q*y+x;
-//            node_sw = _q*y+z_vec[y];
-//
-//            if (find(erased_chunks.begin(), erased_chunks.end(), node_xy) == erased_chunks.end()) {
-//                if (z_vec[y] < x) {
-//                    // this symbol should be paired
-//                    get_uncoupled_from_coupled(x, y, z, z_vec, ecdag);
-//                } else if (z_vec[y] == x) {
-//                    // we color this symbol, directly copy content from coupled buffers
-//                    int coupled_idx = node_xy * _w + z;
-//                    int uncoupled_idx = coupled_idx + (_n+_nu) * _w;
-//                    //ecdag->Join(uncoupled_idx, {coupled_idx}, {1});
-//
-//                    int real_coupled_idx = get_real_from_short(coupled_idx);
-//                    int real_uncoupled_idx = get_real_from_short(uncoupled_idx);
-//
-////                    cout << "278::old: Join(" << uncoupled_idx << "; [" << coupled_idx << "])" << endl;
-//                    ecdag->Join(real_uncoupled_idx, {real_coupled_idx}, {1});
-//                }
-//            }
-//        }
-//    }
-//    decode_uncoupled(erased_chunks, z, ecdag);
-//}
+ECDAG* Clay::Encode() {
+    ECDAG* ecdag = new ECDAG();
+
+    vector<int> erased_chunks;
+    
+    // xiaolu comment
+    for (int idx=_k+_nu; idx<_n+_nu; idx++) {
+        erased_chunks.push_back(idx);
+    }
+
+    int i;
+    int x, y;
+    int hm_w;
+    int z, node_xy, node_sw;
+
+    int num_erasures = erased_chunks.size();
+    assert(num_erasures > 0);
+    assert(num_erasures == _m);
+
+    Erasure_t** erasures = (Erasure_t**)calloc(num_erasures, sizeof(Erasure_t*));
+    int weight_vec[_t];
+
+    // get the (x, y) coordinate of a node_xy
+    get_erasure_coordinates(erased_chunks, erasures);
+    cout << "Clay::decode_layered() erasures:" << endl;
+    for (int i=0; i<num_erasures; i++) {
+        cout << " ";
+        erasures[i]->dump();
+    }
+
+    // get the number of failures in each y
+    get_weight_vector(erasures, weight_vec);
+
+    cout << "Clay::decode_layered() weight_vector: " ;
+    for (int i=0; i<_t; i++) cout << weight_vec[i] << " ";
+    cout << endl;
+
+    // get the number of non-zero bit in the weight vector
+    int max_weight = get_hamming_weight(weight_vec);
+    cout << "Clay::decode_layered() max_weight: " << max_weight << endl;
+
+    // the number of unpaired symbols in each plane
+    int order[_sub_chunk_no];
+    int z_vec[_t];
+    
+    // in each plane, get the number of symbols that are unpaired from the node that we should
+    // encode
+    set_planes_sequential_decoding_order(order, erasures);
+
+    cout << "Clay::decode_layer() order: ";
+    for (int j=0; j<_sub_chunk_no; j++) cout << order[j] << " ";
+    cout << endl;
+
+    for (hm_w = 0; hm_w <= max_weight; hm_w++) {
+        for (z = 0; z < _sub_chunk_no; z++) {
+            if (order[z]==hm_w) {
+                // for available nodes, we get uncoupled data from coupled data
+                // only used in encode_chunks
+                decode_erasures(erased_chunks, z, ecdag);
+            }
+        }
+
+        // from uncoupled to coupled data
+        for (z=0; z<_sub_chunk_no; z++) {
+            if (order[z] == hm_w) {
+                get_plane_vector(z,z_vec);
+                for (i = 0; i<num_erasures; i++) {
+                    x = erasures[i]->_x;
+                    y = erasures[i]->_y;
+                    node_xy = y*_q+x;
+                    node_sw = y*_q+z_vec[y];
+
+                    if (z_vec[y] == x) {
+                        int uncoupled_idx = node_xy * _w + z + (_n+_nu) * _w;
+                        int coupled_idx = node_xy * _w + z;
+                        //ecdag->Join(coupled_idx, {uncoupled_idx}, {1});
+                        
+                        int real_coupled_idx = get_real_from_short(coupled_idx);
+                        int real_uncoupled_idx = get_real_from_short(uncoupled_idx);
+
+//                        cout << "239::old: Join(" << coupled_idx << "; [" << uncoupled_idx << "])" << endl;
+                        ecdag->Join(real_coupled_idx, {real_uncoupled_idx}, {1});
+                    
+                    } else if (z_vec[y] < x) {
+                        get_coupled_from_uncoupled(x, y, z, z_vec, ecdag);
+                    }
+                }
+            }
+        }
+    }
+
+    return ecdag;
+}
+
+void Clay::decode_erasures(vector<int> erased_chunks, int z, ECDAG* ecdag) {
+    int x, y;
+    int node_xy, node_sw;
+    int z_vec[_t];
+
+    get_plane_vector(z,z_vec);
+
+    for (x=0; x < _q; x++) {
+        for (y=0; y < _t; y++) {
+            node_xy = _q*y+x;
+            node_sw = _q*y+z_vec[y];
+
+            if (find(erased_chunks.begin(), erased_chunks.end(), node_xy) == erased_chunks.end()) {
+                if (z_vec[y] < x) {
+                    // this symbol should be paired
+                    get_uncoupled_from_coupled(x, y, z, z_vec, ecdag);
+                } else if (z_vec[y] == x) {
+                    // we color this symbol, directly copy content from coupled buffers
+                    int coupled_idx = node_xy * _w + z;
+                    int uncoupled_idx = coupled_idx + (_n+_nu) * _w;
+                    //ecdag->Join(uncoupled_idx, {coupled_idx}, {1});
+
+                    int real_coupled_idx = get_real_from_short(coupled_idx);
+                    int real_uncoupled_idx = get_real_from_short(uncoupled_idx);
+
+//                    cout << "278::old: Join(" << uncoupled_idx << "; [" << coupled_idx << "])" << endl;
+                    ecdag->Join(real_uncoupled_idx, {real_coupled_idx}, {1});
+                }
+            }
+        }
+    }
+    decode_uncoupled(erased_chunks, z, ecdag);
+}
 
 vector<int> Clay::get_uncoupled_from_coupled(int x, int y, int z, int* z_vec, ECDAG* ecdag) {
 
@@ -356,77 +356,77 @@ vector<int> Clay::get_uncoupled_from_coupled(int x, int y, int z, int* z_vec, EC
     return toret;
 }
 
-//void Clay::get_coupled_from_uncoupled(int x, int y, int z, int* z_vec, ECDAG* ecdag) {
-//
-//    // the coupled index are 0, 1
-//    // the uncoupled index are 2, 3
-//    // 0, 2 refer to the node where z[y] < x
-//
-//    memset(_pft_encode_matrix, 0, CLAYPFT_N_MAX * CLAYPFT_N_MAX * sizeof(int));
-//    generate_matrix(_pft_encode_matrix, _pft_k+_pft_m, _pft_k, 8);
-//
-//    int node_xy = y*_q+x;
-//    int z_xy = z;
-//    assert(z_vec[y] < x);
-//
-//    int node_sw = y*_q+z_vec[y]; 
-//    int z_sw = z + (x - z_vec[y]) * pow_int(_q,_t-1-y);
-//
-//    vector<int> data;
-//    vector<int> code; 
-//
-//    int idx0 = node_xy * _w + z_xy;
-//    int idx1 = node_sw * _w + z_sw;
-//    int idx2 = idx0 + (_n+_nu) * _w;
-//    int idx3 = idx1 + (_n+_nu) * _w;
-//
-//    data.push_back(idx2);
-//    data.push_back(idx3);
-//
-//    vector<int> select_lines = {2, 3};
-//    int _select_matrix[_pft_k*_pft_k];
-//    for (int i=0; i<_pft_k; i++) {
-//        int sidx = select_lines[i];
-//        memcpy(_select_matrix + i * _pft_k,
-//                _pft_encode_matrix + sidx * _pft_k,
-//                sizeof(int) * _pft_k);
-//    }
-//
-//    int _invert_matrix[_pft_k*_pft_k];
-//    jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
-//
-//    // calculate idx0
-//    vector<int> coef0;
-//    for (int i=0; i<2; i++) {
-//        int curcoef = _invert_matrix[i];
-//        coef0.push_back(curcoef);
-//    }
-//    //ecdag->Join(idx0, data, coef0);
-//
-//    int real_idx0 = get_real_from_short(idx0);
-//    vector<int> realdata;
-//    for (auto tmpidx: data) {
-//        int tmprealidx = get_real_from_short(tmpidx);
-//        realdata.push_back(tmprealidx);
-//    }
-//
-////    cout << "405::old: Join(" << idx0 << "; [" << data[0] << ", " << data[1] << "])" << endl;
-//    ecdag->Join(real_idx0, realdata, coef0);
-//
-//    // calculate idx1
-//    vector<int> coef1;
-//    for (int i=0; i<2; i++) {
-//        int curcoef = _invert_matrix[2+i];
-//        coef1.push_back(curcoef);
-//    }
-//    //ecdag->Join(idx1, data, coef1);
-//
-//    int real_idx1 = get_real_from_short(idx1);
-////    cout << "417::old: Join(" << idx1 << "; [" << data[0] << ", " << data[1] << "])" << endl;
-//    ecdag->Join(real_idx1, realdata, coef1);
-//
-//    //ecdag->BindX({idx0, idx1});
-//}
+void Clay::get_coupled_from_uncoupled(int x, int y, int z, int* z_vec, ECDAG* ecdag) {
+
+    // the coupled index are 0, 1
+    // the uncoupled index are 2, 3
+    // 0, 2 refer to the node where z[y] < x
+
+    memset(_pft_encode_matrix, 0, CLAYPFT_N_MAX * CLAYPFT_N_MAX * sizeof(int));
+    generate_matrix(_pft_encode_matrix, _pft_k+_pft_m, _pft_k, 8);
+
+    int node_xy = y*_q+x;
+    int z_xy = z;
+    assert(z_vec[y] < x);
+
+    int node_sw = y*_q+z_vec[y]; 
+    int z_sw = z + (x - z_vec[y]) * pow_int(_q,_t-1-y);
+
+    vector<int> data;
+    vector<int> code; 
+
+    int idx0 = node_xy * _w + z_xy;
+    int idx1 = node_sw * _w + z_sw;
+    int idx2 = idx0 + (_n+_nu) * _w;
+    int idx3 = idx1 + (_n+_nu) * _w;
+
+    data.push_back(idx2);
+    data.push_back(idx3);
+
+    vector<int> select_lines = {2, 3};
+    int _select_matrix[_pft_k*_pft_k];
+    for (int i=0; i<_pft_k; i++) {
+        int sidx = select_lines[i];
+        memcpy(_select_matrix + i * _pft_k,
+                _pft_encode_matrix + sidx * _pft_k,
+                sizeof(int) * _pft_k);
+    }
+
+    int _invert_matrix[_pft_k*_pft_k];
+    jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+
+    // calculate idx0
+    vector<int> coef0;
+    for (int i=0; i<2; i++) {
+        int curcoef = _invert_matrix[i];
+        coef0.push_back(curcoef);
+    }
+    //ecdag->Join(idx0, data, coef0);
+
+    int real_idx0 = get_real_from_short(idx0);
+    vector<int> realdata;
+    for (auto tmpidx: data) {
+        int tmprealidx = get_real_from_short(tmpidx);
+        realdata.push_back(tmprealidx);
+    }
+
+//    cout << "405::old: Join(" << idx0 << "; [" << data[0] << ", " << data[1] << "])" << endl;
+    ecdag->Join(real_idx0, realdata, coef0);
+
+    // calculate idx1
+    vector<int> coef1;
+    for (int i=0; i<2; i++) {
+        int curcoef = _invert_matrix[2+i];
+        coef1.push_back(curcoef);
+    }
+    //ecdag->Join(idx1, data, coef1);
+
+    int real_idx1 = get_real_from_short(idx1);
+//    cout << "417::old: Join(" << idx1 << "; [" << data[0] << ", " << data[1] << "])" << endl;
+    ecdag->Join(real_idx1, realdata, coef1);
+
+    //ecdag->BindX({idx0, idx1});
+}
 
 vector<int> Clay::get_coupled1_from_pair02(int x, int y, int z, int* z_vec, ECDAG* ecdag) {
 

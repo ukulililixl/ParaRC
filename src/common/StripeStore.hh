@@ -91,6 +91,7 @@ class StripeStore {
     StripeStore(Config* conf);
 
     StripeMeta* getStripeMetaFromBlockName(string blockname);
+    StripeMeta* getStripeMetaFromStripeName(string stripename);
     void lockLoadVector();
     void unlockLoadVector();
     void getLoadValueFor(LoadVector* lv);

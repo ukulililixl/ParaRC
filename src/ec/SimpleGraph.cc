@@ -69,10 +69,18 @@ string SimpleGraph::dumpStr() {
   for (auto cid: _childs)
     toret += to_string(cid) + " ";
   toret += "); ";
-  toret += "parents: ( ";
-  for (auto pid: _parents)
-    toret += to_string(pid) + " ";
-  toret += "); ";
+  for (auto pid: _parents) {
+    toret += "parent " + to_string(pid) + ", coefs: ";
+    vector<int> coef = _coefs[pid];
+    for (int i=0; i<coef.size(); i++) {
+      toret += to_string(coef[i]) + " ";
+    }
+    cout << ";";
+  }
+  //toret += "parents: ( ";
+  //for (auto pid: _parents)
+  //  toret += to_string(pid) + " ";
+  //toret += "); ";
   return toret;
 }
 

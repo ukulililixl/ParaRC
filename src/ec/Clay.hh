@@ -47,19 +47,19 @@ class Clay: public ECBase {
 
         void generate_matrix(int* matrix, int rows, int cols, int w);
         int pow_int(int a, int x);
-//        void get_erasure_coordinates(vector<int> erased_chunk, Erasure_t** erasures);
-//        void get_weight_vector(Erasure_t** erasures, int* weight_vec);
-//        int get_hamming_weight(int* weight_vec);
-//        void set_planes_sequential_decoding_order(int* order, Erasure_t** erasures);
+        void get_erasure_coordinates(vector<int> erased_chunk, Erasure_t** erasures);
+        void get_weight_vector(Erasure_t** erasures, int* weight_vec);
+        int get_hamming_weight(int* weight_vec);
+        void set_planes_sequential_decoding_order(int* order, Erasure_t** erasures);
         void get_plane_vector(int z, int* z_vec);
-//
-//        void decode_erasures(vector<int> erased_chunks, int z, ECDAG* ecdag);
+
+        void decode_erasures(vector<int> erased_chunks, int z, ECDAG* ecdag);
         vector<int> get_uncoupled_from_coupled(int x, int y, int z, int* z_vec, ECDAG* ecdag);
         vector<int> decode_uncoupled(vector<int> erased_chunks, int z, ECDAG* ecdag);
-//        void get_coupled_from_uncoupled(int x, int y, int z, int* z_vec, ECDAG* ecdag);
-//
-//        void print_matrix(int* matrix, int row, int col);
-//
+        void get_coupled_from_uncoupled(int x, int y, int z, int* z_vec, ECDAG* ecdag);
+
+        void print_matrix(int* matrix, int row, int col);
+
         int is_repair(vector<int> want_to_read, vector<int> avail);
         void minimum_to_repair(vector<int> want_to_read, vector<int> available_chunks, unordered_map<int, vector<pair<int, int>>>& minimum);
         void get_repair_subchunks(int lost_node, vector<pair<int, int>> &repair_sub_chunks_ind);
@@ -80,7 +80,7 @@ class Clay: public ECBase {
         Clay(int n, int k, int w, vector<string> param);
 //        Clay(int n, int k, int w, int opt, vector<string> param);
 //
-//        ECDAG* Encode();
+        ECDAG* Encode();
         ECDAG* Decode(vector<int> from, vector<int> to);
 //        void Place(vector<vector<int>>& group);
 //        void Shorten(unordered_map<int, int>& shortening);

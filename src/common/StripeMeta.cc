@@ -1,7 +1,7 @@
 #include "StripeMeta.hh"
 
 StripeMeta::StripeMeta(std::string& stripename, std::string& filepath) {
-  _stripeName = stripename;
+  //_stripeName = stripename;
 
   XMLDocument doc;
   doc.LoadFile(filepath.c_str());
@@ -23,6 +23,8 @@ StripeMeta::StripeMeta(std::string& stripename, std::string& filepath) {
     } else if (attName == "ecw") {
       _ecW = std::stoi(ele -> NextSiblingElement("value") -> GetText());
       //std::cout << "ecw: " << _ecW << std::endl;
+    } else if (attName == "stripename") {
+      _stripeName = std::string(ele -> NextSiblingElement("value") -> GetText());
     } else if (attName == "blocklist") {
       for (ele = ele -> NextSiblingElement("value"); ele != NULL; ele = ele -> NextSiblingElement("value")) {
         std::string tmps = ele -> GetText();

@@ -60,11 +60,12 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
 
   unsigned int clientIp = coorCmd->getClientIp();
   string blockName = coorCmd->getBlockName();
-
+  
   // 0. figure out the stripe that contains this block
   StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
   string stripename = stripemeta->getStripeName();
   assert(stripemeta != NULL);
+  cout << "111" << endl;
 
   int repairBlockIdx = stripemeta->getBlockIndex(blockName);
   int ecn = stripemeta->getECN();

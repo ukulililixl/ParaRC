@@ -74,7 +74,7 @@ for node in cluster:
     #line="<attribute><name>ec.concurrent.num</name><value>15</value></attribute>\n"
     #content.append(line)
 
-    fspath="/home/xiaolu/HDFS/hadoop-3.0.0-src/hadoop-dist/target/hadoop-3.0.0/dfs/data/current/BP-1802938661-192.168.3.123-1648717182846/current/finalized/subdir0/subdir0"
+    fspath="/home/xiaolu/HDFS/hadoop-3.0.0-src/hadoop-dist/target/hadoop-3.0.0/dfs/data/current/BP-213413475-192.168.3.123-1649731498928/current/finalized/subdir0/subdir0"
     line="<attribute><name>block.directory</name><value>"+fspath+"</value></attribute>"
     content.append(line)
 

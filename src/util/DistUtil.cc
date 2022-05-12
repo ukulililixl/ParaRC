@@ -71,3 +71,34 @@ double DistUtil::variance(vector<int> list, double mean) {
 
   return sum / (list.size() - 2);
 }
+
+int DistUtil::ndigits(int m) {
+    int digits = 0;
+    while (m>0) {
+        digits++;
+        m=m/10;
+    }
+    return digits;
+}
+
+string DistUtil::num2str(int num, int digits) {
+    string toret;
+    while (num>0) {
+        int r = num % 10;
+        toret = to_string(r) + toret;
+        num = num/10;
+    }
+    while (toret.length() < digits) {
+        toret = "0"+toret;
+    }
+    return toret;
+}
+
+string DistUtil::vec2str(vector<int> v, int digits) {
+    string toret;
+ 
+    for (int i=0; i<v.size(); i++) {
+        toret += DistUtil::num2str(v[i], digits);
+    } 
+    return toret;
+}

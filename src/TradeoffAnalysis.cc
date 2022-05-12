@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
     curres.push_back(-1);
 
   enumerate_combinations(enumres, curres, 0, itm_idx.size(), candidates); 
-  //cout << "the number of combinations: " << enumres.size() << endl;
+  cout << "the number of combinations: " << enumres.size() << endl;
 
   //for (int i=0; i<enumres.size(); i++) {
   //  cout << "res[" << i << "]: ";
@@ -181,8 +181,8 @@ int main(int argc, char** argv) {
 
   unordered_map<int, vector<int>> max2bwlist;
   for (int i=0; i<enumres.size(); i++) {
-    //if (i%10000 == 0)
-    //  cout << "solution: " << i << endl;
+    if (i%10000 == 0)
+      cout << "solution: " << i << endl;
     // for each coloring method, merge ECUnits into ECClusters
     vector<int> curres = enumres[i];
 

@@ -14,6 +14,9 @@ class DistUtil {
     static vector<string> listFiles(string dirpath);
     static double average(vector<int> list);
     static double variance(vector<int> list, double mean);
+    static int ndigits(int m);
+    static string num2str(int num, int digits);
+    static string vec2str(vector<int> v, int digits);
 };
 
 

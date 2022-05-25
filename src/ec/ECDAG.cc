@@ -247,7 +247,7 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring) {
       else
         outref[cidx]++;
     }
-    // increate inref for current node by childlist.size();
+    // increase inref for current node by childlist.size();
     inref.insert(make_pair(nodeId, childlist.size()));
   }
 

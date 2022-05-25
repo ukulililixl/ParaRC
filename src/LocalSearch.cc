@@ -87,60 +87,76 @@ void get_line(int x1, int y1, int x2, int y2, double* a, double* c) {
     *a = (double)(*c-y1)/(double)x1;
 }
 
-void expand(BlockingQueue<Solution*>* queue, int targeth, double C, int MAXLOAD, 
-        unordered_map<string, bool>& visited, unordered_map<int, Solution*>& horizon,
+BlockingQueue<Solution*>* getLongestQueue(unordered_map<int, BlockingQueue<Solution*>*> queuemap) {
+    BlockingQueue<Solution*>* toret;
+    long long len = -1;
+
+    for (auto item: queuemap) {
+        BlockingQueue<Solution*>* q = item.second;
+        if (len == -1) {
+            toret = q;
+            len = q->getSize();
+        } else {
+            if (q->getSize() > len) {
+                toret = q;
+                len = q->getSize();
+            }
+        }
+    }
+    return toret;
+}
+
+void expand(unordered_map<int, Solution*>& horizon, unordered_map<int, BlockingQueue<Solution*>*>& queuemap,
+        unordered_map<int, int>& load2bdwt, unordered_map<string, int>& visited,
         unordered_map<int, int> sidx2ip, vector<int> itm_idx, ECDAG* ecdag,
-        int v, int m, double a, int digits) {
-    // before a solution is added to a queue, we are sure that
-    int qsize = queue->getSize();
+        int v, int m, double a, int digits, double naive_maxload) {
+    // once a solution is generated, it is added into the queuemap,
+    // corresponding load2bdwt is updated, and it is marked as visisted.
+    // Thus, the init solution has been initialized in each data structure
 
-    while (queue->getSize()) {
-        Solution* cur_solution = queue->pop();
-        // cout << "pop " << cur_solution->getString() << endl;
-        
-        // 1. calculate stat
-        int cur_bdwt, cur_maxload;
-        stat(sidx2ip, cur_solution->getSolution(), itm_idx, ecdag, &cur_bdwt, &cur_maxload);
-        int cur_h = cur_solution->getH(cur_maxload, cur_bdwt);
-        // cout << "  h: " << cur_h << endl;
+    while (true) {
+        // 1. find out the queue that has the maximum size
+        BlockingQueue<Solution*>* cur_queue = getLongestQueue(queuemap);
+        if (cur_queue->getSize() == 0){
+            // all the solution has been processed
+            break;
+        }
 
-        // 2. check whether to expand this solution
-        if (cur_h > targeth) {
-            // we are not interested in this solution, give up expanding it
-            // cout << "  cur_h " << cur_h << " is larger than targeth " << targeth << ", drop it" << endl;
+        // 2. find the solution in which the bdwt equals to the min
+        assert(cur_queue->getSize() == 1);
+        Solution* cur_solution = cur_queue->pop();
+        int cur_maxload = cur_solution->getMaxLoad();
+        int cur_bdwt = cur_solution->getBdwt();
+        int cur_queuemin = load2bdwt[cur_maxload];
+        assert(cur_queuemin == cur_bdwt);
+        //cout << cur_solution->getString() << " - maxload: " << cur_maxload << ", bdwt: " << cur_bdwt << ", qsize: " << cur_queue->getSize() << ", qmin: " << cur_queuemin << endl;
+
+        // 3. compare the item with horizonbase
+        Solution* horizonbase;
+        bool inserted = false;
+        assert(cur_maxload <= naive_maxload);
+        if (horizon.find(cur_maxload) == horizon.end()) {
+            horizon.insert(make_pair(cur_maxload, cur_solution));
+            inserted = true;
+            cout << "update horizon maxload: " << cur_maxload << ", bdwt: " << cur_bdwt << ", visit.size: " << visited.size() << endl;;
+        } else {
+            horizonbase = horizon[cur_maxload];
+            int oldbdwt = horizonbase->getBdwt();
+            if (cur_bdwt < oldbdwt) {
+                delete horizonbase;
+                horizon[cur_maxload] = cur_solution;
+                inserted = true;
+                cout << "update horizon maxload: " << cur_maxload << " from bdwt: " << oldbdwt << " to bdwt: " << cur_bdwt << ", visited.size: " << visited.size() << endl;
+            }
+        }
+
+        if (!inserted) {
             delete cur_solution;
             continue;
         }
 
-        // 3. update horizon if possible
-        bool inserted = false;
-        if (horizon.find(cur_maxload) == horizon.end()) {
-            if (cur_maxload <= MAXLOAD) {
-                horizon.insert(make_pair(cur_maxload, cur_solution));
-                inserted = true;
-                // cout << "  update horizon[" << cur_maxload << "] with " << cur_solution->getString() << ", load: " << cur_solution->getMaxLoad() << ", bdwt: " << cur_solution->getBdwt() << endl;
-            }
-        } else {
-            if (cur_bdwt < horizon[cur_maxload]->getBdwt()) {
-                inserted = true;
-                // cout << "  old horizon[" << cur_maxload << "] :" 
-                //     << horizon[cur_maxload]->getString() 
-                //     << ", load: " << horizon[cur_maxload]->getMaxLoad() 
-                //     << ", bdwt: " << horizon[cur_maxload]->getBdwt() << endl;
-
-                delete horizon[cur_maxload];
-                horizon[cur_maxload] = cur_solution;
-                // cout << "  new horizon[" << cur_maxload << "] :" 
-                //     << horizon[cur_maxload]->getString() 
-                //     << ", load: " << horizon[cur_maxload]->getMaxLoad() 
-                //     << ", bdwt: " << horizon[cur_maxload]->getBdwt() << endl;
-            }
-        }
-
-        // now we have a solution that <= targeth
-        // 4. get all the expansions of the current solution
+        // 4. expand the current solution
         vector<int> cur_coloring = cur_solution->getSolution();
-        // cout << "  expand: " << endl;
         for (int i=0; i<v; i++) {
             int oldv = cur_coloring[i];
             for (int j=0; j<m; j++) {
@@ -148,92 +164,168 @@ void expand(BlockingQueue<Solution*>* queue, int targeth, double C, int MAXLOAD,
                     continue;
                 // update the coloring of one vertex
                 cur_coloring[i] = j;
+                Solution* next = new Solution(v, m, a, cur_coloring);
+                string tmps = next->getString();
+
                 // check whether this solution has been visited
-                string tmps = DistUtil::vec2str(cur_coloring, digits);
                 if (visited.find(tmps) != visited.end()) {
                     // this solution has been visited before, giveup
-                    // cout << "    " << tmps << " has been visited" << endl;
+                    //cout << "    " << tmps << " has been visited" << endl;
+                    delete next;
                 } else {
-                    // this solution hasn't been visited before, generate a new
-                    // solution and add to queue
-                    Solution* next = new Solution(v, m, a, cur_coloring);
-                    queue->push(next);
+                    // this solution hasn't been visited before 
+                    int next_bdwt, next_maxload, next_h;
+                    stat(sidx2ip, next->getSolution(), itm_idx, ecdag, &next_bdwt, &next_maxload);
+                    next_h = next->getH(next_maxload, next_bdwt);
                     visited.insert(make_pair(tmps, 1));
-                    // cout << "    add " << tmps << " to queue for further validating" << endl;
+
+                    // check with load2bdwt
+                    if (load2bdwt.find(next_maxload) == load2bdwt.end()) {
+                        // we find a new maxload
+                        if (next_maxload <= naive_maxload) {
+                            load2bdwt.insert(make_pair(next_maxload, next_bdwt));
+                            // create new queue
+                            BlockingQueue<Solution*>* next_queue = new BlockingQueue<Solution*>();
+                            next_queue->push(next);
+                            queuemap.insert(make_pair(next_maxload, next_queue));
+                            // cout << "  update queue " << next_maxload << ", min " << next_bdwt << endl;
+                        } else {
+                            // maxload is too large
+                            delete next;
+                        }
+                    } else {
+                        assert(next_maxload <= naive_maxload);
+                        int next_queuemin = load2bdwt[next_maxload];
+                        // compare with min
+                        if (next_bdwt > next_queuemin) {
+                            // bdwt is too high
+                            delete next;
+                        } else if (next_bdwt == next_queuemin) {
+                            // ignore it
+                            delete next;
+                        } else {
+                            // update min and queuemap
+                            load2bdwt[next_maxload] = next_bdwt;
+                            // get the queue
+                            BlockingQueue<Solution*>* next_queue = queuemap[next_maxload];
+                            while (next_queue->getSize()) {
+                                Solution* tmp_solution = next_queue->pop();
+                                delete tmp_solution;
+                            }
+                            next_queue->push(next);
+                            // cout << "  update queue " << next_maxload << ", min from " << next_queuemin << " to " << next_bdwt << endl;
+                        }
+                    }
                 }
                 // revert
                 cur_coloring[i] = oldv;
             }
         }
-
-        // 5. update targeth if possible
-        if (cur_h < targeth && cur_h >= C) {
-            targeth = cur_h;
-            // cout << "  targeth: " << targeth << endl;
-        }
-
-        if (!inserted)
-            delete cur_solution;
     }
 }
 
-unordered_map<int, Solution*> LocalSearch(int rounds, vector<int> itm_idx, vector<int> candidates, double a, 
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag, double C, int MAXLOAD,
-        unordered_map<string, bool>& VISITED) {
-    // in each round, we randomly select a solution and expand from this solution
-    // we add a solution to visited once we have detected it, no matter whether
-    // it matches our goal.
-    //unordered_map<string, bool> visited;
-    // always keep the min h Solution in horizon for each bdwt
-    unordered_map<int, Solution*> horizon;
-    // on push: if the item hasn't been processed before
-    // on pop: 
-    //   calculate the stat for the current solution
-    //   update horizon if possible
-    //   if h is less or equal to our target, we expand this solution. If a combination
-    //       in the exansion hasn't been visited, we add it to the queue; update
-    //       target if it is larger than H, otherwise, do not change.
-    //   if h is larger than our target, we drop it.
-    BlockingQueue<Solution*>* queue = new BlockingQueue<Solution*>();
-    for (int i=0; i<rounds; i++) {
+bool check_horizon(unordered_map<int, Solution*> horizon, double C) {
+    if (horizon.size() == 0)
+        return true;
+
+    for (auto item: horizon) {
+        Solution* cur_solution = item.second;
+        if (cur_solution->getH() > C)
+            return true;
+    }
+
+    return false;
+}
+
+unordered_map<int, Solution*> LocalSearch(double C, double a, double naive_maxload,
+        vector<int> itm_idx, vector<int> candidates,  
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag) {
+
+    unordered_map<int, Solution*> HORIZON;
+
+    while (check_horizon(HORIZON, C)) {
+        // prepare data structures for this search
+        unordered_map<int, Solution*> horizon;
+        unordered_map<int, BlockingQueue<Solution*>*> queuemap; // only keep 1 item in each queue
+        unordered_map<int, int> load2bdwt; // maintains the minimum bdwt
+        unordered_map<string, int> visited; // records whether visited
+
         // randomly select a solution
-        Solution* init_solution;
-        unordered_map<string, bool> visited;
+        Solution* init_solution = new Solution(itm_idx.size(), candidates.size(), a, true);
+        int init_bdwt, init_maxload, init_h;
+        string tmps;
+
         while (true) {
             init_solution = new Solution(itm_idx.size(), candidates.size(), a, true);
-            string tmps = init_solution->getString();
-
-            // we have find a solution that haven't been visited before
-            if (visited.find(tmps) == visited.end()) {
-                queue->push(init_solution);
-                // mark it as visited
-                visited.insert(make_pair(tmps, 1));
+            stat(sidx2ip, init_solution->getSolution(), itm_idx, ecdag, &init_bdwt, &init_maxload);
+            init_h = init_solution->getH(init_maxload, init_bdwt);
+            tmps = init_solution->getString();
+            visited.insert(make_pair(tmps, 1));
+            if (init_maxload <= naive_maxload)
                 break;
-            } else
+            else
                 delete init_solution;
-
         }
 
-        // get h for the initialized solution
-        int init_bdwt, init_maxload;
-        stat(sidx2ip, init_solution->getSolution(), itm_idx, ecdag, &init_bdwt, &init_maxload);
-        int h = init_solution->getH(init_maxload, init_bdwt);
+        // get stat for this solution
         int v = init_solution->getV();
         int m = init_solution->getM();
         int digits = DistUtil::ndigits(m);
-        // now we try to expand
-        // cout << "round: " << i << ", init: " << init_solution->getString() << ", maxload: " << init_maxload << ", bdwt: " << init_bdwt << ", h: " << C << endl;
-        expand(queue, h, C, MAXLOAD, visited, horizon, sidx2ip, itm_idx, ecdag, v, m, a, digits);
 
-        // merge visited to VISITED
-        for (auto item: visited) {
-            if (VISITED.find(item.first) == VISITED.end())
-                VISITED.insert(make_pair(item.first, item.second));
+        // update data structures for this solution
+        BlockingQueue<Solution*>* cur_queue = new BlockingQueue<Solution*>();
+        cur_queue->push(init_solution);
+        queuemap.insert(make_pair(init_maxload, cur_queue));
+        load2bdwt.insert(make_pair(init_maxload, init_bdwt));
+        
+        // now we expand this solution
+        expand(horizon, queuemap, load2bdwt, visited, sidx2ip, itm_idx, ecdag, v, m, a, digits, naive_maxload);
+        cout << "horizon.size: " << horizon.size() << endl;
+
+        cout << "expand ends!!!!!!!!!!!!!!!!!!!!!!!!!!1" << endl;
+
+        // after the expansion, we check whether there are updates in horizon
+        bool update = false;
+        vector<Solution*> toremove;
+        for (auto item: horizon) {
+            int cur_maxload = item.first;
+            Solution* cur_solution = item.second;
+            int cur_bdwt = cur_solution->getBdwt();
+            if (HORIZON.find(cur_maxload) == HORIZON.end()) {
+                HORIZON.insert(make_pair(cur_maxload, cur_solution));
+                update = true;
+            } else {
+                Solution* horizonbase = HORIZON[cur_maxload];
+                if (cur_bdwt < horizonbase->getBdwt()) {
+                    HORIZON[cur_maxload] = cur_solution;
+                    toremove.push_back(horizonbase);
+                    update = true;
+                } else {
+                    toremove.push_back(cur_solution);
+                }
+            }
         }
+
+        for (auto item: HORIZON) {
+            Solution* cur_solution = item.second;
+            int cur_maxload = cur_solution->getMaxLoad();
+            int cur_bdwt = cur_solution->getBdwt();
+            cout << "HORIZON: cur_maxload: " << cur_maxload << ", cur_bdwt: " << cur_bdwt << endl;
+        }
+
+        // free
+        for (auto item: toremove) {
+            delete item;
+        }
+        for (auto item: queuemap) {
+            delete item.second;
+        }
+
+        cout << "Sleep 15s !!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+        this_thread::sleep_for(std::chrono::milliseconds(15000));
     }
-    // after we finish all the rounds, local search ends
-    // return the horizon we get
-    return horizon;
+
+    return HORIZON;
 }
 
 int main(int argc, char** argv) {
@@ -348,17 +440,16 @@ int main(int argc, char** argv) {
 
   // 4. start searching in multiple rounds
 
-  unordered_map<string, bool> visited;
   unordered_map<int, Solution*> horizon = LocalSearch(
-          rounds, itm_idx, candidates, a, sidx2ip, ecdag, C, naive_maxload, visited);
-
-  cout << "The number of solutions visited: " << visited.size() << endl;
-  cout << "The number of solutions in horizon: " << horizon.size() << endl;
+          C, a, naive_maxload, itm_idx, candidates, sidx2ip, ecdag);
 
   for(auto item: horizon) {
       Solution* s = item.second;
       cout << "Solution " << s->getString() << ", maxload: " << s->getMaxLoad() << ", bdwt: " << s->getBdwt() << endl;
+      delete s;
   }
+
+  delete ecdag;
 
   return 0;
 }

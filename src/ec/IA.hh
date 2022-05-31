@@ -5,7 +5,7 @@
 #include "ECBase.hh"
 //#include "ECDAG.hh"
 
-#define IA_MAX 32
+#define IA_MAX 512
 
 using namespace std;
 

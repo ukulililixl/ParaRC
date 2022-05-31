@@ -245,11 +245,29 @@ int main(int argc, char** argv) {
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;
 
+  //for (auto item: max2bwlist) {
+  //  int max = item.first;
+  //  for (auto bw: max2bwlist[max])
+  //    cout << max <<  "\t" << bw << endl;
+  //}
+
+  int min_load = -1;
   for (auto item: max2bwlist) {
-    int max = item.first;
-    for (auto bw: max2bwlist[max])
-      cout << max <<  "\t" << bw << endl;
+      int load = item.first;
+      if (min_load == -1)
+          min_load = load;
+      else if (load < min_load)
+          min_load = load;
   }
 
+  int min_bdwt = -1;
+  for (auto item: max2bwlist[min_load]) {
+      if (min_bdwt == -1)
+          min_bdwt = item;
+      else if (item < min_bdwt)
+          min_bdwt = item;
+  }
+
+  cout << "MLP: (" << min_load << ", " << min_bdwt << ")" << endl;
   return 0;
 }

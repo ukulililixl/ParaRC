@@ -86,6 +86,7 @@ void IA::generate_encoding_matrix() {
 
   // Now we create the lower part of the encoding matrix
   // It is composed of (_k * _k) matrices
+  //cout << "_total_chunk_num: " << _total_chunk_num << ", _sys_chunk_num: " << _sys_chunk_num << endl;
   memset(_ori_encoding_matrix, 0, _total_chunk_num * _sys_chunk_num * sizeof(int));
   for (int i = 0; i < _sys_chunk_num; i++) {
     _ori_encoding_matrix[i * _sys_chunk_num + i] = 1;

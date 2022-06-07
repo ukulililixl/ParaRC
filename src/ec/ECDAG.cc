@@ -28,14 +28,14 @@ ECDAG::~ECDAG() {
 //}
 
 void ECDAG::Join(int pidx, vector<int> cidx, vector<int> coefs) {
-//  // debug start
-//  string msg = "ECDAG::Join(" + to_string(pidx) + ",";
-//  for (int i=0; i<cidx.size(); i++) msg += " "+to_string(cidx[i]);
-//  msg += ",";
-//  for (int i=0; i<coefs.size(); i++) msg += " "+to_string(coefs[i]);
-//  msg += ")";
-//  if (ECDAG_DEBUG_ENABLE) cout << msg << endl;
-//  // debug end
+  // // debug start
+  // string msg = "ECDAG::Join(" + to_string(pidx) + ",";
+  // for (int i=0; i<cidx.size(); i++) msg += " "+to_string(cidx[i]);
+  // msg += ",";
+  // for (int i=0; i<coefs.size(); i++) msg += " "+to_string(coefs[i]);
+  // msg += ")";
+  // if (ECDAG_DEBUG_ENABLE) cout << msg << endl;
+  // // debug end
 
   // 0. deal with childs
   vector<ECNode*> targetChilds;
@@ -217,10 +217,10 @@ void ECDAG::genECUnits() {
     //  break;
   }
 
-//  // debug
-//  for (int i=0; i<_ecUnitList.size(); i++)  {
-//    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
-//  }
+  // debug
+  for (int i=0; i<_ecUnitList.size(); i++)  {
+    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
+  }
 }
 
 void ECDAG::clearECCluster() {
@@ -345,12 +345,12 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring) {
     }
   }
 
-  //// debug the ecclusters
-  //for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
-  //  int clusterid = _ecClusterList[tmpi];
-  //  ECCluster* cluster = _ecClusterMap[clusterid];
-  //  cout << cluster->dump() << endl;
-  //}
+  // // debug the ecclusters
+  // for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
+  //   int clusterid = _ecClusterList[tmpi];
+  //   ECCluster* cluster = _ecClusterMap[clusterid];
+  //   cout << cluster->dump() << endl;
+  // }
 }
 
 void ECDAG::genStat(unordered_map<int, int> coloring, 
@@ -379,6 +379,10 @@ void ECDAG::genStat(unordered_map<int, int> coloring,
     for (auto item: clusterChilds) {
       int ccolor = coloring[item.first];
       //cout << "  cid: " << item.first << ", ccolor: " << ccolor << endl;
+      if (ccolor == -1) {
+          // this is a virtual child, continue
+          continue;
+      }
       if (ccolor != pcolor) {
         if (outmap.find(ccolor) == outmap.end()) {
           outmap.insert(make_pair(ccolor, 1));
@@ -406,11 +410,11 @@ void ECDAG::genSimpleGraph() {
     ECNode* node = item.second;
     refMap.insert(make_pair(nodeId, node->getNumChilds()));
   }
-  cout << "ECDAG::genSimpleGraph.refMap: " << endl;
-  for (auto item: refMap) {
-    cout << "(" << item.first << ", " << item.second << ") ";
-  }
-  cout << endl;
+  // cout << "ECDAG::genSimpleGraph.refMap: " << endl;
+  // for (auto item: refMap) {
+  //   cout << "(" << item.first << ", " << item.second << ") ";
+  // }
+  // cout << endl;
 
   // 1. Each time we search for leaf nodes
   BlockingQueue<int> leaves;
@@ -422,14 +426,14 @@ void ECDAG::genSimpleGraph() {
   int debugnum = 0;
   while (leaves.getSize() > 0) {
     int nodeId = leaves.pop();
-    cout << "Check node " << nodeId << endl;
+    // cout << "Check node " << nodeId << endl;
 
     // get all parent nodes for this node
     ECNode* curNode = _ecNodeMap[nodeId];
     vector<ECNode*> parentNodes = curNode->getParentNodes();
     if (parentNodes.size() == 0) {
-      cout << "Reach the root, exit!" << endl;
-      break;
+      // cout << "  no parent" << endl;
+      continue;
     }
 
     // we first mark it as process, if we cannot process it as this time, mark it as false and put it into the queue 
@@ -437,11 +441,11 @@ void ECDAG::genSimpleGraph() {
     // for each parent, check whether its childs are already in a cluster 
     for (auto pitem: parentNodes) {
       int mypid = pitem->getNodeId();
-      cout << "  mypid: " << mypid << endl;
+      // cout << "  mypid: " << mypid << endl;
 
       // if pid' child number is 0, then we have processed it
       if (refMap[mypid] == 0) {
-        cout << "    mypid " << mypid << " has been processed!" << endl;
+        // cout << "    mypid " << mypid << " has been processed!" << endl;
         process = true;
         continue;
       }
@@ -451,16 +455,16 @@ void ECDAG::genSimpleGraph() {
       vector<int> myChildIds;
       for (auto citem: myChildNodes) 
         myChildIds.push_back(citem->getNodeId());
-      cout << "    myChildIds: ";
-      for (auto cid: myChildIds)
-        cout << cid << " ";
-      cout << endl;
+      // cout << "    myChildIds: ";
+      // for (auto cid: myChildIds)
+      //   cout << cid << " ";
+      // cout << endl;
 
       // check whether each child is a leaf node
       bool proceed = true;
       for (auto cid: myChildIds) {
         if (refMap[cid] != 0) {
-          cout << "    child " << cid << " is not a leaf! cannot proceed with parentid " << mypid << endl;
+          // cout << "    child " << cid << " is not a leaf! cannot proceed with parentid " << mypid << endl;
           proceed = false;
           break;
         }
@@ -470,7 +474,7 @@ void ECDAG::genSimpleGraph() {
         continue;
       }
 
-      cout << "    all the childs are leaf nodes, we can proceed with parent " << mypid << endl;
+      // cout << "    all the childs are leaf nodes, we can proceed with parent " << mypid << endl;
 
       // get coefs for childs
       vector<int> myChildCoefs = pitem->getCoefs();
@@ -479,10 +483,10 @@ void ECDAG::genSimpleGraph() {
         myCoefMap.insert(make_pair(myChildIds[i], myChildCoefs[i]));
       }
  
-      cout << "    myChildCoefs: ";
-      for (auto c: myChildCoefs)
-        cout << c << " ";
-      cout << endl;
+      // cout << "    myChildCoefs: ";
+      // for (auto c: myChildCoefs)
+      //   cout << c << " ";
+      // cout << endl;
 
       // now we collect all the sgid that contains the cid of mypid
       vector<int> candidatesgids;
@@ -495,10 +499,10 @@ void ECDAG::genSimpleGraph() {
         }
       }
 
-      cout << "    candidatesgids: ";
-      for (int tmpsgid: candidatesgids)
-        cout << tmpsgid << " ";
-      cout << endl;
+      // cout << "    candidatesgids: ";
+      // for (int tmpsgid: candidatesgids)
+      //   cout << tmpsgid << " ";
+      // cout << endl;
 
       // now for each sgid, we check whether the current myChildIds can fit into it.
       // if yes, we add the current parent into that sg
@@ -508,12 +512,12 @@ void ECDAG::genSimpleGraph() {
       for (int tmpsgid: candidatesgids) {
         SimpleGraph* tmpsg = _sgMap[tmpsgid];
         if (tmpsg->parentIn(mypid)) {
-          cout << "      mypid " << mypid << " is already in sg " << tmpsgid << endl;
+          // cout << "      mypid " << mypid << " is already in sg " << tmpsgid << endl;
           action = -1;
           break;
         }
         if (tmpsg->childsMatch(myChildIds)) {
-          cout << "      mypid " << mypid << " can be added in sg " << tmpsgid << endl;
+          // cout << "      mypid " << mypid << " can be added in sg " << tmpsgid << endl;
           action = 1;
           addsgid = tmpsgid;
           break;
@@ -527,7 +531,7 @@ void ECDAG::genSimpleGraph() {
         _sgMap.insert(make_pair(sgid, sg));
         _sgList.push_back(sgid);
 
-        cout << "    create a new sg: " << sg->dumpStr() << endl;
+        // cout << "    create a new sg: " << sg->dumpStr() << endl;
         // mark child2sg
         for (auto cid: myChildIds) {
           if (_child2sgs.find(cid) == _child2sgs.end()) {
@@ -540,7 +544,7 @@ void ECDAG::genSimpleGraph() {
         // decrease number of child in refMap
         refMap[mypid]-=myChildIds.size();
         if (refMap[mypid] == 0) {
-          cout << "    add " << mypid << " into leaves" << endl;
+          // cout << "    add " << mypid << " into leaves" << endl;
           leaves.push(mypid);
         }
         
@@ -549,12 +553,12 @@ void ECDAG::genSimpleGraph() {
       } else if (action == 1) {
         SimpleGraph* tmpsg = _sgMap[addsgid];
         tmpsg->addParent(mypid, myCoefMap);
-        cout << "    update sg: " << tmpsg->dumpStr() << endl;
+        // cout << "    update sg: " << tmpsg->dumpStr() << endl;
 
         // decrease number of child in refMap
         refMap[mypid]-=myChildIds.size();
         if (refMap[mypid] == 0) {
-          cout << "    add " << mypid << " into leaves" << endl;
+          // cout << "    add " << mypid << " into leaves" << endl;
           leaves.push(mypid);
         }
         
@@ -567,7 +571,7 @@ void ECDAG::genSimpleGraph() {
     if (!process) {
       // we fail to process nodeId at this time
       leaves.push(nodeId);
-      cout << "    put " << nodeId << " back into the queue for further process" << endl;
+      // cout << "    put " << nodeId << " back into the queue for further process" << endl;
     }
     debugnum++;
     //if (debugnum == 22)
@@ -677,7 +681,7 @@ void ECDAG::coloring(LoadVector* loadvector) {
     debugnum++;
 
     SimpleGraph* sg = _sgMap[sgid];
-    cout << "check sg: " << sg->dumpStr() << endl;
+    // cout << "check sg: " << sg->dumpStr() << endl;
 
     vector<int> childIdList = sg->getChilds();
     vector<int> parentIdList = sg->getParents();
@@ -1039,7 +1043,7 @@ void ECDAG::genECTasks(vector<ECTask*>& tasklist,
   for (int sgidx=0; sgidx<_sgList.size(); sgidx++) {
     int sgid = _sgList[sgidx];
     SimpleGraph* sg = _sgMap[sgid];
-    cout << "check sg: " << sg->dumpStr() << endl;
+    // cout << "check sg: " << sg->dumpStr() << endl;
 
     vector<int> childIdList = sg->getChilds();
     vector<int> parentIdList = sg->getParents();

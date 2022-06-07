@@ -107,6 +107,10 @@ int Solution::getLoad() {
     return _load;
 }
 
+int Solution::getDigits() {
+    return DistUtil::ndigits(_m);
+}
+
 bool Solution::isHead() {
     if (_type == 0)
         return true;

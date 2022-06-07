@@ -242,7 +242,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
         unordered_map<int, int> sidx2ip, vector<int> itm_idx, ECDAG* ecdag,
         unordered_map<int, int>& load2bdwt, unordered_map<int, int>& bdwt2load,
         Solution* tradeoff_curve_head, Solution* tradeoff_curve_tail) {
-    //cout << "    expand: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
+    cout << "    expand: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
 
     vector<int> solution = current->getSolution();
     current->setExpanded(true);
@@ -302,6 +302,8 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
                     if(!updateTradeoffCurve(tradeoff_curve_head, tradeoff_curve_tail, neighbor, load2bdwt, bdwt2load)) {
                         delete neighbor;
                         neighbor = NULL;
+                    } else {
+                        cout << "update tradeoff curve at i: " << i << ", j: " << j << endl;
                     }
                 }
 
@@ -335,7 +337,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load);
     init_sol->setBdwt(init_bdwt);
     init_sol->setLoad(init_load);
-    //cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
+    cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
 
     // 2. generate a map that records the solution that we visited.
     unordered_map<string, bool> visited;
@@ -355,112 +357,36 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
 
         // find the first solution that not expanded
         while (current != tail) {
-            //cout << "  iterate: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
+            cout << "  iterate: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
             if (current->getExpanded()) {
-                //cout << "    expanded, skip" << endl;
+                cout << "    expanded, skip" << endl;
                 current = current->getNext();
             } else {
-                //cout << "    not expanded" << endl;
+                cout << "    not expanded" << endl;
                 break;
             }
         }
 
         if (current == tail) {
             // all the solutions has been expanded
-            //cout << "  reach the tail" << endl;
+            cout << "  reach the tail" << endl;
             break;
         }
 
         // now we expand the current solution
         expand(current, v, m, visited, sidx2ip, itm_idx, ecdag, load2bdwt, bdwt2load, head, tail);
+
     }
 
-    cout << "Current tradeoff curve: ";
-    current = head;
-    while(current) {
-        cout << current->getString() << "; ";
-        current = current->getNext();
-    }
-    cout << endl;
+    //cout << "Current tradeoff curve: ";
+    //current = head;
+    //while(current) {
+    //    cout << current->getString() << "; ";
+    //    current = current->getNext();
+    //}
+    //cout << endl;
 
     return head;
-}
-
-bool mergeTradeoffCurve(Solution* head1, Solution* head2) {
-
-    Solution* head = head1;
-    Solution* tail;
-    unordered_map<int, int> load2bdwt;
-    unordered_map<int, int> bdwt2load;
-    bool status = false;
-
-    // iterate head1
-    Solution* current = head1->getNext();
-    while (true) {
-        if (current->isTail()) {
-            tail = current;
-            break;
-        }
-        int load = current->getLoad();
-        int bdwt = current->getBdwt();
-        load2bdwt.insert(make_pair(load, bdwt));
-        bdwt2load.insert(make_pair(bdwt, load));
-        current = current->getNext();
-    }
-
-    // iterate head2 and check whether we can update tradeoff curve
-    current = head2->getNext();
-    delete head2;
-    while (true) {
-        if (current->isTail()) {
-            delete current;
-            break;
-        }
-        if (updateTradeoffCurve(head, tail, current, load2bdwt, bdwt2load)) {
-            status = true;
-        }
-        current = current->getNext();
-    }
-
-    return status;
-}
-
-Solution* getTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag) {
-
-    int non_update_round = 0;
-    int total_round = 0;
-
-    // 1. the first round
-    cout << "----------------------- round: " << total_round << endl;
-    Solution* head1 = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
-    total_round++;
-
-    Solution* current = head1;
-    cout << "!!!!!!!!!!!!!!!!!!!!!!! tradeoff curve: ";
-    while (current->getNext()) {
-        current = current->getNext();
-        cout << current->getString() << "; ";
-    }
-    cout << endl;
-
-    // 2. the second round
-    cout << "----------------------- round: " << total_round << endl;
-    total_round++;
-    Solution* head2 = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
-    if (mergeTradeoffCurve(head1, head2)) {
-        non_update_round = 0;
-    } else {
-        non_update_round++;
-    }
-    
-    current = head1;
-    cout << "!!!!!!!!!!!!!!!!!!!!!!! tradeoff curve: ";
-    while (current->getNext()) {
-        current = current->getNext();
-        cout << current->getString() << "; ";
-    }
-    cout << endl;
 }
 
 Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
@@ -612,7 +538,7 @@ int main(int argc, char** argv) {
 
   ECDAG* ecdag = ec->Decode(avail, torepair);
   ecdag->Concact(torepair);
-//  ecdag->dump();
+  //ecdag->dump();
 
   // divide ecdag into ecunits
   ecdag->genECUnits();
@@ -627,6 +553,12 @@ int main(int argc, char** argv) {
   cout << "Total nodes: " << ecNodeMap.size() << endl;
   cout << "Header nodes: " << ecHeaders.size() << endl;
   cout << "Leaf nodes: " << ecLeaves.size() << endl;
+
+  // for (auto item: ecLeaves) {
+  //     cout << item << ", ";
+  // }
+  // cout << endl;
+
   int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
   cout << "Intermediate nodes: " << intermediate_num << endl;
 
@@ -636,8 +568,17 @@ int main(int argc, char** argv) {
   unordered_map<int, int> sidx2ip;
   for (auto sidx: ecLeaves) {
     int bidx = sidx / w;
-    sidx2ip.insert(make_pair(sidx, bidx));
+    if (bidx < n )
+        sidx2ip.insert(make_pair(sidx, bidx));
+    else
+        sidx2ip.insert(make_pair(sidx, -1));
   }
+
+  // // debug
+  // for (auto item: sidx2ip) {
+  //     cout << item.first << ": " << item.second << endl;
+  // }
+
   // figure out header color
   int bidx = torepair[0]/w;
   for (auto sidx: ecHeaders) {
@@ -656,6 +597,7 @@ int main(int argc, char** argv) {
     itm_idx.push_back(sidx);
     sidx2ip.insert(make_pair(sidx, -1));
   }
+
   for (int i=0; i<n; i++)
     candidates.push_back(i);
   sort(itm_idx.begin(), itm_idx.end());
@@ -695,13 +637,19 @@ int main(int argc, char** argv) {
   unordered_map<int, vector<int>> max2bwlist;
   unordered_map<int, double> process;
 
+  int round = k*w;
+  if (code == "Clay" && n==14)
+      round = 1;
+
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  //Solution* tradeoff_curve_head = getTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
   Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, n*w, w, k*w);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;
+
+  // print the mlp
+  cout << "Digits: " << mlp->getDigits() << ", string: " << mlp->getString() << endl;
 
   return 0;
 }

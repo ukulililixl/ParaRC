@@ -42,6 +42,7 @@ class Solution {
         int getBdwt();
         void setLoad(int load);
         int getLoad();
+        int getDigits();
 
         bool isHead();
         bool isTail();

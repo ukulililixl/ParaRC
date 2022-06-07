@@ -25,5 +25,6 @@ string ECUnit::dump() {
   for (int i=0; i<_childs.size(); i++) {
     toret += to_string(_childs[i]) + " ";
   }
+  toret += "; parent: " + to_string(_parent);
   return toret;
 }

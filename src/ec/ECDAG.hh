@@ -48,10 +48,6 @@ class ECDAG {
     unordered_map<int, ECCluster*> _ecClusterMap;
     vector<int> _ecClusterList;
     
-//    vector<Cluster*> _clusterMap;
-//    int _bindId = BINDSTART;
-//    int _optId = OPTSTART; 
-
   public:
     ECDAG(); 
     ~ECDAG();

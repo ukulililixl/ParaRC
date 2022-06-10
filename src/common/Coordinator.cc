@@ -55,172 +55,396 @@ void Coordinator::doProcess() {
 }
 
 void Coordinator::repairBlock(CoorCommand* coorCmd) {
-  struct timeval time1, time2, time3;
-  gettimeofday(&time1, NULL);
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
 
-  unsigned int clientIp = coorCmd->getClientIp();
-  string blockName = coorCmd->getBlockName();
-  
-  // 0. figure out the stripe that contains this block
-  StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
-  string stripename = stripemeta->getStripeName();
-  assert(stripemeta != NULL);
-  cout << "111" << endl;
+    unsigned int clientIp = coorCmd->getClientIp();
+    string blockName = coorCmd->getBlockName();
+    cout << "Coor::repairBlock.blockName: " << blockName << endl;
 
-  int repairBlockIdx = stripemeta->getBlockIndex(blockName);
-  int ecn = stripemeta->getECN();
-  int eck = stripemeta->getECK();
-  int ecw = stripemeta->getECW();
-  vector<string> blocklist = stripemeta->getBlockList();
-  vector<unsigned int> loclist = stripemeta->getLocList(); 
+    // 0. figure out the stripe that contains this block
+    StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
+    string stripename = stripemeta->getStripeName();
+    long long blkbytes = stripemeta->getBlockBytes();
+    int pktbytes = stripemeta->getPacketBytes();
+    cout << "stripename: " << stripename << ", blkbytes: " << blkbytes << ", pktybtes: " << pktbytes << endl;
 
-  // for debugging, we just repair in the same node.
-  unsigned int repairLoc = loclist[repairBlockIdx];
+    // 1. the index of the failed block
+    int repairBlockIdx = stripemeta->getBlockIndex(blockName);
+    cout << "Coor::repairBlock.repairBlockIdx: " << repairBlockIdx << endl;
 
-  vector<int> availIndex;
-  vector<int> toRepairIndex;
-  unordered_map<int, unsigned int> availIps;
-  for (int i=0; i<ecn; i++) {
-    for (int j=0; j<ecw; j++) {
-      int pktidx = i*ecw+j;
-      unsigned int curLoc = loclist[i];
-      if (i == repairBlockIdx) 
-        toRepairIndex.push_back(pktidx);
-      else {
-        availIndex.push_back(pktidx);
-        availIps.insert(make_pair(pktidx, curLoc));
-      }
+    // 2. prepare avail and to repair
+    int ecn = stripemeta->getECN();
+    int eck = stripemeta->getECK();
+    int ecw = stripemeta->getECW();
+
+    vector<string> blocklist = stripemeta->getBlockList();
+    vector<unsigned int> loclist = stripemeta->getLocList();
+    cout << "Coor::repairBlock.blocklist: " << endl;
+    for (int i=0; i<ecn; i++) {
+        cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
     }
-  }
-  cout << "toRepairIndex: ";
-  for (auto item: toRepairIndex)
-    cout << item << " ";
-  cout << endl;
-  cout << "availIndex: ";
-  for (auto item: availIndex)
-    cout << item << " ";
-  cout << endl;
-  
 
-  // 1. construct ECDAG
-  // we first call code implementations to construct the ECDAG
-  ECBase* ec = stripemeta->createECClass();
-  ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
-  ecdag->Concact(toRepairIndex);
-  ecdag->dump();
+    // 3. now we repair at the same location
+    unsigned int repairLoc = loclist[repairBlockIdx];
 
-  // 2. construct SGs
-  // given the ECDAG, we split them into SimpleGraphs and put them into the SGQueue
-  ecdag->genSimpleGraph(); 
+    // 4. prepare availidx
+    vector<int> availIndex;
+    vector<int> toRepairIndex;
+    for (int i=0; i<ecn; i++) {
+        for (int j=0; j<ecw; j++) {
+            int pktidx = i*ecw+j;
+            if (i == repairBlockIdx)
+                toRepairIndex.push_back(pktidx);
+            else
+                availIndex.push_back(pktidx);
+        }
+    }
 
-  // 3. coloring 
-  // We first lock the loadvector in stripe store, until we finish coloring it.
-  _stripeStore->lockLoadVector();
+    // 5. construct ECDAG
+    ECBase* ec = stripemeta->createECClass();
+    ecw = ec->_w;
+    ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    ecdag->Concact(toRepairIndex);
 
-  // get the current load value for nodes we are interested in
-  vector<unsigned int> candidateIps;
-  for (auto item: availIps) {
-    if (find(candidateIps.begin(), candidateIps.end(), item.second) == candidateIps.end())
-      candidateIps.push_back(item.second);
-  }
-  if (availIps.find(repairLoc) == availIps.end())
-    candidateIps.push_back(repairLoc);
-  cout << "candidateIps: ";
-  for (int i=0; i<candidateIps.size(); i++) {
-    cout << RedisUtil::ip2Str(candidateIps[i]) << ", ";
-  }
-  cout << endl;
-  LoadVector* loadvectorss = new LoadVector(candidateIps);
-  _stripeStore->getLoadValueFor(loadvectorss);
-  cout << "loadvector from stripestore: " << loadvectorss->dumpStr() << endl;
+    // 6. divide ecdag into ecunits
+    ecdag->genECUnits();
 
-  // Initialize the color(loc) for leaves and requestor in ecdag
-  ecdag->initializeLeaveIp(availIps);
-  ecdag->initializeRequestorIp(repairLoc);
-  ecdag->initializeIntermediateIp(repairLoc);
-  LoadVector* loadvectorinit = new LoadVector(candidateIps);
-  ecdag->fillLoadVector(loadvectorinit);
-  cout << "loadvector before coloring: " << loadvectorinit->dumpStr() << endl;
+    // 7. get data structures from ecdag
+    unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+    vector<int> ecHeaders = ecdag->getECHeaders();
+    vector<int> ecLeaves = ecdag->getECLeaves();
+    unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+    vector<int> ecUnitList = ecdag->getUnitList();
 
-  // add loadvectorinit to loadvectorss
-  loadvectorinit->updateLoadValue(loadvectorss->getInNum(), loadvectorss->getOutNum(), loadvectorss->getCalNum()); 
-  cout << "loadvector added ss: " << loadvectorinit->dumpStr() << endl;
+    cout << "Total nodes: " << ecNodeMap.size() << endl;
+    cout << "Header nodes: " << ecHeaders.size() << endl;
+    cout << "Leaf nodes: " << ecLeaves.size() << endl;
 
-  // coloring the ecdag
-  //ecdag->coloring(loadvectorinit);
+    int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+    cout << "Intermediate nodes: " << intermediate_num << endl;
 
-  cout << "loadvector after coloring: " << loadvectorinit->dumpStr() << endl;
+    // 8. initialize colors
+    // we use idx from 0 to n-1 represents the n candidate colors
+    // for leave vertices, if it is stored in block [i], then we initialize the color to i.
+    // for header, we use the repairBlockIdx for its color
+    unordered_map<int, int> sidx2bidx;
+    for (auto sidx: ecLeaves) {
+        int bidx = sidx / ecw;
+        if (bidx < ecn )
+            sidx2bidx.insert(make_pair(sidx, bidx));
+        else
+            sidx2bidx.insert(make_pair(sidx, -1));  // virtual blocks
+    }
+    for (auto sidx: ecHeaders) {
+        sidx2bidx.insert(make_pair(sidx, repairBlockIdx));
+    }
 
-  // update loadvector in stripestore
-  _stripeStore->updateLoadVector(loadvectorinit);
-  
-  // unlock the loadvector in stripe store
-  _stripeStore->unlockLoadVector();
+    cout << "sidx2bidx: " << endl;
+    for (auto item: sidx2bidx) {
+        int cidx = item.first;
+        int bidx = item.second;
+        cout << "  cidx: " << cidx << ", bidx: " << bidx << endl;
+    }
 
-  // now we have finished coloring the DAG, try to generate commands for each Agent
-  vector<ECTask*> tasklist;
-  ecdag->genECTasks(tasklist, ecn, eck, ecw, stripename, blocklist);
+    // 9. for intermediate vertices
+    // note that virtual vertices for shortening are not counted as intermediate vertices
+    vector<int> itm_idx;
+    vector<int> candidates;
+    for (auto item: ecNodeMap) {
+        int sidx = item.first;
+        if (find(ecHeaders.begin(), ecHeaders.end(), sidx) != ecHeaders.end())
+            continue;
+        if (find(ecLeaves.begin(), ecLeaves.end(), sidx) != ecLeaves.end())
+            continue;
+        itm_idx.push_back(sidx);
+        //sidx2bidx.insert(make_pair(sidx, -1));
+    }
 
-  // print ectasks
-  for (auto task: tasklist) {
-    cout << task->dumpStr() << endl;
-  }
+    for (int i=0; i<ecn; i++)
+        candidates.push_back(i);
+    sort(itm_idx.begin(), itm_idx.end());
 
-  // generate agcommands from ectasks
-  cout << "AGCommands: " << endl;
-  vector<AGCommand*> cmdlist;
-  for (auto task: tasklist) {
-    AGCommand* agcmd = task->genAGCommand();
-    cmdlist.push_back(agcmd);
-    cout << "  " << agcmd->dumpStr() << endl; 
-  }
-  gettimeofday(&time2, NULL);
+    // 10. read the tradeoff point and calculate maxload and bdwt
+    string tpentry = stripemeta->getCodeName() + "_" + to_string(ecn) + "_" + to_string(eck) + "_" + to_string(ecw);
+    TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
+    vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
 
-  // send out commands
-  vector<char*> todelete;
-  redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
-  
-  redisAppendCommand(distCtx, "MULTI");
-  for (auto agcmd: cmdlist) {
-    unsigned int ip = agcmd->getSendIp();
-    ip = htonl(ip);
-    char* cmdstr = agcmd->getCmd();
-    int cmLen = agcmd->getCmdLen();
-    char* todist = (char*)calloc(cmLen + 4, sizeof(char));
-    memcpy(todist, (char*)&ip, 4);
-    memcpy(todist+4, cmdstr, cmLen); 
-    todelete.push_back(todist);
-    redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
-  }
-  redisAppendCommand(distCtx, "EXEC");
-  
-  redisReply* distReply;
-  redisGetReply(distCtx, (void **)&distReply);
-  freeReplyObject(distReply);
-  for (auto item: todelete) {
-    redisGetReply(distCtx, (void **)&distReply);
-    freeReplyObject(distReply);
-  }
-  redisGetReply(distCtx, (void **)&distReply);
-  freeReplyObject(distReply);
-  redisFree(distCtx);
+    // cout << "itm coloring: " << endl;
+    // for (int i=0; i<itm_idx.size(); i++) {
+    //     cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
+    // }
+    // cout << endl;
 
-  // wait for finish flag?
-  redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-  string wkey = "writefinish:"+blockName;
-  redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-  freeReplyObject(fReply);
-  redisFree(waitCtx);
-  gettimeofday(&time3, NULL);
-  cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    int bdwt, maxload;
+    stat(sidx2bidx, itm_coloring, itm_idx, ecdag, &bdwt, &maxload);
+    // cout << "maxload: " << maxload << ", bdwt: " << bdwt << endl;
 
-  // delete
-  delete ec;
-  delete ecdag;
-  for (auto item: cmdlist) delete item;
-  for (auto item: todelete) free(item);
+    // 11. generate coloring results
+    unordered_map<int, unsigned int> coloring_res;
+    for (auto item: sidx2bidx) {
+        int idx = item.first;
+        int color = item.second;
+        unsigned int ip;
+        if (color < 0)
+            ip = 0;
+        else
+            ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+    for (int i=0; i<itm_idx.size(); i++) {
+        int idx = itm_idx[i];
+        int color = itm_coloring[i];
+        unsigned int ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+
+    cout << "coloring res: " << endl;
+    for (auto item: coloring_res) {
+        cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
+    }
+
+    // 12. generate ectasks by ECClusters
+    cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
+    vector<ECTask*> tasklist;
+    ecdag->genECTasksByECClusters(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, coloring_res);
+    cout << "tasklist: " << endl;
+    for (int i=0; i<tasklist.size(); i++) {
+        cout << "  " << tasklist[i]->dumpStr() << endl;
+    }
+
+    // 13. generate agcommands
+    cout << "AGCommands: " << endl;
+    vector<AGCommand*> cmdlist;
+    int debug = 0;
+    for (auto task: tasklist) {
+      AGCommand* agcmd = task->genAGCommand();
+      cmdlist.push_back(agcmd);
+      cout << "  " << agcmd->dumpStr() << endl; 
+
+      debug++;
+      if (debug >= 9)
+          break;
+    }
+
+   // 14. send out commands
+   vector<char*> todelete;
+   redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
+   
+   redisAppendCommand(distCtx, "MULTI");
+   for (auto agcmd: cmdlist) {
+     unsigned int ip = agcmd->getSendIp();
+     ip = htonl(ip);
+     char* cmdstr = agcmd->getCmd();
+     int cmLen = agcmd->getCmdLen();
+     char* todist = (char*)calloc(cmLen + 4, sizeof(char));
+     memcpy(todist, (char*)&ip, 4);
+     memcpy(todist+4, cmdstr, cmLen); 
+     todelete.push_back(todist);
+     redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
+   }
+   redisAppendCommand(distCtx, "EXEC");
+   
+   redisReply* distReply;
+   redisGetReply(distCtx, (void **)&distReply);
+   freeReplyObject(distReply);
+   for (auto item: todelete) {
+     redisGetReply(distCtx, (void **)&distReply);
+     freeReplyObject(distReply);
+   }
+   redisGetReply(distCtx, (void **)&distReply);
+   freeReplyObject(distReply);
+   redisFree(distCtx);
+ 
+//   // wait for finish flag?
+//   redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+//   string wkey = "writefinish:"+blockName;
+//   redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+//   freeReplyObject(fReply);
+//   redisFree(waitCtx);
+//   gettimeofday(&time3, NULL);
+//   cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+ 
+   // delete
+   delete ec;
+   delete ecdag;
+   for (auto item: cmdlist) delete item;
+   for (auto item: todelete) free(item);
 }
 
+void Coordinator::stat(unordered_map<int, int> sidx2ip,
+        vector<int> curres, vector<int> itm_idx,
+        ECDAG* ecdag, int* bdwt, int* maxload) {
+    unordered_map<int, int> coloring_res;
+    for (auto item: sidx2ip) {
+        coloring_res.insert(make_pair(item.first, item.second));
+    }
+    for (int ii=0; ii<curres.size(); ii++) {
+        int idx = itm_idx[ii];
+        int color = curres[ii];
+        coloring_res[idx] = color;
+    }
+    // gen ECClusters
+    ecdag->clearECCluster();
+    ecdag->genECCluster(coloring_res);
+
+    // gen stat
+    unordered_map<int, int> inmap;
+    unordered_map<int, int> outmap;
+    ecdag->genStat(coloring_res, inmap, outmap);
+    
+    int bw=0, max=0;
+    for (auto item: inmap) {
+        bw+= item.second;
+        if (item.second > max)
+            max = item.second;
+    }
+    for (auto item: outmap) {
+        if (item.second > max)
+            max = item.second;
+    }
+    *bdwt = bw;
+    *maxload = max;
+}
+
+// void Coordinator::repairBlock(CoorCommand* coorCmd) {
+//   vector<int> availIndex;
+//   vector<int> toRepairIndex;
+//   unordered_map<int, unsigned int> availIps;
+//   for (int i=0; i<ecn; i++) {
+//     for (int j=0; j<ecw; j++) {
+//       int pktidx = i*ecw+j;
+//       unsigned int curLoc = loclist[i];
+//       if (i == repairBlockIdx) 
+//         toRepairIndex.push_back(pktidx);
+//       else {
+//         availIndex.push_back(pktidx);
+//         availIps.insert(make_pair(pktidx, curLoc));
+//       }
+//     }
+//   }
+//   cout << "toRepairIndex: ";
+//   for (auto item: toRepairIndex)
+//     cout << item << " ";
+//   cout << endl;
+//   cout << "availIndex: ";
+//   for (auto item: availIndex)
+//     cout << item << " ";
+//   cout << endl;
+//   
+// 
+//   // 2. construct SGs
+//   // given the ECDAG, we split them into SimpleGraphs and put them into the SGQueue
+//   ecdag->genSimpleGraph(); 
+// 
+//   // 3. coloring 
+//   // We first lock the loadvector in stripe store, until we finish coloring it.
+//   _stripeStore->lockLoadVector();
+// 
+//   // get the current load value for nodes we are interested in
+//   vector<unsigned int> candidateIps;
+//   for (auto item: availIps) {
+//     if (find(candidateIps.begin(), candidateIps.end(), item.second) == candidateIps.end())
+//       candidateIps.push_back(item.second);
+//   }
+//   if (availIps.find(repairLoc) == availIps.end())
+//     candidateIps.push_back(repairLoc);
+//   cout << "candidateIps: ";
+//   for (int i=0; i<candidateIps.size(); i++) {
+//     cout << RedisUtil::ip2Str(candidateIps[i]) << ", ";
+//   }
+//   cout << endl;
+//   LoadVector* loadvectorss = new LoadVector(candidateIps);
+//   _stripeStore->getLoadValueFor(loadvectorss);
+//   cout << "loadvector from stripestore: " << loadvectorss->dumpStr() << endl;
+// 
+//   // Initialize the color(loc) for leaves and requestor in ecdag
+//   ecdag->initializeLeaveIp(availIps);
+//   ecdag->initializeRequestorIp(repairLoc);
+//   ecdag->initializeIntermediateIp(repairLoc);
+//   LoadVector* loadvectorinit = new LoadVector(candidateIps);
+//   ecdag->fillLoadVector(loadvectorinit);
+//   cout << "loadvector before coloring: " << loadvectorinit->dumpStr() << endl;
+// 
+//   // add loadvectorinit to loadvectorss
+//   loadvectorinit->updateLoadValue(loadvectorss->getInNum(), loadvectorss->getOutNum(), loadvectorss->getCalNum()); 
+//   cout << "loadvector added ss: " << loadvectorinit->dumpStr() << endl;
+// 
+//   // coloring the ecdag
+//   //ecdag->coloring(loadvectorinit);
+// 
+//   cout << "loadvector after coloring: " << loadvectorinit->dumpStr() << endl;
+// 
+//   // update loadvector in stripestore
+//   _stripeStore->updateLoadVector(loadvectorinit);
+//   
+//   // unlock the loadvector in stripe store
+//   _stripeStore->unlockLoadVector();
+// 
+//   // now we have finished coloring the DAG, try to generate commands for each Agent
+//   vector<ECTask*> tasklist;
+//   ecdag->genECTasks(tasklist, ecn, eck, ecw, stripename, blocklist);
+// 
+//   // print ectasks
+//   for (auto task: tasklist) {
+//     cout << task->dumpStr() << endl;
+//   }
+// 
+//   // generate agcommands from ectasks
+//   cout << "AGCommands: " << endl;
+//   vector<AGCommand*> cmdlist;
+//   for (auto task: tasklist) {
+//     AGCommand* agcmd = task->genAGCommand();
+//     cmdlist.push_back(agcmd);
+//     cout << "  " << agcmd->dumpStr() << endl; 
+//   }
+//   gettimeofday(&time2, NULL);
+// 
+//   // send out commands
+//   vector<char*> todelete;
+//   redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
+//   
+//   redisAppendCommand(distCtx, "MULTI");
+//   for (auto agcmd: cmdlist) {
+//     unsigned int ip = agcmd->getSendIp();
+//     ip = htonl(ip);
+//     char* cmdstr = agcmd->getCmd();
+//     int cmLen = agcmd->getCmdLen();
+//     char* todist = (char*)calloc(cmLen + 4, sizeof(char));
+//     memcpy(todist, (char*)&ip, 4);
+//     memcpy(todist+4, cmdstr, cmLen); 
+//     todelete.push_back(todist);
+//     redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
+//   }
+//   redisAppendCommand(distCtx, "EXEC");
+//   
+//   redisReply* distReply;
+//   redisGetReply(distCtx, (void **)&distReply);
+//   freeReplyObject(distReply);
+//   for (auto item: todelete) {
+//     redisGetReply(distCtx, (void **)&distReply);
+//     freeReplyObject(distReply);
+//   }
+//   redisGetReply(distCtx, (void **)&distReply);
+//   freeReplyObject(distReply);
+//   redisFree(distCtx);
+// 
+//   // wait for finish flag?
+//   redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+//   string wkey = "writefinish:"+blockName;
+//   redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+//   freeReplyObject(fReply);
+//   redisFree(waitCtx);
+//   gettimeofday(&time3, NULL);
+//   cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+// 
+//   // delete
+//   delete ec;
+//   delete ecdag;
+//   for (auto item: cmdlist) delete item;
+//   for (auto item: todelete) free(item);
+// }
+// 
 //void Coordinator::registerOnlineEC(unsigned int clientIp, string filename, string ecid, int filesizeMB) {
 //  // 0. make sure that there is no existing ssentry
 //  assert (!_stripeStore->existEntry(filename));

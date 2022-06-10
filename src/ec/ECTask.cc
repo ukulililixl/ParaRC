@@ -10,18 +10,36 @@ ECTask::~ECTask() {
   }
 }
 
+//void ECTask::buildReadDisk(int type,
+//               unsigned int loc,
+//               string blockname,
+//               int ecw,
+//               vector<int> indices,
+//               string stripename) {
+//  _type = type;
+//  _loc = loc;
+//  _blockName = blockname;
+//  _ecw = ecw;
+//  _indices = indices;
+//  _stripeName = stripename;
+//}
+
 void ECTask::buildReadDisk(int type,
-               unsigned int loc,
-               string blockname,
-               int ecw,
-               vector<int> indices,
-               string stripename) {
-  _type = type;
-  _loc = loc;
-  _blockName = blockname;
-  _ecw = ecw;
-  _indices = indices;
-  _stripeName = stripename;
+        unsigned int loc,
+        string blockname,
+        int blkbytes,
+        int pktbytes,
+        int ecw,
+        unordered_map<int, int> cid2ref,
+        string stripename) {
+    _type = type;
+    _loc = loc;
+    _blockName = blockname;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+    _ecw = ecw;
+    _cid2refs = cid2ref;
+    _stripeName = stripename;
 }
 
 void ECTask::buildFetchCompute(int type,
@@ -31,7 +49,7 @@ void ECTask::buildFetchCompute(int type,
                vector<ComputeTask*> computelist,
                string stripename,
                vector<int> indices,
-               int ecw) {
+               int ecw, int blkbytes, int pktbytes) {
   _type = type;
   _loc = loc;
   _prevIndices = prevIndices;
@@ -40,6 +58,8 @@ void ECTask::buildFetchCompute(int type,
   _stripeName = stripename;
   _indices = indices;
   _ecw = ecw;
+  _blkBytes = blkbytes;
+  _pktBytes = pktbytes;
 }
 
 void ECTask::buildConcatenate(int type,
@@ -48,7 +68,7 @@ void ECTask::buildConcatenate(int type,
                vector<unsigned int> prevLocs,
                string stripename,
                string blockname,
-               int ecw) {
+               int ecw, int blkbytes, int pktbytes) {
   _type = type;
   _loc = loc;
   _prevIndices = prevIndices;
@@ -56,6 +76,8 @@ void ECTask::buildConcatenate(int type,
   _stripeName = stripename;
   _blockName = blockname;
   _ecw = ecw;
+  _blkBytes = blkbytes;
+  _pktBytes = pktbytes;
 }
 
 int ECTask::getType() {
@@ -71,10 +93,12 @@ string ECTask::dumpStr() {
   toret += "Send to " + RedisUtil::ip2Str(_loc) + ": \n";
   if (_type == 0) {
     toret += "  read block: " + _blockName + ", \n";
-    toret += "  packetIdx: ";
-    for (auto pktidx: _indices) 
-      toret += to_string(pktidx) + " ";
-    toret += "\n";
+    for (auto item: _cid2refs) {
+        toret += "  cid: " + to_string(item.first) + ", refs: " + to_string(item.second) + ", \n";
+    }
+    toret += "  blkbytes: " + to_string(_blkBytes) + ", \n";
+    toret += "  pktbytes: " + to_string(_pktBytes) + ", \n";
+    toret += "  ecw: " + to_string(_ecw) + ", \n";
     toret += "  cache key prefix: " + _stripeName + "\n";
   } else if (_type == 1) {
     for (int i=0; i<_prevIndices.size(); i++) {
@@ -114,11 +138,11 @@ AGCommand* ECTask::genAGCommand() {
   AGCommand* agcmd = new AGCommand();
   if (_type == 0) {
     // this is read disk command
-    agcmd->buildType0(0, _loc, _blockName, _ecw, _indices, _stripeName);
+    agcmd->buildType0(0, _loc, _blockName, _blkBytes, _pktBytes, _ecw, _cid2refs, _stripeName);
   } else if (_type == 1) {
-    agcmd->buildType1(1, _loc, _prevIndices, _prevLocs, _computeTaskList, _stripeName, _indices, _ecw);
+    agcmd->buildType1(1, _loc, _prevIndices, _prevLocs, _computeTaskList, _stripeName, _indices, _ecw, _blkBytes, _pktBytes);
   } else if (_type == 2) {
-    agcmd->buildType2(2, _loc, _prevIndices, _prevLocs, _stripeName, _blockName, _ecw);
+    agcmd->buildType2(2, _loc, _prevIndices, _prevLocs, _stripeName, _blockName, _ecw, _blkBytes, _pktBytes);
   }
   return agcmd;
 }

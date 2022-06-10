@@ -19,6 +19,10 @@ int ECUnit::getParent() {
   return _parent;
 }
 
+vector<int> ECUnit::getCoefs() {
+    return _coefs;
+}
+
 string ECUnit::dump() {
   string toret;
   toret += "unit " + to_string(_unitId) + "; childs: ";

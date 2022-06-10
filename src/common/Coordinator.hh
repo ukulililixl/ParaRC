@@ -21,6 +21,9 @@ class Coordinator {
     ~Coordinator();
 
     void doProcess();
+    void stat(unordered_map<int, int> sidx2ip,
+            vector<int> curres, vector<int> itm_idx,
+            ECDAG* ecdag, int* bdwt, int* maxload);
 
     void repairBlock(CoorCommand* coorCmd);
 //    void registerLayerFile(CoorCommand* coorCmd);

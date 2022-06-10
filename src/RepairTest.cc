@@ -40,8 +40,10 @@ int main(int argc, char** argv) {
   int w = stripeMeta->getECW();
   vector<string> blklist = stripeMeta->getBlockList();
 
-  int blksizeB = conf->_blkSize;
-  int pktsizeB = conf->_pktSize;
+  //int blksizeB = conf->_blkSize;
+  int blksizeB = 1048576;
+  //int pktsizeB = conf->_pktSize;
+  int pktsizeB = 1048576;
   // 0. read original blocks
   char** buffers = (char**)calloc(n, sizeof(char*));
   for (int i=0; i<n; i++) {

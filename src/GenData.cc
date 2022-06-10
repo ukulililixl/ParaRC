@@ -13,6 +13,8 @@ void usage() {
   cout << "    3. k" << endl;
   cout << "    4. w" << endl;
   cout << "    5. stripeidx" << endl;
+  cout << "    6. blockbytes" << endl;
+  cout << "    7. pktbytes" << endl;
 }  
 
 double getCurrentTime() {
@@ -21,7 +23,7 @@ double getCurrentTime() {
   return (double)tv.tv_sec * 1e+6 + (double)tv.tv_usec;
 }
 
-vector<string> genMetaData(string code, int n, int k, int w, string stripename, vector<string> blklist) {
+vector<string> genMetaData(string code, int n, int k, int w, string stripename, vector<string> blklist, int blockbytes, int pktbytes) {
   vector<string> toret;
   string line;
   line = "<stripe>\n";
@@ -51,6 +53,12 @@ vector<string> genMetaData(string code, int n, int k, int w, string stripename, 
   line = "</attribute>\n";
   toret.push_back(line);
 
+  line = "<attribute><name>blockbytes</name><value>"+to_string(blockbytes)+"</value></attribute>\n";
+  toret.push_back(line);
+
+  line = "<attribute><name>pktbytes</name><value>"+to_string(pktbytes)+"</value></attribute>\n";
+  toret.push_back(line);
+
   line = "</stripe>\n";
   toret.push_back(line);
 
@@ -59,7 +67,7 @@ vector<string> genMetaData(string code, int n, int k, int w, string stripename, 
 
 int main(int argc, char** argv) {
 
-  if (argc != 6) {
+  if (argc != 8) {
     usage();
     return 0;
   }
@@ -69,6 +77,8 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int stripeidx = atoi(argv[5]);
+  int blockbytes = atoi(argv[6]);
+  int pktbytes = atoi(argv[7]);
   string stripename = "stripe-"+to_string(stripeidx);
 
   string configpath="./conf/sysSetting.xml";
@@ -80,8 +90,11 @@ int main(int argc, char** argv) {
     blklist.push_back(blkname);
   }
 
-  int blksizeB = conf->_blkSize;
-  int pktsizeB = conf->_pktSize;
+  int blksizeB = blockbytes;
+  int pktsizeB = pktbytes;
+  cout << "blksizeB: " << blksizeB << endl;
+  cout << "pktsizeB: " << pktsizeB << endl;
+  int pktnum = blksizeB/pktsizeB;
 
   ECBase* ec;
   if (code == "Clay")
@@ -219,13 +232,14 @@ int main(int argc, char** argv) {
     ofstream ofs(fullpath);
     ofs.close();
     ofs.open(fullpath, ios::app);
-    ofs.write(buffers[i], pktsizeB);
+    for (int j=0; j<pktnum; j++)
+        ofs.write(buffers[i], pktsizeB);
     free(buffers[i]);
     ofs.close();
   }  
 
   // write metadata
-  vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist);
+  vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist, blksizeB, pktsizeB);
   string metapath = "./stripeStore/"+stripename+".xml";
   ofstream metaofs(metapath, ofstream::app);
   for (auto line: metadata) {

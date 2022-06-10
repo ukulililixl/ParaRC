@@ -2,7 +2,7 @@
 #define _ECDAG_HH_
 
 #include "../inc/include.hh"
-//#include "../protocol/AGCommand.hh"
+#include "../protocol/AGCommand.hh"
 //
 //#include "Cluster.hh"
 #include "ECNode.hh"
@@ -72,6 +72,10 @@ class ECDAG {
     void clearECCluster();
     void genECCluster(unordered_map<int, int> coloring);
     void genStat(unordered_map<int, int> coloring, unordered_map<int, int>& inmap, unordered_map<int, int>& outmap);
+    void genECTasksByECClusters(vector<ECTask*>& tasklist,
+            int ecn, int eck, int ecw, int blkbytes, int pktbytes,
+            string stripename, vector<string> blocklist,
+            unordered_map<int, unsigned int> coloring_res);
 
     unordered_map<int, ECNode*> getECNodeMap();
     vector<int> getECHeaders();

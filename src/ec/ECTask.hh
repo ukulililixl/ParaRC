@@ -35,8 +35,10 @@ class ECTask {
 
     // for type 0
     string _blockName;
+    int _blkBytes;
+    int _pktBytes;
     int _ecw; // sub-packetization
-    vector<int> _indices;
+    unordered_map<int, int> _cid2refs;
     string _stripeName;
 
     // for type 1
@@ -44,8 +46,10 @@ class ECTask {
     vector<unsigned int> _prevLocs;
     vector<ComputeTask*> _computeTaskList;
     // stripeName
-    // _indices (for cache)
+    vector<int> _indices;
     // _ecw
+    // _blkBytes
+    // _pktBytes
 
     // for type 2
     //_prevIndices;
@@ -57,12 +61,20 @@ class ECTask {
     ECTask();
     ~ECTask();
 
-    void buildReadDisk(int type, 
-               unsigned int loc,
-               string blockname,
-               int ecw,
-               vector<int> indices,
-               string stripename); 
+//    void buildReadDisk(int type, 
+//               unsigned int loc,
+//               string blockname,
+//               int ecw,
+//               vector<int> indices,
+//               string stripename); 
+    void buildReadDisk(int type,
+            unsigned int loc,
+            string blockname,
+            int blkbytes,
+            int pktbytes,
+            int ecw,
+            unordered_map<int, int> cid2ref,
+            string stripename);
     void buildFetchCompute(int type,
                unsigned int loc,
                vector<int> prevIndices,
@@ -70,14 +82,14 @@ class ECTask {
                vector<ComputeTask*> computelist,
                string stripename,
                vector<int> indices,
-               int ecw);
+               int ecw, int blkbytes, int pktbytes);
     void buildConcatenate(int type,
                unsigned int loc,
                vector<int> prevIndices,
                vector<unsigned int> prevLocs,
                string stripename,
                string blockname,
-               int ecw);
+               int ecw, int blkbytes, int pktbytes);
 
     int getType();
     vector<ComputeTask*> getComputeTaskList();

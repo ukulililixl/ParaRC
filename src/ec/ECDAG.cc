@@ -1038,88 +1038,283 @@ void ECDAG::genECTasks(vector<ECTask*>& tasklist,
                        int ecn, int eck, int ecw,
                        string stripename, vector<string> blocklist) {
 
-  // we check each sg iteratively, and gen commands for each sg
-  int debugnum = 0;
-  for (int sgidx=0; sgidx<_sgList.size(); sgidx++) {
-    int sgid = _sgList[sgidx];
-    SimpleGraph* sg = _sgMap[sgid];
-    // cout << "check sg: " << sg->dumpStr() << endl;
+//  // we check each sg iteratively, and gen commands for each sg
+//  int debugnum = 0;
+//  for (int sgidx=0; sgidx<_sgList.size(); sgidx++) {
+//    int sgid = _sgList[sgidx];
+//    SimpleGraph* sg = _sgMap[sgid];
+//    // cout << "check sg: " << sg->dumpStr() << endl;
+//
+//    vector<int> childIdList = sg->getChilds();
+//    vector<int> parentIdList = sg->getParents();
+//    unordered_map<int, vector<int>> coefs = sg->getCoefs();
+//    
+//    // We first check whether we have leave nodes in the child list
+//    // If there are leave nodes, we put them into buckets of blocks
+//    unordered_map<int, vector<int>> blk2pkts;
+//    for (auto childId: childIdList) {
+//      if (find(_ecLeaves.begin(), _ecLeaves.end(), childId) != _ecLeaves.end()) {
+//        // this is a leave node
+//        int blkIdx = childId/ecw;
+//        if (blk2pkts.find(blkIdx) == blk2pkts.end()) {
+//          vector<int> tmplist = {childId};
+//          blk2pkts.insert(make_pair(blkIdx, tmplist));
+//        } else {
+//          blk2pkts[blkIdx].push_back(childId);
+//        }
+//      }
+//    }
+//
+//    // if there are leave nodes in this sg, we create ectasks to read from disk
+//    for (auto item: blk2pkts) {
+//      int blkidx = item.first;
+//      vector<int> indices = blk2pkts[blkidx];
+//
+//      int type = 0;
+//      unsigned int loc = _idx2ip[indices[0]];
+//      string blockname = blocklist[blkidx];
+//      ECTask* readTask = new ECTask();   
+//      readTask->buildReadDisk(type, loc, blockname, ecw, indices, stripename);
+//      tasklist.push_back(readTask);
+//    }
+//
+//    // if parent contains root node, we create ectasks to concact data 
+//    if (parentIdList.size() == 1 && parentIdList[0] == REQUESTOR) {
+//      cout << "create task for requestor!!!!!!!!!!" << endl;
+//      // we need to concatenate for the requestor
+//      ECTask* concatenateTask = new ECTask();
+//      int type = 2;
+//      unsigned int loc = _idx2ip[parentIdList[0]];
+//      vector<unsigned int> prevlocs;
+//      for (auto item: childIdList)
+//        prevlocs.push_back(_idx2ip[item]);
+//      int blkidx = childIdList[0] / ecw;
+//      string blockname = blocklist[blkidx];
+//      
+//      concatenateTask->buildConcatenate(type, loc, childIdList, prevlocs, stripename, blockname, ecw);
+//
+//      tasklist.push_back(concatenateTask);
+//    } else {
+//      // we create ectasks to fetchandcompute
+//      ECTask* fetchComputeTask = new ECTask();
+//      int type = 1;
+//      unsigned int loc = _idx2ip[parentIdList[0]];
+//      vector<unsigned int> prevlocs;
+//      for (auto item: childIdList)
+//        prevlocs.push_back(_idx2ip[item]);
+//
+//      vector<ComputeTask*> ctlist;
+//      vector<vector<int>> tmpcoef;
+//      for (int pid: parentIdList) {
+//        tmpcoef.push_back(coefs[pid]);
+//      }
+//      ComputeTask* ct = new ComputeTask(childIdList, parentIdList, tmpcoef);
+//      ctlist.push_back(ct);
+//
+//      fetchComputeTask->buildFetchCompute(type, loc, childIdList, prevlocs, ctlist, stripename, parentIdList, ecw); 
+//
+//      tasklist.push_back(fetchComputeTask);
+//    }
+//
+//    debugnum++;
+//    //if (debugnum == 1)
+//    //  break;
+//  }
+}
 
-    vector<int> childIdList = sg->getChilds();
-    vector<int> parentIdList = sg->getParents();
-    unordered_map<int, vector<int>> coefs = sg->getCoefs();
-    
-    // We first check whether we have leave nodes in the child list
-    // If there are leave nodes, we put them into buckets of blocks
-    unordered_map<int, vector<int>> blk2pkts;
-    for (auto childId: childIdList) {
-      if (find(_ecLeaves.begin(), _ecLeaves.end(), childId) != _ecLeaves.end()) {
-        // this is a leave node
-        int blkIdx = childId/ecw;
-        if (blk2pkts.find(blkIdx) == blk2pkts.end()) {
-          vector<int> tmplist = {childId};
-          blk2pkts.insert(make_pair(blkIdx, tmplist));
-        } else {
-          blk2pkts[blkIdx].push_back(childId);
+void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,                                                                                                                         
+        int ecn, int eck, int ecw, int blkbytes, int pktbytes, 
+        string stripename, vector<string> blocklist,
+        unordered_map<int, unsigned int> coloring_res) {
+    cout << "ECUnits: " << endl;
+    for (int i=0; i<_ecUnitList.size(); i++) {
+        int unitId = _ecUnitList[i];
+        ECUnit* cunit = _ecUnitMap[unitId];
+        cout << "  " << cunit->dump() << endl;
+    }
+
+    // note, if a leaf vertex is a virtual block, we ignore it.
+    unordered_map<int, int> leaveRefs;
+    for (auto cid: _ecLeaves) {
+        int bidx = cid/ecw;
+        if (bidx < ecn)
+            leaveRefs.insert(make_pair(cid, 0));
+    }
+
+    cout << "ECCluster:" << endl;
+    for (int i=0; i<_ecClusterList.size(); i++) {
+        int clusterId = _ecClusterList[i];
+        ECCluster* ccluster = _ecClusterMap[clusterId];
+        cout << "  " << ccluster->dump() << endl;
+
+        // data structure for current cluster
+        vector<int> childlist;
+        unordered_map<int, bool> childmap;
+        vector<int> parentlist;
+        unordered_map<int, vector<int>> coefmap;
+
+        vector<int> unitlist = ccluster->getUnitList();
+
+        // figure out all the childs for the current cluster
+        for (int j=0; j<unitlist.size(); j++) {
+            int unitId = unitlist[j];
+            ECUnit* cunit = _ecUnitMap[unitId];
+            cout << "    unit: " << cunit->dump() << endl;
+
+            vector<int> unitchilds = cunit->getChilds();
+            for (auto cid: unitchilds) {
+                if (childmap.find(cid) == childmap.end()) {
+                    childmap.insert(make_pair(cid, true));
+                    childlist.push_back(cid);
+                }
+            }
         }
-      }
+        sort(childlist.begin(), childlist.end());
+
+        // update ref in leaveRefs
+        for (auto cid: childlist) {
+            if (leaveRefs.find(cid)!=leaveRefs.end())
+                leaveRefs[cid]++;
+        }
+        
+        cout << "    childlist: ";
+        for (int tmpi=0; tmpi < childlist.size(); tmpi++) {
+            cout << childlist[tmpi] << " ";
+        }
+        cout << endl;
+
+        // update coefs for childlist
+        for (int j=0; j<unitlist.size(); j++) {
+            int unitId = unitlist[j];
+            ECUnit* cunit = _ecUnitMap[unitId];
+            cout << "    unit: " << cunit->dump() << endl;
+            vector<int> unitchilds = cunit->getChilds();
+            vector<int> unitcoefs = cunit->getCoefs();
+            int parent = cunit->getParent();
+
+            cout << "    parent: " << parent << ", childs: ";
+            for (int tmpi=0; tmpi<unitchilds.size(); tmpi++)
+                cout << unitchilds[tmpi] << " ";
+            cout << ", coefs: ";
+            for (int tmpi=0; tmpi<unitcoefs.size(); tmpi++)
+                cout << unitcoefs[tmpi] << " ";
+            cout << endl;
+
+            vector<int> coeflist(childlist.size());
+            for (int tmpi=0; tmpi<childlist.size(); tmpi++) {
+                int cid = childlist[tmpi];
+                int c = 0;
+                for (int tmpj=0; tmpj<unitchilds.size(); tmpj++) {
+                    if (cid == unitchilds[tmpj])
+                        c = unitcoefs[tmpj];
+                }
+                coeflist[tmpi] = c;
+            }
+            
+            cout << "    parent: " << parent << ", newchilds: ";
+            for (int tmpi=0; tmpi<childlist.size(); tmpi++)
+                cout << childlist[tmpi] << " ";
+            cout << ", newcoefs: ";
+            for (int tmpi=0; tmpi<coeflist.size(); tmpi++)
+                cout << coeflist[tmpi] << " ";
+            cout << endl;
+
+            parentlist.push_back(parent);
+            coefmap.insert(make_pair(parent, coeflist));
+        }
+
+        // setup data structures in cluster
+        ccluster->setChildList(childlist);
+        ccluster->setParentList(parentlist);
+        ccluster->setCoefMap(coefmap);
     }
 
-    // if there are leave nodes in this sg, we create ectasks to read from disk
-    for (auto item: blk2pkts) {
-      int blkidx = item.first;
-      vector<int> indices = blk2pkts[blkidx];
-
-      int type = 0;
-      unsigned int loc = _idx2ip[indices[0]];
-      string blockname = blocklist[blkidx];
-      ECTask* readTask = new ECTask();   
-      readTask->buildReadDisk(type, loc, blockname, ecw, indices, stripename);
-      tasklist.push_back(readTask);
+    // check leaveRefs, merge cid of the same block
+    unordered_map<int, vector<int>> bid2cids;
+    for (auto item: leaveRefs) {
+        int cid = item.first;
+        int bid = cid/ecw;
+        if (bid2cids.find(bid) == bid2cids.end()) {
+            vector<int> list;
+            list.push_back(cid);
+            bid2cids.insert(make_pair(bid, list));
+        } else {
+            bid2cids[bid].push_back(cid);
+        }
     }
+    // buildReadDisk
+    for (auto item: bid2cids) {
+        int bid = item.first;
+        vector<int> cidlist = item.second;
+        sort(cidlist.begin(), cidlist.end());
 
-    // if parent contains root node, we create ectasks to concact data 
-    if (parentIdList.size() == 1 && parentIdList[0] == REQUESTOR) {
-      cout << "create task for requestor!!!!!!!!!!" << endl;
-      // we need to concatenate for the requestor
-      ECTask* concatenateTask = new ECTask();
-      int type = 2;
-      unsigned int loc = _idx2ip[parentIdList[0]];
-      vector<unsigned int> prevlocs;
-      for (auto item: childIdList)
-        prevlocs.push_back(_idx2ip[item]);
-      int blkidx = childIdList[0] / ecw;
-      string blockname = blocklist[blkidx];
-      
-      concatenateTask->buildConcatenate(type, loc, childIdList, prevlocs, stripename, blockname, ecw);
+        int type = 0;
+        unsigned int loc = coloring_res[cidlist[0]];
+        string blockname = blocklist[bid];
+        unordered_map<int, int> cid2refs;
+        for (auto cid: cidlist) {
+            int r = leaveRefs[cid];
+            cid2refs.insert(make_pair(cid, r));
+        }
 
-      tasklist.push_back(concatenateTask);
-    } else {
-      // we create ectasks to fetchandcompute
-      ECTask* fetchComputeTask = new ECTask();
-      int type = 1;
-      unsigned int loc = _idx2ip[parentIdList[0]];
-      vector<unsigned int> prevlocs;
-      for (auto item: childIdList)
-        prevlocs.push_back(_idx2ip[item]);
-
-      vector<ComputeTask*> ctlist;
-      vector<vector<int>> tmpcoef;
-      for (int pid: parentIdList) {
-        tmpcoef.push_back(coefs[pid]);
-      }
-      ComputeTask* ct = new ComputeTask(childIdList, parentIdList, tmpcoef);
-      ctlist.push_back(ct);
-
-      fetchComputeTask->buildFetchCompute(type, loc, childIdList, prevlocs, ctlist, stripename, parentIdList, ecw); 
-
-      tasklist.push_back(fetchComputeTask);
+        ECTask* readDiskTask = new ECTask();
+        readDiskTask->buildReadDisk(type, loc, blockname, blkbytes, pktbytes, ecw, cid2refs, stripename);
+        tasklist.push_back(readDiskTask);
     }
+    // build fetchCompute and Concact
+    for (int i=0; i<_ecClusterList.size(); i++) {
+        int clusterId = _ecClusterList[i];
+        ECCluster* ccluster = _ecClusterMap[clusterId];
+        cout << "cluster: " << clusterId << endl;
+        vector<int> childlist = ccluster->getChildList();
+        vector<int> parentlist = ccluster->getParentList();
+        unordered_map<int, vector<int>> coefmap = ccluster->getCoefMap();
 
-    debugnum++;
-    //if (debugnum == 1)
-    //  break;
-  }
+        unsigned int loc = coloring_res[parentlist[0]];
+
+        vector<unsigned int> prevlocs;
+        for (int tmpi=0; tmpi<childlist.size(); tmpi++) {
+            int cid = childlist[tmpi];
+            unsigned int tmpl = coloring_res[cid];
+            prevlocs.push_back(tmpl);
+        }
+        
+
+        if (ccluster->isConcact(REQUESTOR)) {
+            cout << "  Concact!" << endl;
+
+            int type = 2;
+            int bidx = childlist[0] / ecw;
+            string blockname = blocklist[bidx];
+
+            ECTask* concactTask = new ECTask();
+            concactTask->buildConcatenate(type, loc, childlist, prevlocs, stripename, blockname, ecw, blkbytes, pktbytes);
+            tasklist.push_back(concactTask);
+
+        } else {
+            cout << "  FetchCompute!" << endl;
+            vector<int> childlist = ccluster->getChildList();
+            vector<int> parentlist = ccluster->getParentList();
+            unordered_map<int, vector<int>> coefmap = ccluster->getCoefMap();
+
+            int type = 1;
+            
+            vector<ComputeTask*> computelist;
+            vector<vector<int>> coeflist;
+            for (int tmpi=0; tmpi<parentlist.size(); tmpi++) {
+                int pid = parentlist[tmpi];
+                vector<int> coefs = coefmap[pid];
+                coeflist.push_back(coefs);
+            }
+            ComputeTask* ct = new ComputeTask(childlist, parentlist, coeflist);
+            computelist.push_back(ct);
+
+            ECTask* fetchComputeTask = new ECTask();
+            fetchComputeTask->buildFetchCompute(type, loc, childlist, prevlocs, 
+                    computelist, stripename, parentlist, ecw, blkbytes, pktbytes);
+            tasklist.push_back(fetchComputeTask);
+        }
+    }
 }
 
 void ECDAG::simulateLoc() {

@@ -14,6 +14,7 @@
 #include "../util/DistUtil.hh"
 #include "../util/LoadVector.hh"
 #include "StripeMeta.hh"
+#include "TradeoffPoints.hh"
 
 using namespace std;
 
@@ -24,6 +25,9 @@ class StripeStore {
     // metadata for stripes
     unordered_map<string, StripeMeta*> _stripeMetaMap; 
     unordered_map<string, string> _blk2stripe;
+
+    // tradeoff point for codes
+    unordered_map<string, TradeoffPoints*> _tradeoffPointsMap;
 
     // load vector
     mutex _lockLoadVector;
@@ -92,6 +96,7 @@ class StripeStore {
 
     StripeMeta* getStripeMetaFromBlockName(string blockname);
     StripeMeta* getStripeMetaFromStripeName(string stripename);
+    TradeoffPoints* getTradeoffPoints(string tpentry);
     void lockLoadVector();
     void unlockLoadVector();
     void getLoadValueFor(LoadVector* lv);

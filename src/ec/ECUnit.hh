@@ -17,6 +17,7 @@ class ECUnit {
     int getUnitId();
     vector<int> getChilds();
     int getParent();
+    vector<int> getCoefs();
 
     string dump();
     

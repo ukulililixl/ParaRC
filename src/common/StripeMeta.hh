@@ -21,6 +21,8 @@ class StripeMeta {
     int _ecW;
     vector<std::string> _blockList;
     vector<unsigned int> _locList;
+    long long _blkbytes;
+    int _pktbytes;
 
     std::string getStripeName();
     int getECN();
@@ -30,6 +32,9 @@ class StripeMeta {
     vector<unsigned int> getLocList();
     int getBlockIndex(string blockName);
     ECBase* createECClass();
+    std::string getCodeName();
+    long long getBlockBytes();
+    int getPacketBytes();
 };
 
 #endif

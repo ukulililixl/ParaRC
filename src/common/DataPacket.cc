@@ -20,6 +20,7 @@ DataPacket::DataPacket(int len) {
   _dataLen = len;
 
   int tmplen = htonl(len) ;
+  memset(_raw, 0, len+4);
   memcpy(_raw, (char*)&tmplen, 4);
 }
 

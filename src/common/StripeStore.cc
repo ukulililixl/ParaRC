@@ -20,6 +20,19 @@ StripeStore::StripeStore(Config* conf) {
     }
   }
 
+  string tpdir = conf->_tpDir;
+  cout << "StripeStore::tradeoffpoint dir: " << tpdir << endl;
+  
+  // read each file in ssdir and generate
+  vector<string> tplist = DistUtil::listFiles(tpdir);
+  for (string item: tplist) {
+      string fullpath = tpdir + "/" + item;
+      cout << fullpath << endl;
+      vector<string> splititem = DistUtil::splitStr(item, ".");
+      TradeoffPoints* point = new TradeoffPoints(fullpath);
+      _tradeoffPointsMap.insert(make_pair(splititem[0], point));
+  }
+
   _loadVector = new LoadVector(conf->_agentsIPs);
   
 
@@ -81,6 +94,16 @@ StripeMeta* StripeStore::getStripeMetaFromStripeName(string stripename) {
     toret = _stripeMetaMap[stripename];
   }
   return toret;
+}
+
+TradeoffPoints* StripeStore::getTradeoffPoints(string tpentry) {
+    TradeoffPoints* toret = NULL;
+
+    if (_tradeoffPointsMap.find(tpentry) != _tradeoffPointsMap.end()) {
+        toret = _tradeoffPointsMap[tpentry];
+    }
+
+    return toret;
 }
 
 void StripeStore::lockLoadVector() {

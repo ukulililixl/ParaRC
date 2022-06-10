@@ -34,10 +34,13 @@ class AGCommand {
     string _rKey;
     int _type;
     unsigned _sendIp;
+    int _blkbytes;
+    int _pktbytes;
 
     // type 0
     string _blockName;
     int _ecw; 
+    unordered_map<int, int> _cid2refs;
     vector<int> _indices;
     string _stripeName;
 
@@ -77,12 +80,37 @@ class AGCommand {
     vector<int> getPrevIndices();
     vector<unsigned int> getPrevLocs();
     vector<ComputeTask*> getCTList();
+    unordered_map<int, int> getCid2Refs();
+    int getBlkBytes();
+    int getPktBytes();
 
-    void buildType0(int type, unsigned int sendip, string blockname, int ecw, vector<int> indices, string stripename);
-    void buildType1(int type, unsigned int sendip, vector<int> prevIndices, vector<unsigned int> prevLocs, 
-                    vector<ComputeTask*> ctlist, string stripename, vector<int> cacheIndices, int ecw);
-    void buildType2(int type, unsigned int sendip, vector<int> prevIndices, vector<unsigned int> prevLocs,
-                    string stripename, string blockname, int ecw);
+    void buildType0(int type, 
+            unsigned int sendip, 
+            string blockname, 
+            int blkbytes,
+            int pktbytes,
+            int ecw, 
+            unordered_map<int, int> cid2ref,
+            string stripename);
+    void buildType1(int type, 
+            unsigned int sendip, 
+            vector<int> prevIndices, 
+            vector<unsigned int> prevLocs, 
+            vector<ComputeTask*> ctlist, 
+            string stripename, 
+            vector<int> cacheIndices, 
+            int ecw,
+            int blkbytes,
+            int pktbytes);
+    void buildType2(int type, 
+            unsigned int sendip, 
+            vector<int> prevIndices, 
+            vector<unsigned int> prevLocs,
+            string stripename, 
+            string blockname, 
+            int ecw,
+            int blkbytes,
+            int pktbytes);
 
     // resolve AGCommand
     void resolveType0();

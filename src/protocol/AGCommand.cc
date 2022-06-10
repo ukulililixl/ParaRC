@@ -110,55 +110,91 @@ vector<ComputeTask*> AGCommand::getCTList() {
   return _ctlist;
 }
 
+unordered_map<int, int> AGCommand::getCid2Refs() {
+    return _cid2refs;
+}
+
+int AGCommand::getBlkBytes() {
+    return _blkbytes;
+}
+
+int AGCommand::getPktBytes() {
+    return _pktbytes;
+}
+
 void AGCommand::buildType0(int type,
                            unsigned int sendip,
                            string blockname, 
+                           int blkbytes,
+                           int pktbytes,
                            int ecw, 
-                           vector<int> indices, 
+                           unordered_map<int, int> cid2ref,
                            string stripename) {
 
   // setup corresponding parameters
   _type = 0;
   _sendIp = sendip;
   _blockName = blockname;
+  _blkbytes = blkbytes;
+  _pktbytes = pktbytes;
   _ecw = ecw;
-  _indices = indices;
+  _cid2refs = cid2ref;
   _stripeName = stripename;
 
   // 1. type
   writeInt(_type);
   // 2. blockname
   writeString(blockname);
-  // 3. ecw
+  // 3. blkbytes
+  writeInt(_blkbytes);
+  // 4. pktbytes
+  writeInt(_pktbytes);
+  // 5. ecw
   writeInt(_ecw);
-  // 4. indices
-  // 4.1 the number of indices 
-  writeInt(indices.size());
-  // 4.2 indices in a loop
-  for (int i=0; i<indices.size(); i++)
-    writeInt(indices[i]);
-  // 5. stripename
+  // 6. cid2refs
+  // 6.1 the number of indices 
+  writeInt(_cid2refs.size());
+  // 6.2 indices in a loop
+  for (auto item: cid2ref) {
+      int cid = item.first;
+      int ref = item.second;
+      writeInt(cid);
+      writeInt(ref);
+  }
+  // 7. stripename
   writeString(stripename);
 }
 
 void AGCommand::resolveType0() {
   // 2. blockname
   _blockName = readString();
-  // 3. ecw
+  // 3. blkbytes
+  _blkbytes = readInt();
+  // 4. pktbytes
+  _pktbytes = readInt();
+  // 5. ecw
   _ecw = readInt();
-  // 4. indices
-  // 4.1 the number of indices
+  // 6. cid2refs
   int num = readInt();
-  // 4.2 indices
   for (int i=0; i<num; i++) {
-    _indices.push_back(readInt());
+      int cid = readInt();
+      int ref = readInt();
+      _cid2refs.insert(make_pair(cid, ref));
   }
-  // 5. stripename
+  // 7. stripename
   _stripeName = readString();
 }
 
-void AGCommand::buildType1(int type, unsigned int sendip, vector<int> prevIndices, vector<unsigned int> prevLocs,
-                    vector<ComputeTask*> ctlist, string stripename, vector<int> cacheIndices, int ecw) {
+void AGCommand::buildType1(int type, 
+        unsigned int sendip, 
+        vector<int> prevIndices, 
+        vector<unsigned int> prevLocs,
+        vector<ComputeTask*> ctlist, 
+        string stripename, 
+        vector<int> cacheIndices, 
+        int ecw,
+        int blkbytes,
+        int pktbytes) {
 
   // setup corresponding parameters
   _type = 1;
@@ -168,6 +204,9 @@ void AGCommand::buildType1(int type, unsigned int sendip, vector<int> prevIndice
   _ctlist = ctlist;
   _stripeName = stripename;
   _indices = cacheIndices;
+  _ecw = ecw;
+  _blkbytes = blkbytes;
+  _pktbytes = pktbytes;
 
   // 1. type
   writeInt(type);
@@ -218,6 +257,10 @@ void AGCommand::buildType1(int type, unsigned int sendip, vector<int> prevIndice
   }
   // 7. ecw
   writeInt(ecw);
+  // 8. blkbytes
+  writeInt(_blkbytes);
+  // 9. pktbytes
+  writeInt(_pktbytes);
 }
 
 void AGCommand::resolveType1() {
@@ -267,10 +310,21 @@ void AGCommand::resolveType1() {
   }
   // 7. ecw
   _ecw = readInt();
+  // 8. blkbytes
+  _blkbytes = readInt();
+  // 9. pktbytes
+  _pktbytes = readInt();
 }
 
-void AGCommand::buildType2(int type, unsigned int sendip, vector<int> prevIndices, vector<unsigned int> prevLocs,
-                    string stripename, string blockname, int ecw) {
+void AGCommand::buildType2(int type, 
+        unsigned int sendip, 
+        vector<int> prevIndices, 
+        vector<unsigned int> prevLocs,
+        string stripename, 
+        string blockname, 
+        int ecw,
+        int blkbytes,
+        int pktbytes) {
 
   // setup corresponding parameters
   _type = 2;
@@ -280,6 +334,8 @@ void AGCommand::buildType2(int type, unsigned int sendip, vector<int> prevIndice
   _stripeName = stripename;
   _blockName = blockname;
   _ecw = ecw;
+  _blkbytes = blkbytes;
+  _pktbytes = pktbytes;
 
   // 1. type
   writeInt(type);
@@ -299,6 +355,10 @@ void AGCommand::buildType2(int type, unsigned int sendip, vector<int> prevIndice
   writeString(blockname);
   // 6. ecw
   writeInt(ecw);
+  // 7. blkbytes
+  writeInt(blkbytes);
+  // 8. pktbytes
+  writeInt(pktbytes);
 }
 
 void AGCommand::resolveType2() {
@@ -315,14 +375,22 @@ void AGCommand::resolveType2() {
   _blockName = readString();
   // 6. ecw
   _ecw = readInt();
+  // 7. blkbytes
+  _blkbytes = readInt();
+  // 8. pktbytes
+  _pktbytes = readInt();
 }
 
 string AGCommand::dumpStr() {
   string toret;
+  toret += "send to " + RedisUtil::ip2Str(_sendIp) + "; ";
   if (_type == 0) {
     toret += "readDisk: block = " + _blockName + ", ecw: " + to_string(_ecw) + ", indices: ";
-    for (int i=0; i<_indices.size(); i++)
-      toret += to_string(_indices[i]) + " "; 
+    for (auto item: _cid2refs) {
+        int cid = item.first;
+        int ref = item.second;
+        toret += to_string(cid) + "(" + to_string(ref) + ")" + " ";
+    }
     toret += ", stripename: " + _stripeName + "\n";
   } else if (_type == 1) {
     toret += "fetchAndCompute: \n";
@@ -337,7 +405,7 @@ string AGCommand::dumpStr() {
       vector<vector<int>> coefs = ct->_coefs;
       toret += "    srclist: ";
       for (auto item: srclist)
-        toret += to_string(item);
+        toret += to_string(item) + " ";
       toret += "\n";
       for (int j=0; j<dstlist.size(); j++) {
         toret +="    dst " + to_string(dstlist[j]) + ": ";
@@ -350,6 +418,7 @@ string AGCommand::dumpStr() {
     for (auto item: _indices) {
       toret += "  cache: " + to_string(item) + " ";
     }
+    toret += "\n";
   } else if (_type == 2) {
     toret += "concatenate: \n";
     for (int i=0; i<_prevIndices.size(); i++)

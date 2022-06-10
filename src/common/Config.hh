@@ -30,13 +30,14 @@ class Config {
     //cmddistributor thread num
     int _distThreadNum;
 
-    // size
-    int _pktSize;
-    long long _blkSize;
+    // // size
+    // int _pktSize;
+    // long long _blkSize;
 
     // path
     std::string _blkDir;
     std::string _ssDir;
+    std::string _tpDir;
 
 //    // fstype
 //    std::string _fsType;

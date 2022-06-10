@@ -58,25 +58,36 @@ void Worker::readAndCache(AGCommand* agcmd) {
   cout << "Worker::readDisk!" << endl;
 
   string blockname = agcmd->getBlockName();
+  int blkbytes = agcmd->getBlkBytes();
+  int pktbytes = agcmd->getPktBytes();
   int ecw = agcmd->getECW();
-  vector<int> indices = agcmd->getIndices();
+  unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
   string stripename = agcmd->getStripeName();
 
   cout << "Worker::readDisk.blockname: " << blockname << endl;
+  cout << "Worker::readDisk.blkbytes: " << blkbytes << endl;
+  cout << "Worker::readDisk.pktbytes: " << pktbytes << endl;
   cout << "Worker::readDisk.ecw: " << ecw << endl;
-  cout << "Worker::readDisk.indices: ";
-  for (auto item: indices)
-    cout << item << " ";
+  cout << "Worker::readDisk.cid2refs: ";
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      int ref = item.second;
+      cout << "(" << cid << ", " << ref << ") ";
+  }
   cout << endl;
   cout << "Worker::readDisk.stripename: " << stripename << endl;
 
   vector<int> pattern;
+  vector<int> indices;
   for (int i=0; i<ecw; i++)
     pattern.push_back(0);
-  for (int i=0; i<indices.size(); i++) {
-    int j = indices[i] % ecw;
-    pattern[j] = 1;
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      indices.push_back(cid);
+      int j = cid % ecw;
+      pattern[j] = 1;
   }
+  sort(indices.begin(), indices.end());
   cout << "Worker::readDisk.pattern: ";
   for (int i=0; i<ecw; i++)
     cout << pattern[i] << " ";
@@ -84,11 +95,13 @@ void Worker::readAndCache(AGCommand* agcmd) {
 
   BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
 
-  thread readThread = thread([=]{readWorker(readqueue, blockname, ecw, pattern);});
-  thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename);});
+  thread readThread = thread([=]{readWorker(readqueue, blockname, ecw, pattern, blkbytes, pktbytes);});
+  thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename, blkbytes, pktbytes);});
 
   readThread.join();
   cacheThread.join();
+
+  delete readqueue;
 }
 
 void Worker::fetchAndCompute(AGCommand* agcmd) {
@@ -99,6 +112,8 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
   string stripename = agcmd->getStripeName();
   vector<int> cacheIndices = agcmd->getIndices();
   int ecw = agcmd->getECW();
+  int blkbytes = agcmd->getBlkBytes();
+  int pktbytes = agcmd->getPktBytes();
 
   // create blockingqueue for fetching
   BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
@@ -113,17 +128,17 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
   vector<thread> fetchThreads = vector<thread>(prevIndices.size());
   for (int i=0; i<prevIndices.size(); i++) {
     string keybase = stripename+":"+to_string(prevIndices[i]);
-    fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i]);});
+    fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
   } 
 
   // create compute thread
-  thread computeThread = thread([=]{computeWorker(fetchQueue, prevIndices, writeQueue, cacheIndices, computeTaskList, ecw);});
+  thread computeThread = thread([=]{computeWorker(fetchQueue, prevIndices, writeQueue, cacheIndices, computeTaskList, ecw, blkbytes, pktbytes);});
 
   // create cache thread
   vector<thread> cacheThreads = vector<thread>(cacheIndices.size());
   for (int i=0; i<cacheIndices.size(); i++) {
     vector<int> tmplist = {cacheIndices[i]};
-    cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename);});
+    cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes);});
   }
 
   // join
@@ -153,6 +168,8 @@ void Worker::concatenate(AGCommand* agcmd) {
   string stripename = agcmd->getStripeName();
   string blockname = agcmd->getBlockName();
   int ecw = agcmd->getECW();
+  int blkbytes = agcmd->getBlkBytes();
+  int pktbytes = agcmd->getPktBytes();
 
   string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
 
@@ -165,15 +182,13 @@ void Worker::concatenate(AGCommand* agcmd) {
   vector<thread> fetchThreads = vector<thread>(prevIndices.size());
   for (int i=0; i<prevIndices.size(); i++) {
     string keybase = stripename+":"+to_string(prevIndices[i]);
-    fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i]);});
+    fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
   } 
 
   ofstream ofs(fullpath);
   ofs.close();
   ofs.open(fullpath, ios::app);
 
-  long long blkbytes = _conf->_blkSize;
-  int pktbytes = _conf->_pktSize;
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
 
@@ -191,24 +206,6 @@ void Worker::concatenate(AGCommand* agcmd) {
 
   ofs.close();
 
-//  // now we get data from each blocking queue and write them into disk
-//  int fd = open(fullpath.c_str(), O_WRONLY);
-//  long long blkbytes = _conf->_blkSize;
-//  int pktbytes = _conf->_pktSize;
-//  int subpktbytes = pktbytes / ecw;
-//  int pktnum = blkbytes / pktbytes;
-//
-//  for (int i=0; i<pktnum; i++) {
-//    for (int j=0; j<prevIndices.size(); j++) {
-//      DataPacket* curpkt = fetchQueue[j]->pop();
-//      char* curdata = curpkt->getData();
-//      int start = i*pktbytes + j * subpktbytes;
-//      pwrite(fd, curdata, subpktbytes, start);
-//      delete curpkt;
-//    }
-//  }
-//  close(fd);
-  
   // join
   for (int i=0; i<prevIndices.size(); i++) {
     fetchThreads[i].join();
@@ -230,13 +227,11 @@ void Worker::concatenate(AGCommand* agcmd) {
   free(fetchQueue);
 }
 
-void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern) {
+void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes) {
   string fullpath = _conf->_blkDir + "/" + blockname;
   cout << "Worker::readWorker:fullpath = " << fullpath << endl;
   
   int fd = open(fullpath.c_str(), O_RDONLY);
-  long long blkbytes = _conf->_blkSize;
-  int pktbytes = _conf->_pktSize;
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
   int readLen = 0, readl = 0;
@@ -265,15 +260,13 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
   close(fd);
 }
 
-void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idxlist, int ecw, string keybase) {
+void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idxlist, int ecw, string keybase, int blkbytes, int pktbytes) {
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
 
   redisContext* writeCtx = RedisUtil::createContext(_conf->_localIp);
   redisReply* rReply;
 
-  long long blkbytes = _conf->_blkSize;
-  int pktbytes = _conf->_pktSize;
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
 
@@ -306,45 +299,59 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
   }
   
   gettimeofday(&time2, NULL);
-  cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << endl;
+  cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << ":";
+  for (int i=0; i<idxlist.size(); i++) {
+      cout << idxlist[i] << " ";
+  }
+  cout << endl;
 }
 
 void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      string keybase,
-                     unsigned int loc) {
-  redisReply* rReply;
-  redisContext* fetchCtx = RedisUtil::createContext(loc);
-
-  long long blkbytes = _conf->_blkSize;
-  int pktbytes = _conf->_pktSize;
+                     unsigned int loc,
+                     int ecw,
+                     int blkbytes, 
+                     int pktbytes) {
   int pktnum = blkbytes / pktbytes;
+  int slicesize = pktbytes / ecw;
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
 
-  int replyid=0;
-  for (int i=0; i<pktnum; i++) {
-    string key = keybase+":"+to_string(i);
-    redisAppendCommand(fetchCtx, "blpop %s 0", key.c_str());
-  }
+  if (loc == 0) {
+      cout << "Worker::fetchWorker generates zero bytes for " << keybase << endl;
+      for (int i=0; i<pktnum; i++) {
+          DataPacket* pkt = new DataPacket(slicesize);
+          fetchQueue->push(pkt);
+      }
+  } else {
+    redisReply* rReply;
+    redisContext* fetchCtx = RedisUtil::createContext(loc);
 
-  struct timeval t1, t2;
-  double t;
-  for (int i=replyid; i<pktnum; i++) {
-    string key = keybase+":"+to_string(i);
-    gettimeofday(&t1, NULL);
-    redisGetReply(fetchCtx, (void**)&rReply);
-    gettimeofday(&t2, NULL);
-    //if (i == 0) cout << "OECWorker::fetchWorker.fetch first t = " << RedisUtil::duration(t1, t2) << endl;
-    char* content = rReply->element[1]->str;
-    DataPacket* pkt = new DataPacket(content);
-    int curDataLen = pkt->getDatalen();
-    fetchQueue->push(pkt);
-    freeReplyObject(rReply);
+    int replyid=0;
+    for (int i=0; i<pktnum; i++) {
+      string key = keybase+":"+to_string(i);
+      redisAppendCommand(fetchCtx, "blpop %s 0", key.c_str());
+    }
+    
+    struct timeval t1, t2;
+    double t;
+    for (int i=replyid; i<pktnum; i++) {
+      string key = keybase+":"+to_string(i);
+      gettimeofday(&t1, NULL);
+      redisGetReply(fetchCtx, (void**)&rReply);
+      gettimeofday(&t2, NULL);
+      //if (i == 0) cout << "OECWorker::fetchWorker.fetch first t = " << RedisUtil::duration(t1, t2) << endl;
+      char* content = rReply->element[1]->str;
+      DataPacket* pkt = new DataPacket(content);
+      int curDataLen = pkt->getDatalen();
+      fetchQueue->push(pkt);
+      freeReplyObject(rReply);
+    }
+    gettimeofday(&time2, NULL);
+    cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << endl;
+    redisFree(fetchCtx);
   }
-  gettimeofday(&time2, NULL);
-  cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << endl;
-  redisFree(fetchCtx);
 }
 
 void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
@@ -352,12 +359,10 @@ void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
                            BlockingQueue<DataPacket*>** writeQueue,
                            vector<int> writeIndices,
                            vector<ComputeTask*> ctlist, 
-                           int ecw) {
+                           int ecw, int blkbytes, int pktbytes) {
   struct timeval time1, time2, time3;
   gettimeofday(&time1, NULL);
 
-  long long blkbytes = _conf->_blkSize;
-  int pktbytes = _conf->_pktSize;
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
    

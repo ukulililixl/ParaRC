@@ -33,6 +33,10 @@ StripeMeta::StripeMeta(std::string& stripename, std::string& filepath) {
         _locList.push_back(inet_addr(splits[1].c_str()));
         //std::cout << splits[0] << ": " << splits[1] << std::endl; 
       }
+    } else if (attName == "blockbytes") {
+        _blkbytes = std::stoll(ele -> NextSiblingElement("value") -> GetText());
+    } else if (attName == "pktbytes") {
+        _pktbytes = std::stoi(ele -> NextSiblingElement("value") -> GetText());
     }
   }
 }
@@ -79,4 +83,16 @@ ECBase* StripeMeta::createECClass() {
     toret = new Clay(_ecN, _ecK, _ecW, {to_string(_ecN-1)});
   }
   return toret;
+}
+
+std::string StripeMeta::getCodeName() {
+    return _codeName;
+}
+
+long long StripeMeta::getBlockBytes() {
+    return _blkbytes;
+}
+
+int StripeMeta::getPacketBytes() {
+    return _pktbytes;
 }

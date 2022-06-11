@@ -28,6 +28,7 @@ class Worker {
     // deal with coor instruction
     void readAndCache(AGCommand* agCmd);
     void fetchAndCompute(AGCommand* agCmd);
+    void debugFetchAndCompute(AGCommand* agCmd);
     void concatenate(AGCommand* agCmd);
 
     // basic routines
@@ -35,7 +36,7 @@ class Worker {
                     vector<int> pattern, int blkbytes, int pktbytes);
     void cacheWorker(BlockingQueue<DataPacket*>* cachequeue,
                      vector<int> idxlis, int ecw, string keybase,
-                     int blkbytes, int pktbytes);
+                     int blkbytes, int pktbytes, unordered_map<int, int> cid2refs);
     void fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      string keybase,
                      unsigned int loc,

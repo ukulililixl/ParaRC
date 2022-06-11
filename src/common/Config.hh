@@ -1,7 +1,6 @@
 #ifndef _CONFIG_HH_
 #define _CONFIG_HH_
 
-//#include "../ec/ECPolicy.hh"
 #include "../inc/include.hh"
 #include "../util/tinyxml2.h"
 
@@ -18,9 +17,7 @@ class Config {
     unsigned int _coorIp;
     std::unordered_map<unsigned int, std::string> _ip2Rack;
     std::unordered_map<std::string, std::vector<unsigned int>> _rack2Ips;
-//
-////    unsigned int _repairIp;
-////
+    
     //worker thread num
     int _agWorkerThreadNum;
 
@@ -29,10 +26,6 @@ class Config {
 
     //cmddistributor thread num
     int _distThreadNum;
-
-    // // size
-    // int _pktSize;
-    // long long _blkSize;
 
     // path
     std::string _blkDir;

@@ -79,6 +79,13 @@ int main(int argc, char** argv) {
   char** buffers = (char**)calloc(n, sizeof(char*));
   for (int i=0; i<n; i++) {
     buffers[i] = (char*)calloc(pktbytes, sizeof(char));
+    memset(buffers[i], 0, pktbytes);
+    if (i < k) {
+        for (int j=0; j<w; j++) {
+            int cid = i*w+j;
+            memset(buffers[i], cid, pktbytes);
+        }
+    }
   }
   char* repairbuffer = (char*)calloc(pktbytes, sizeof(char));
 
@@ -88,25 +95,27 @@ int main(int argc, char** argv) {
   unordered_map<int, char*> encodeBufMap;
   // 1.1 create encode tasks
   encdag = ec->Encode();
-  encdag->genSimpleGraph();
-  vector<ECTask*> enctasklist;
-  encdag->genECTasks(enctasklist, n, k, w, stripename, blklist);
+  encdag->genECUnits();
+
+  // 1.2 generate ComputeTask from ECUnits
   vector<ComputeTask*> encctasklist;
-  for (int taskid=0; taskid<enctasklist.size(); taskid++) {
-      ECTask* curtask = enctasklist[taskid];
-      int type = curtask->getType();
-      if (type != 1) 
-          continue;
-      vector<ComputeTask*> ctlist = curtask->getComputeTaskList();
-      for (int i=0; i<ctlist.size(); i++)
-          encctasklist.push_back(ctlist[i]);
-  }
-  // 1.2 put slices into encodeBufMap
+  encdag->genComputeTaskByECUnits(encctasklist);
+
+  // 1.3 put slices into encodeBufMap
   for (int i=0; i<n; i++) {
       for (int j=0; j<w; j++) {
           int idx = i*w+j;
           char* buf = buffers[i]+j*slicebytes;
           encodeBufMap.insert(make_pair(idx, buf));
+      }
+  }
+
+  // 1.4 put shortened pkts into encodeBufMap
+  vector<int> encHeaders = encdag->getECLeaves();
+  for (auto cid: encHeaders) {
+      if (encodeBufMap.find(cid) == encodeBufMap.end()) {
+        char* tmpbuf = (char*)calloc(pktbytes/w, sizeof(char));
+        encodeBufMap.insert(make_pair(cid, tmpbuf));
       }
   }
 
@@ -132,47 +141,46 @@ int main(int argc, char** argv) {
       }
   }
   decdag = dec->Decode(availIdx, toRepairIdx);
+  decdag->Concact(toRepairIdx);
+  decdag->genECUnits();
 
-  decdag->genSimpleGraph();
-  vector<ECTask*> dectasklist;
-  decdag->genECTasks(dectasklist, n, k, w, stripename, blklist);
+  // 2.2 generate ComputeTask from ECUnits
   vector<ComputeTask*> decctasklist;
-  for (int taskid=0; taskid<dectasklist.size(); taskid++) {
-      ECTask* curtask = dectasklist[taskid];
-      int type = curtask->getType();
-      //cout << curtask->dumpStr() << endl;
-      if (type != 1) { 
-          continue;
-      }
-      vector<ComputeTask*> ctlist = curtask->getComputeTaskList();
-      for (int i=0; i<ctlist.size(); i++)
-          decctasklist.push_back(ctlist[i]);
-  }
+  decdag->genComputeTaskByECUnits(decctasklist);
 
+  // 2.3 put shortened pkts into encodeBufMap
+  vector<int> decHeaders = decdag->getECLeaves();
+  for (auto cid: decHeaders) {
+      if (decodeBufMap.find(cid) == decodeBufMap.end()) {
+        char* tmpbuf = (char*)calloc(pktbytes/w, sizeof(char));
+        decodeBufMap.insert(make_pair(cid, tmpbuf));
+      }
+  }
 
   // 2. test
   double encodeTime = 0, decodeTime = 0;
   srand((unsigned)1234);
+  cout << "stripenum: " << stripenum << endl;
   for (int stripei=0; stripei<stripenum; stripei++) {
     // clean codebuffers
     for (int i=k;i<n; i++) {
         memset(buffers[i], 0, pktbytes);
     }
     
-    //// initialize databuffers
-    //for (int i=0; i<k; i++) {
-    //    for (int j=0; j<pktbytes; j++) {
-    //        //buffers[i][j] = rand();
-    //    }
-    //}
-    
-    // debug
+    // initialize databuffers
     for (int i=0; i<k; i++) {
-        for (int j=0; j<w; j++) {
-            char c = i*w+j;
-            memset(buffers[i]+j*slicebytes, c, slicebytes);
+        for (int j=0; j<pktbytes; j++) {
+            buffers[i][j] = rand();
         }
     }
+    
+    //// debug
+    //for (int i=0; i<k; i++) {
+    //    for (int j=0; j<w; j++) {
+    //        char c = i*w+j;
+    //        memset(buffers[i]+j*slicebytes, c, slicebytes);
+    //    }
+    //}
 
     // encode test
     encodeTime -= getCurrentTime();
@@ -245,9 +253,9 @@ int main(int argc, char** argv) {
         //   }
         //   cout << endl;
         // }
-        free(matrix);
-        free(data);
-        free(code);
+        // free(matrix);
+        // free(data);
+        // free(code);
     }
 
     encodeTime += getCurrentTime();

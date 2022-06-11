@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int stripeidx = atoi(argv[5]);
-  int blockbytes = atoi(argv[6]);
+  int blkbytes = atoi(argv[6]);
   int pktbytes = atoi(argv[7]);
   string stripename = "stripe-"+to_string(stripeidx);
 
@@ -90,139 +90,97 @@ int main(int argc, char** argv) {
     blklist.push_back(blkname);
   }
 
-  int blksizeB = blockbytes;
-  int pktsizeB = pktbytes;
-  cout << "blksizeB: " << blksizeB << endl;
-  cout << "pktsizeB: " << pktsizeB << endl;
-  int pktnum = blksizeB/pktsizeB;
-
   ECBase* ec;
-  if (code == "Clay")
-    ec = new Clay(n, k, w, {to_string(n-1)});
+  if (code == "Clay") {
+      ec = new Clay(n,k,w,{to_string(n-1)});
+  }
   w = ec->_w;
 
-  if (pktsizeB % w != 0) {
-    pktsizeB = pktsizeB / w * w;
-    blksizeB = pktsizeB;
-    cout << "pktsizeB: " << pktsizeB << endl;
-  }
+  int stripenum = blkbytes / pktbytes;
+  int slicebytes = pktbytes / w;
+  int pktnum = blkbytes/pktbytes;
 
-  int subpktsize = pktsizeB / w;
-  // prepare original blocks
+  // 0. prepare buffers
   char** buffers = (char**)calloc(n, sizeof(char*));
-  unordered_map<int, char*> bufMap;
-  vector<int> parityidx;
   for (int i=0; i<n; i++) {
-    buffers[i] = (char*)calloc(pktsizeB, sizeof(char));
-    if (i < k) {
-      for (int j=0; j<w; j++) {
-        char idx = i*w+j;
-        memset(buffers[i]+j*subpktsize, idx, subpktsize);
+      buffers[i] = (char*)calloc(pktbytes, sizeof(char));
+      memset(buffers[i], 0, pktbytes);
+      if (i < k) { 
+          for (int j=0; j<w; j++) {
+              int cid = i*w+j;
+              memset(buffers[i], cid, pktbytes);
+          }
       }
-    } else {
-      memset(buffers[i], 0, pktsizeB);
-      for (int j=0; j<w; j++) {
-        int idx = i*w+j;
-        parityidx.push_back(idx);
-      }
-    }
-    
-    for (int j=0; j<w; j++) {
-      bufMap.insert(make_pair(i*w+j, buffers[i]+j*subpktsize));
-    }
   }
 
-  // debug data
-  for (int i=0; i<k; i++) {
-    for (int j=0; j<w; j++) {
-      int idx = i*w+j;
-      char c = bufMap[idx][0];
-      cout << "idx: " << idx << ", value: " << (int)c << endl;
-    }
+  // 1. encode ecdag
+  ECDAG* encdag = nullptr;
+  vector<ECTask*> encodetasks;
+  unordered_map<int, char*> encodeBufMap;
+  // 1.1 create encode tasks
+  encdag = ec->Encode();
+  encdag->genECUnits();
+  // 1.2 generate ComputeTask from ECUnits
+  vector<ComputeTask*> encctasklist; 
+  encdag->genComputeTaskByECUnits(encctasklist);
+  // 1.3 put slices into encodeBufMap
+  for (int i=0; i<n; i++) {
+      for (int j=0; j<w; j++) {
+          int idx = i*w+j;
+          char* buf = buffers[i]+j*slicebytes;
+          encodeBufMap.insert(make_pair(idx, buf));
+      }
+  }
+  // 1.4 put shortened pkts into encodeBufMap
+  vector<int> encHeaders = encdag->getECLeaves();
+  for (auto cid: encHeaders) {
+      if (encodeBufMap.find(cid) == encodeBufMap.end()) {
+          char* tmpbuf = (char*)calloc(pktbytes/w, sizeof(char));
+          encodeBufMap.insert(make_pair(cid, tmpbuf));
+      }
   }
 
-  ECDAG* ecdag = ec->Encode();
-  ecdag->Concact(parityidx);
-  ecdag->genSimpleGraph();
-  ecdag->simulateLoc();
-
-  vector<ECTask*> tasklist;
-  ecdag->genECTasks(tasklist, n, k, w, stripename, blklist);
-
-  for (int taskid=0; taskid<tasklist.size(); taskid++) {
-    ECTask* curtask = tasklist[taskid];
-    int type = curtask->getType();
-    if (type != 1)
-      continue;
-    cout << "===" << endl;
-    //cout << curtask->dumpStr() << endl;
-    vector<ComputeTask*> ctlist = curtask->getComputeTaskList();
-    for (int i=0; i<ctlist.size(); i++) {
-      ComputeTask* cptask = ctlist[i];
+  for (int taskid=0; taskid<encctasklist.size(); taskid++) {
+      ComputeTask* cptask = encctasklist[taskid];
       vector<int> srclist = cptask->_srclist;
       vector<int> dstlist = cptask->_dstlist;
       vector<vector<int>> coefs = cptask->_coefs;
-      cout << "srclist: ";
-      for (int j=0; j<srclist.size(); j++)
-        cout << srclist[j] << " ";
-      cout << endl;
-      for (int j=0; j<dstlist.size(); j++) {
-        int target = dstlist[j];
-        vector<int> coef = coefs[j];
-        cout << "target: " << target << "; coef: ";
-        for (int ci=0; ci<coef.size(); ci++) {
-          cout << coef[ci] << " ";
-        } 
-        cout << endl;
-      }
 
-      // make sure that index in srclits has been in bufmap
-      for(auto srcidx: srclist)
-        assert(bufMap.find(srcidx) != bufMap.end());
       // now we create buf in bufMap
       for (auto dstidx: dstlist) {
-        if (bufMap.find(dstidx) == bufMap.end()) {
-          char* tmpbuf = (char*)calloc(pktsizeB/w, sizeof(char));
-          memset(tmpbuf, 0, pktsizeB/w);
-          bufMap.insert(make_pair(dstidx, tmpbuf));
-        }
+          if (encodeBufMap.find(dstidx) == encodeBufMap.end()) {
+              char* tmpbuf = (char*)calloc(slicebytes, sizeof(char));
+              memset(tmpbuf, 0, slicebytes);
+              encodeBufMap.insert(make_pair(dstidx, tmpbuf));
+          }
       }
 
       int col = srclist.size();
       int row = dstlist.size();
-      int* matrix = (int*)calloc(row*col, sizeof(int));
+      int* matrix = (int*)calloc(row*col, sizeof(int)); 
       char** data = (char**)calloc(col, sizeof(char*));
       char** code = (char**)calloc(row, sizeof(char*));
       // prepare data buf
-      cout << "---" << endl;
       for (int bufIdx = 0; bufIdx < srclist.size(); bufIdx++) {
-        int child = srclist[bufIdx];
-        // check whether there is buf in databuf
-        assert (bufMap.find(child) != bufMap.end());
-        data[bufIdx] = bufMap[child];
-        unsigned char c = data[bufIdx][0];
-        cout << "dataidx: " << child << ", value: " << (int)c << endl; 
+          int child = srclist[bufIdx];
+          // check whether there is buf in databuf 
+          assert (encodeBufMap.find(child) != encodeBufMap.end()); 
+          data[bufIdx] = encodeBufMap[child];
+          unsigned char c = data[bufIdx][0];
       }
       // prepare code buf and matrix
       for (int codeBufIdx = 0; codeBufIdx < dstlist.size(); codeBufIdx++) {
-        int target = dstlist[codeBufIdx];
-        char* codebuf;
-        assert(bufMap.find(target) != bufMap.end());
-        code[codeBufIdx] = bufMap[target];
-        vector<int> curcoef = coefs[codeBufIdx];
-        for (int j=0; j<col; j++) {
-          matrix[codeBufIdx * col + j] = curcoef[j];
-        }
+          int target = dstlist[codeBufIdx];
+          char* codebuf;
+          assert(encodeBufMap.find(target) != encodeBufMap.end());
+          code[codeBufIdx] = encodeBufMap[target];
+          vector<int> curcoef = coefs[codeBufIdx];
+          for (int j=0; j<col; j++) {
+              matrix[codeBufIdx * col + j] = curcoef[j];
+          }
       }
       // perform computation
-      Computation::Multi(code, data, matrix, row, col, pktsizeB/w, "Isal");
-      for (int codeBufIdx = 0; codeBufIdx < dstlist.size(); codeBufIdx++) {
-        int target = dstlist[codeBufIdx];
-        unsigned char c = code[codeBufIdx][0];
-        cout << "codeidx: " << target << ", value: " << (int)c << endl;
-      } 
-      
-    }    
+      Computation::Multi(code, data, matrix, row, col, slicebytes, "Isal");
   }
 
   // write databuffer to blkDir
@@ -233,13 +191,13 @@ int main(int argc, char** argv) {
     ofs.close();
     ofs.open(fullpath, ios::app);
     for (int j=0; j<pktnum; j++)
-        ofs.write(buffers[i], pktsizeB);
+        ofs.write(buffers[i], pktbytes);
     free(buffers[i]);
     ofs.close();
   }  
 
   // write metadata
-  vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist, blksizeB, pktsizeB);
+  vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist, blkbytes, pktbytes);
   string metapath = "./stripeStore/"+stripename+".xml";
   ofstream metaofs(metapath, ofstream::app);
   for (auto line: metadata) {
@@ -247,9 +205,9 @@ int main(int argc, char** argv) {
   }
   metaofs.close();
 
-  for (auto t: tasklist)
+  for (auto t: encctasklist)
     delete t;
-  delete ecdag;
+  delete encdag;
   delete ec;
   delete conf;
   

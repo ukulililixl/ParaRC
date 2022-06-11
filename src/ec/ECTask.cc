@@ -10,20 +10,6 @@ ECTask::~ECTask() {
   }
 }
 
-//void ECTask::buildReadDisk(int type,
-//               unsigned int loc,
-//               string blockname,
-//               int ecw,
-//               vector<int> indices,
-//               string stripename) {
-//  _type = type;
-//  _loc = loc;
-//  _blockName = blockname;
-//  _ecw = ecw;
-//  _indices = indices;
-//  _stripeName = stripename;
-//}
-
 void ECTask::buildReadDisk(int type,
         unsigned int loc,
         string blockname,
@@ -48,7 +34,8 @@ void ECTask::buildFetchCompute(int type,
                vector<unsigned> prevLocs,
                vector<ComputeTask*> computelist,
                string stripename,
-               vector<int> indices,
+               //vector<int> indices,
+               unordered_map<int, int> cid2refs,
                int ecw, int blkbytes, int pktbytes) {
   _type = type;
   _loc = loc;
@@ -56,7 +43,8 @@ void ECTask::buildFetchCompute(int type,
   _prevLocs = prevLocs;
   _computeTaskList = computelist;
   _stripeName = stripename;
-  _indices = indices;
+  //_indices = indices;
+  _cid2refs = cid2refs;
   _ecw = ecw;
   _blkBytes = blkbytes;
   _pktBytes = pktbytes;
@@ -140,7 +128,7 @@ AGCommand* ECTask::genAGCommand() {
     // this is read disk command
     agcmd->buildType0(0, _loc, _blockName, _blkBytes, _pktBytes, _ecw, _cid2refs, _stripeName);
   } else if (_type == 1) {
-    agcmd->buildType1(1, _loc, _prevIndices, _prevLocs, _computeTaskList, _stripeName, _indices, _ecw, _blkBytes, _pktBytes);
+    agcmd->buildType1(1, _loc, _prevIndices, _prevLocs, _computeTaskList, _stripeName, _cid2refs, _ecw, _blkBytes, _pktBytes);
   } else if (_type == 2) {
     agcmd->buildType2(2, _loc, _prevIndices, _prevLocs, _stripeName, _blockName, _ecw, _blkBytes, _pktBytes);
   }

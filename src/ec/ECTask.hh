@@ -14,19 +14,6 @@ using namespace std;
  * 2: fetch from several remote nodes, concactenate them and persist to disk
  */
 
-//class ComputeTask {
-//  public:
-//    vector<int> _srclist;
-//    vector<int> _dstlist;
-//    vector<vector<int>> _coefs;
-//  
-//    ComputeTask(vector<int> srclist, vector<int> dstlist, vector<vector<int>> coefs) {
-//      _srclist = srclist;
-//      _dstlist = dstlist;
-//      _coefs = coefs;
-//    }
-//};
-
 class ECTask {
 
   private:
@@ -46,7 +33,8 @@ class ECTask {
     vector<unsigned int> _prevLocs;
     vector<ComputeTask*> _computeTaskList;
     // stripeName
-    vector<int> _indices;
+    //vector<int> _indices;
+    //_cid2refs;
     // _ecw
     // _blkBytes
     // _pktBytes
@@ -61,12 +49,6 @@ class ECTask {
     ECTask();
     ~ECTask();
 
-//    void buildReadDisk(int type, 
-//               unsigned int loc,
-//               string blockname,
-//               int ecw,
-//               vector<int> indices,
-//               string stripename); 
     void buildReadDisk(int type,
             unsigned int loc,
             string blockname,
@@ -81,7 +63,8 @@ class ECTask {
                vector<unsigned> prevLocs,
                vector<ComputeTask*> computelist,
                string stripename,
-               vector<int> indices,
+               //vector<int> indices,
+               unordered_map<int, int> cid2refs,
                int ecw, int blkbytes, int pktbytes);
     void buildConcatenate(int type,
                unsigned int loc,

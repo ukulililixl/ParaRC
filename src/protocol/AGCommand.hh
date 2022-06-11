@@ -98,7 +98,8 @@ class AGCommand {
             vector<unsigned int> prevLocs, 
             vector<ComputeTask*> ctlist, 
             string stripename, 
-            vector<int> cacheIndices, 
+            //vector<int> cacheIndices,
+            unordered_map<int, int> cid2refs,
             int ecw,
             int blkbytes,
             int pktbytes);

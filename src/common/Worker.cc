@@ -96,7 +96,7 @@ void Worker::readAndCache(AGCommand* agcmd) {
   BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
 
   thread readThread = thread([=]{readWorker(readqueue, blockname, ecw, pattern, blkbytes, pktbytes);});
-  thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename, blkbytes, pktbytes);});
+  thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename, blkbytes, pktbytes, cid2refs);});
 
   readThread.join();
   cacheThread.join();
@@ -110,10 +110,104 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
   vector<unsigned int> prevLocs = agcmd->getPrevLocs();
   vector<ComputeTask*> computeTaskList = agcmd->getCTList();
   string stripename = agcmd->getStripeName();
-  vector<int> cacheIndices = agcmd->getIndices();
+  unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
   int ecw = agcmd->getECW();
   int blkbytes = agcmd->getBlkBytes();
   int pktbytes = agcmd->getPktBytes();
+
+  vector<int> cacheIndices;
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      cacheIndices.push_back(cid);
+  }
+  
+  //if (find(prevIndices.begin(), prevIndices.end(), 65) != prevIndices.end()) {
+  //  debugFetchAndCompute(agcmd);
+  //} else {
+
+    // debug
+    cout << "Worker::fetchAndCompute prev: ";
+    for (int i=0; i<prevIndices.size(); i++)
+        cout << "(" << prevIndices[i] << ", " << RedisUtil::ip2Str(prevLocs[i]) << ") ";
+
+    // create blockingqueue for fetching
+    BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
+    for (int i=0; i<prevIndices.size(); i++) 
+      fetchQueue[i] = new BlockingQueue<DataPacket*>();
+    // create blockingqueue for writing
+    BlockingQueue<DataPacket*>** writeQueue = (BlockingQueue<DataPacket*>**)calloc(cacheIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
+    for (int i=0; i<cacheIndices.size(); i++)
+      writeQueue[i] = new BlockingQueue<DataPacket*>();
+
+    // create fetch thread
+    vector<thread> fetchThreads = vector<thread>(prevIndices.size());
+    for (int i=0; i<prevIndices.size(); i++) {
+      string keybase = stripename+":"+to_string(prevIndices[i]);
+      fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
+    } 
+
+    // create compute thread
+    thread computeThread = thread([=]{computeWorker(fetchQueue, prevIndices, writeQueue, cacheIndices, computeTaskList, ecw, blkbytes, pktbytes);});
+
+    // create cache thread
+    vector<thread> cacheThreads = vector<thread>(cacheIndices.size());
+    for (int i=0; i<cacheIndices.size(); i++) {
+      vector<int> tmplist = {cacheIndices[i]};
+      cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes, cid2refs);});
+    }
+
+    // join
+    for (int i=0; i<prevIndices.size(); i++) {
+      fetchThreads[i].join();
+    }
+    computeThread.join();
+    for (int i=0; i<cacheIndices.size(); i++) {
+      cacheThreads[i].join();
+    }
+
+    // free
+    for (int i=0; i<prevIndices.size(); i++)
+      delete fetchQueue[i];
+    free(fetchQueue);
+    for (int i=0; i<cacheIndices.size(); i++)
+      delete writeQueue[i];
+    free(writeQueue);
+    cout << "Worker::fetchAndCompute end!" << endl;
+  
+  //}
+}
+
+void Worker::debugFetchAndCompute(AGCommand* agcmd) {
+  cout << "Worker::debugFetchAndCompute!" << endl;
+
+  vector<int> prevIndices = agcmd->getPrevIndices();
+  cout << "Worker::debugFetchAndCompute! prevIndices: ";
+  for (int i=0; i<prevIndices.size(); i++)
+      cout << prevIndices[i] << " ";
+  cout << endl;
+  
+  vector<unsigned int> prevLocs = agcmd->getPrevLocs();
+  cout << "Worker::debugFetchAndCompute! prevLocs: ";
+  for (int i=0; i<prevLocs.size(); i++)
+      cout << RedisUtil::ip2Str(prevLocs[i]) << " ";
+  cout << endl;
+
+  vector<ComputeTask*> computeTaskList = agcmd->getCTList();
+
+  string stripename = agcmd->getStripeName();
+  cout << "Worker::debugFetchAndCompute! stripename: " << stripename << endl;
+
+  vector<int> cacheIndices = agcmd->getIndices();
+  cout << "Worker::debugFetchAndCompute! cacheIndices: ";
+  for (int i=0; i<cacheIndices.size(); i++) {
+      cout << cacheIndices[i] << " ";
+  }
+  cout << endl;
+
+  int ecw = agcmd->getECW();
+  int blkbytes = agcmd->getBlkBytes();
+  int pktbytes = agcmd->getPktBytes();
+  cout << "Worker::debugFetchAndCompute! ecw: " << ecw << ", blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
 
   // create blockingqueue for fetching
   BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
@@ -136,9 +230,11 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
 
   // create cache thread
   vector<thread> cacheThreads = vector<thread>(cacheIndices.size());
+  unordered_map<int, int> cid2refs;
   for (int i=0; i<cacheIndices.size(); i++) {
     vector<int> tmplist = {cacheIndices[i]};
-    cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes);});
+    cid2refs.insert(make_pair(cacheIndices[i], 1));
+    cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes, cid2refs);});
   }
 
   // join
@@ -260,7 +356,7 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
   close(fd);
 }
 
-void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idxlist, int ecw, string keybase, int blkbytes, int pktbytes) {
+void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idxlist, int ecw, string keybase, int blkbytes, int pktbytes, unordered_map<int, int> cid2refs) {
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
 
@@ -275,15 +371,18 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
   for (int i=0; i<pktnum; i++) {
     for (int j=0; j<idxlist.size(); j++) {
       DataPacket* curslice = cachequeue->pop();
+      int cid = idxlist[j];
+      int ref = cid2refs[cid];
+      //int ref = 1;
+      //if (cid2refs.find(cid) != cid2refs.end())
+      //    ref = cid2refs[cid];
+
       string key = keybase+":"+to_string(idxlist[j])+":"+to_string(i);  
       
-      // TODO: add references
-      int refnum = 1;
-
       int len = curslice->getDatalen();
       char* raw = curslice->getRaw();
       int rawlen = len + 4;
-      for (int k=0; k<refnum; k++) {
+      for (int k=0; k<ref; k++) {
         redisAppendCommand(writeCtx, "RPUSH %s %b", key.c_str(), raw, rawlen); count++;
       }
       delete curslice;
@@ -314,6 +413,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      int pktbytes) {
   int pktnum = blkbytes / pktbytes;
   int slicesize = pktbytes / ecw;
+  cout << "fetchWorker::pktnum = " << pktnum << ", slicesize: " << slicesize << endl;
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
@@ -327,6 +427,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
   } else {
     redisReply* rReply;
     redisContext* fetchCtx = RedisUtil::createContext(loc);
+    cout << "fetchWorker::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << keybase << endl;
 
     int replyid=0;
     for (int i=0; i<pktnum; i++) {
@@ -345,6 +446,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
       char* content = rReply->element[1]->str;
       DataPacket* pkt = new DataPacket(content);
       int curDataLen = pkt->getDatalen();
+      cout << "fetch data len: " << curDataLen << endl;
       fetchQueue->push(pkt);
       freeReplyObject(rReply);
     }

@@ -6,9 +6,9 @@
 //
 //#include "Cluster.hh"
 #include "ECNode.hh"
-#include "SimpleGraph.hh"
 #include "ECUnit.hh"
 #include "ECCluster.hh"
+#include "ECTask.hh"
 #include "../util/BlockingQueue.hh"
 #include "../util/LoadVector.hh"
 
@@ -29,11 +29,11 @@ class ECDAG {
     vector<int> _ecHeaders;
     vector<int> _ecLeaves;
 
-    // for SimpleGraph
-    int _sgId = SGSTART;
-    unordered_map<int, SimpleGraph*> _sgMap;
-    vector<int> _sgList;
-    unordered_map<int, vector<int>> _child2sgs;
+    // // for SimpleGraph
+    // int _sgId = SGSTART;
+    // unordered_map<int, SimpleGraph*> _sgMap;
+    // vector<int> _sgList;
+    // unordered_map<int, vector<int>> _child2sgs;
 
     // for coloring
     unordered_map<int, unsigned int> _idx2ip;
@@ -54,19 +54,17 @@ class ECDAG {
 
     void Join(int pidx, vector<int> cidx, vector<int> coefs);
     void Concact(vector<int> cidx);
-//    int BindX(vector<int> idxs);
-//    void BindY(int pidx, int cidx);
 
-    void genSimpleGraph();
-    void initializeLeaveIp(unordered_map<int, unsigned int> availIps);
-    void initializeRequestorIp(unsigned int ip);
-    void initializeIntermediateIp(unsigned int ip); 
-    void fillLoadVector(LoadVector* loadvector);
-    void coloring(LoadVector* loadvector);
-    void genECTasks(vector<ECTask*>& tasklist,
-                    int ecn, int eck, int ecw,
-                    string stripename, vector<string> blocklist); 
-    void simulateLoc();
+    //void genSimpleGraph();
+    //void initializeLeaveIp(unordered_map<int, unsigned int> availIps);
+    //void initializeRequestorIp(unsigned int ip);
+    //void initializeIntermediateIp(unsigned int ip); 
+    //void fillLoadVector(LoadVector* loadvector);
+    //void coloring(LoadVector* loadvector);
+    //void genECTasks(vector<ECTask*>& tasklist,
+    //                int ecn, int eck, int ecw,
+    //                string stripename, vector<string> blocklist); 
+    //void simulateLoc();
 
     void genECUnits();
     void clearECCluster();
@@ -76,6 +74,7 @@ class ECDAG {
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,
             string stripename, vector<string> blocklist,
             unordered_map<int, unsigned int> coloring_res);
+    void genComputeTaskByECUnits(vector<ComputeTask*>& tasklist);
 
     unordered_map<int, ECNode*> getECNodeMap();
     vector<int> getECHeaders();

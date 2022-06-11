@@ -12,6 +12,8 @@ AGCommand::~AGCommand() {
     _agCmd = 0;
   }
   _cmLen = 0;
+  for (auto item: _ctlist)
+      delete item;
 }
 
 AGCommand::AGCommand(char* reqStr) {
@@ -191,7 +193,8 @@ void AGCommand::buildType1(int type,
         vector<unsigned int> prevLocs,
         vector<ComputeTask*> ctlist, 
         string stripename, 
-        vector<int> cacheIndices, 
+        //vector<int> cacheIndices, 
+        unordered_map<int, int> cid2refs,
         int ecw,
         int blkbytes,
         int pktbytes) {
@@ -203,7 +206,8 @@ void AGCommand::buildType1(int type,
   _prevLocs = prevLocs;
   _ctlist = ctlist;
   _stripeName = stripename;
-  _indices = cacheIndices;
+  //_indices = cacheIndices;
+  _cid2refs = cid2refs;
   _ecw = ecw;
   _blkbytes = blkbytes;
   _pktbytes = pktbytes;
@@ -249,11 +253,14 @@ void AGCommand::buildType1(int type,
   }
   // 5. stripename
   writeString(stripename);
-  // 6. cacheIndices
-  int ncache = cacheIndices.size();
+  // 6. cid2refs
+  int ncache = cid2refs.size();
   writeInt(ncache);
-  for (int i=0; i<ncache; i++) {
-    writeInt(cacheIndices[i]);
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      int r = item.second;
+      writeInt(cid);
+      writeInt(r);
   }
   // 7. ecw
   writeInt(ecw);
@@ -303,10 +310,12 @@ void AGCommand::resolveType1() {
   }
   // 5. stripename
   _stripeName = readString(); 
-  // 6. cacheIndices
+  // 6. cid2refs
   int ncache = readInt();
   for (int i=0; i<ncache; i++) {
-    _indices.push_back(readInt());
+    int cid = readInt();
+    int r = readInt();
+    _cid2refs.insert(make_pair(cid, r));
   }
   // 7. ecw
   _ecw = readInt();

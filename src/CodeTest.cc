@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
     return -1;
   }
   w = ec->_w;
+  cout << "w: " << w << endl;
 
   int stripenum = blkbytes / pktbytes;
   int slicebytes = pktbytes / w;

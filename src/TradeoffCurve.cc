@@ -643,7 +643,7 @@ int main(int argc, char** argv) {
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, n*w, w, k*w);
+  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;

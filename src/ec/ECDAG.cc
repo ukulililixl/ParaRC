@@ -191,10 +191,10 @@ void ECDAG::genECUnits() {
     //  break;
   }
 
-//  // debug
-//  for (int i=0; i<_ecUnitList.size(); i++)  {
-//    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
-//  }
+  // debug
+  for (int i=0; i<_ecUnitList.size(); i++)  {
+    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
+  }
 }
 
 void ECDAG::clearECCluster() {

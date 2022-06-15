@@ -6,6 +6,8 @@
 #include "../util/DistUtil.hh"
 #include "../ec/ECBase.hh"
 #include "../ec/Clay.hh"
+#include "../ec/RSCONV.hh"
+#include "../ec/RSPIPE.hh"
 
 using namespace tinyxml2;
 

@@ -158,15 +158,15 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
     vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
 
-    // cout << "itm coloring: " << endl;
-    // for (int i=0; i<itm_idx.size(); i++) {
-    //     cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
-    // }
-    // cout << endl;
+    cout << "itm coloring: " << endl;
+    for (int i=0; i<itm_idx.size(); i++) {
+        cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
+    }
+    cout << endl;
 
     int bdwt, maxload;
     stat(sidx2bidx, itm_coloring, itm_idx, ecdag, &bdwt, &maxload);
-    // cout << "maxload: " << maxload << ", bdwt: " << bdwt << endl;
+    cout << "maxload: " << maxload << ", bdwt: " << bdwt << endl;
 
     // 11. generate coloring results
     unordered_map<int, unsigned int> coloring_res;

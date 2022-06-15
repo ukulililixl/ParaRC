@@ -79,8 +79,14 @@ int StripeMeta::getBlockIndex(string blockname) {
 ECBase* StripeMeta::createECClass() {
   ECBase* toret = NULL;
   if (_codeName == "Clay") {
-    cout << "StripeMeta::createECClass Clay" << endl;
-    toret = new Clay(_ecN, _ecK, _ecW, {to_string(_ecN-1)});
+      cout << "StripeMeta::createECClass Clay" << endl;
+      toret = new Clay(_ecN, _ecK, _ecW, {to_string(_ecN-1)});
+  } else if (_codeName == "RSCONV") {
+      cout << "StripeMeta::createECClass RSCONV" << endl;
+      toret = new RSCONV(_ecN, _ecK, _ecW, {});
+  } else if (_codeName == "RSPIPE") {
+      cout << "StripeMeta::createECClass RSPIPE" << endl;
+      toret = new RSPIPE(_ecN, _ecK, _ecW, {});
   }
   return toret;
 }

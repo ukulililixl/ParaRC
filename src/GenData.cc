@@ -4,6 +4,9 @@
 #include "common/StripeStore.hh"
 #include "protocol/AGCommand.hh"
 
+#include "ec/RSCONV.hh"
+#include "ec/RSPIPE.hh"
+
 using namespace std;
 
 void usage() {
@@ -93,6 +96,10 @@ int main(int argc, char** argv) {
   ECBase* ec;
   if (code == "Clay") {
       ec = new Clay(n,k,w,{to_string(n-1)});
+  } else if (code == "RSCONV") {
+      ec = new RSCONV(n,k,w,{});
+  } else if (code == "RSPIPE") {
+      ec = new RSPIPE(n,k,w,{});
   }
   w = ec->_w;
 

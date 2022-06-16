@@ -205,7 +205,7 @@ void ECDAG::clearECCluster() {
   _ecClusterList.clear();
 }
 
-void ECDAG::genECCluster(unordered_map<int, int> coloring) {
+void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
   // 0. generate inrefs and outrefs for each node
   unordered_map<int, int> inref;
   unordered_map<int, int> outref;
@@ -245,10 +245,10 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring) {
       }
     }
 
-    //cout << "current leaves: ";
-    //for (auto item: leaves)
-    //  cout << item.first << " ";
-    //cout << endl;
+    cout << "current leaves: ";
+    for (auto item: leaves)
+      cout << item.first << " ";
+    cout << endl;
 
     vector<int> curunitlist;
     //cout << "starti: " << starti << ", all: " << _ecUnitList.size() << endl;
@@ -276,11 +276,11 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring) {
       }
     }
 
-    //cout << "current layer of ECUnit: ";
-    //for (int ui=0; ui<curunitlist.size(); ui++) {
-    //  cout << curunitlist[ui] << " ";
-    //}
-    //cout << endl;
+    cout << "current layer of ECUnit: ";
+    for (int ui=0; ui<curunitlist.size(); ui++) {
+      cout << curunitlist[ui] << " ";
+    }
+    cout << endl;
 
     // collect coloring for the parent in each unit
     unordered_map<int, vector<int>> color2unitlist;
@@ -310,21 +310,74 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring) {
         leaves.insert(make_pair(pnodeidx, 1));
     }
 
-    // for each color, merge corresponding unit
+    cout << "current color2unitlist: " << endl;
     for (auto item: color2unitlist) {
-      vector<int> curunitlist = item.second;
-      ECCluster* eccluster = new ECCluster(_clusterId++, curunitlist);
-      _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
-      _ecClusterList.push_back(eccluster->getClusterId());
+        cout << "  color: " << item.first << ", unit num:  " << item.second.size() << endl;
+        unordered_map<string, vector<int>> cstr2unitlist;
+        vector<string> cstrlist;
+        for (auto tmpunit: item.second) {
+            string cstr = _ecUnitMap[tmpunit]->getChildStr();
+            if (cstr2unitlist.find(cstr) == cstr2unitlist.end()) {
+                vector<int> list = {tmpunit};
+                cstr2unitlist.insert(make_pair(cstr, list));
+                cstrlist.push_back(cstr);
+            } else {
+                cstr2unitlist[cstr].push_back(tmpunit);
+            }
+        }
+        for (auto tmpitem: cstr2unitlist) {
+            cout << "    cstr: " << tmpitem.first << ", unitlist: ";
+            for (auto tmpunit: tmpitem.second)
+                cout << tmpunit << " ";
+            cout << endl;
+        }
+
+        // we generate ecclusters according to cstr2unitlist; 
+        int cstridx=0;
+        vector<int> curclusterunits;
+        for (int cstridx=0; cstridx<cstrlist.size();) {
+            string cstr = cstrlist[cstridx];
+            vector<int> curunitlist = cstr2unitlist[cstr];
+            if (curclusterunits.size() + curunitlist.size() <= clustersize) {
+                // there is still space in the current cluster
+                for (auto tmpu: curunitlist)
+                    curclusterunits.push_back(tmpu);
+                cstridx++;
+            } else {
+                // current cluster is full
+                ECCluster* eccluster = new ECCluster(_clusterId++, curclusterunits);
+                _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
+                _ecClusterList.push_back(eccluster->getClusterId());
+                curclusterunits.clear();
+                cout << "    "  << eccluster->dump() << endl;
+            }
+        }
+
+        if (curclusterunits.size() > 0) {
+            ECCluster* eccluster = new ECCluster(_clusterId++, curclusterunits);
+            _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
+            _ecClusterList.push_back(eccluster->getClusterId());
+            curclusterunits.clear();
+            cout << "    "  << eccluster->dump() << endl;
+        }
     }
+
+    //// for each color, merge corresponding unit
+    //for (auto item: color2unitlist) {
+    //  vector<int> curunitlist = item.second;
+    //  cout << "  color: " << item.first << ", unitnum: " << curunitlist.size() << endl;
+    //  ECCluster* eccluster = new ECCluster(_clusterId++, curunitlist);
+    //  _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
+    //  _ecClusterList.push_back(eccluster->getClusterId());
+    //}
   }
 
-  // // debug the ecclusters
-  // for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
-  //   int clusterid = _ecClusterList[tmpi];
-  //   ECCluster* cluster = _ecClusterMap[clusterid];
-  //   cout << cluster->dump() << endl;
-  // }
+  // debug the ecclusters
+  for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
+    int clusterid = _ecClusterList[tmpi];
+    ECCluster* cluster = _ecClusterMap[clusterid];
+    cout << cluster->dump() << endl;
+  }
 }
 
 void ECDAG::genStat(unordered_map<int, int> coloring, 

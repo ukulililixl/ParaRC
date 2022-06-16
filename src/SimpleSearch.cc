@@ -18,9 +18,10 @@ void usage() {
   cout << "    3. k" << endl;
   cout << "    4. w" << endl;
   cout << "    5. repairIdx" << endl;
+  cout << "    6. clustersize" << endl;
 }  
 
-void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, unordered_map<int, vector<int>>& max2bwlist) {
+void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, unordered_map<int, vector<int>>& max2bwlist, int clustersize) {
 
     unordered_map<int, int> coloring_res;
     for (auto item: sidx2ip) {
@@ -39,7 +40,7 @@ void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_i
 
     // gen ECClusters
     ecdag->clearECCluster();
-    ecdag->genECCluster(coloring_res);
+    ecdag->genECCluster(coloring_res, clustersize);
     
     // gen stat
     unordered_map<int, int> inmap;
@@ -83,11 +84,11 @@ double percentage(double found, double total) {
 
 void simple_search(vector<int>& curres, int curidx, vector<int> itm_idx, vector<int> candidates, double* found, double total, 
         unordered_map<int, int> sidx2ip, ECDAG* ecdag, unordered_map<int, vector<int>>& max2bwlist, unordered_map<int, double>& process,
-        struct timeval starttime) {
+        struct timeval starttime, int clustersize) {
     if (curidx == itm_idx.size()) {
 
         // get statistic for this solution
-        stat(sidx2ip, curres, itm_idx, ecdag, max2bwlist);
+        stat(sidx2ip, curres, itm_idx, ecdag, max2bwlist, clustersize);
 
         *found += 1;
         double perc = percentage(*found, total);
@@ -107,7 +108,7 @@ void simple_search(vector<int>& curres, int curidx, vector<int> itm_idx, vector<
     for (int i=0; i<candidates.size(); i++) {
         int curcolor = candidates[i];
         curres[curidx] = curcolor;
-        simple_search(curres, curidx+1, itm_idx, candidates, found, total, sidx2ip, ecdag, max2bwlist, process, starttime);
+        simple_search(curres, curidx+1, itm_idx, candidates, found, total, sidx2ip, ecdag, max2bwlist, process, starttime, clustersize);
         curres[curidx] = -1;
     }
 }
@@ -124,6 +125,7 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int repairIdx = atoi(argv[5]);
+  int clustersize = atoi(argv[6]);
 
   // XL: do we need number of available nodes?
 
@@ -240,7 +242,7 @@ int main(int argc, char** argv) {
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  simple_search(curres, 0, itm_idx, candidates, &found, spacesize, sidx2ip, ecdag, max2bwlist, process, time1);
+  simple_search(curres, 0, itm_idx, candidates, &found, spacesize, sidx2ip, ecdag, max2bwlist, process, time1, clustersize);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;

@@ -20,6 +20,7 @@ class ECUnit {
     vector<int> getCoefs();
 
     string dump();
+    string getChildStr();
     
 };
 

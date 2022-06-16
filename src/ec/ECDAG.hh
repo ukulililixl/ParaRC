@@ -68,7 +68,7 @@ class ECDAG {
 
     void genECUnits();
     void clearECCluster();
-    void genECCluster(unordered_map<int, int> coloring);
+    void genECCluster(unordered_map<int, int> coloring, int clustersize);
     void genStat(unordered_map<int, int> coloring, unordered_map<int, int>& inmap, unordered_map<int, int>& outmap);
     void genECTasksByECClusters(vector<ECTask*>& tasklist,
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,

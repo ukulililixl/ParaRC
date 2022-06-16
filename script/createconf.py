@@ -9,6 +9,7 @@ import subprocess
 
 BLKBYTES=sys.argv[1]
 PKTBYTES=sys.argv[2]
+ECCSIZE="10"
 
 cluster=[
 "172.16.108.138",
@@ -86,6 +87,10 @@ for node in cluster:
     tppath="/home/lixl/spdist/SPDist/tradeoffPoint"
     line="<attribute><name>tradeoffpoint.directory</name><value>"+tppath+"</value></attribute>\n"
     content.append(line)
+
+    line="<attribute><name>eccluster.size</name><value>"+ECCSIZE+"</value></attribute>\n"
+    content.append(line)
+
 
     line="</setting>\n"
     content.append(line)

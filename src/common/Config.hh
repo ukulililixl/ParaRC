@@ -32,6 +32,9 @@ class Config {
     std::string _ssDir;
     std::string _tpDir;
 
+    // group size
+    int _clusterSize;
+
 //    // fstype
 //    std::string _fsType;
 //    std::vector<std::string> _fsParam;

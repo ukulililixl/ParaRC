@@ -20,9 +20,10 @@ void usage() {
   cout << "    3. k" << endl;
   cout << "    4. w" << endl;
   cout << "    5. repairIdx" << endl;
+  cout << "    6. clusterSize" << endl;
 }  
 
-void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload) {
+void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload, int clustersize) {
 
     unordered_map<int, int> coloring_res;
     for (auto item: sidx2ip) {
@@ -41,7 +42,7 @@ void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_i
 
     // gen ECClusters
     ecdag->clearECCluster();
-    ecdag->genECCluster(coloring_res);
+    ecdag->genECCluster(coloring_res, clustersize);
     
     // gen stat
     unordered_map<int, int> inmap;
@@ -241,7 +242,7 @@ bool updateTradeoffCurve(Solution* head, Solution* tail, Solution* sol,
 void expand(Solution* current, int v, int m, unordered_map<string, bool>& visited,
         unordered_map<int, int> sidx2ip, vector<int> itm_idx, ECDAG* ecdag,
         unordered_map<int, int>& load2bdwt, unordered_map<int, int>& bdwt2load,
-        Solution* tradeoff_curve_head, Solution* tradeoff_curve_tail) {
+        Solution* tradeoff_curve_head, Solution* tradeoff_curve_tail, int clustersize) {
     cout << "    expand: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
 
     vector<int> solution = current->getSolution();
@@ -269,7 +270,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
                 // this solution hasn't been visited before
                 // get stat for the neighbor
                 int neighbor_bdwt, neighbor_load;
-                stat(sidx2ip, neighbor->getSolution(), itm_idx, ecdag, &neighbor_bdwt, &neighbor_load);
+                stat(sidx2ip, neighbor->getSolution(), itm_idx, ecdag, &neighbor_bdwt, &neighbor_load, clustersize);
                 neighbor->setBdwt(neighbor_bdwt);
                 neighbor->setLoad(neighbor_load);
                 visited.insert(make_pair(tmps, true));
@@ -315,7 +316,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
 }
 
 Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag) {
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int clustersize) {
     // 0. initialize a head and tail with NULL for the tradeoff curve
     Solution* head = new Solution(true);
     Solution* tail = new Solution(false);
@@ -334,7 +335,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     int v = itm_idx.size();
     int m = candidates.size();
     int init_bdwt, init_load;
-    stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load);
+    stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load, clustersize);
     init_sol->setBdwt(init_bdwt);
     init_sol->setLoad(init_load);
     cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
@@ -374,7 +375,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
         }
 
         // now we expand the current solution
-        expand(current, v, m, visited, sidx2ip, itm_idx, ecdag, load2bdwt, bdwt2load, head, tail);
+        expand(current, v, m, visited, sidx2ip, itm_idx, ecdag, load2bdwt, bdwt2load, head, tail, clustersize);
 
     }
 
@@ -390,7 +391,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
 }
 
 Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int rounds, int target_load, int target_bdwt) {
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int rounds, int target_load, int target_bdwt, int clustersize) {
     
     Solution* prev_sol;
     Solution* cur_sol;
@@ -404,7 +405,7 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
     int mlp_bdwt = -1;
 
     while (true) {
-        Solution* head = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
+        Solution* head = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag, clustersize);
         
         // get the mlp 
         cur_sol = head->getNext();
@@ -497,7 +498,7 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
 
 int main(int argc, char** argv) {
 
-  if (argc != 6) {
+  if (argc != 7) {
     usage();
     return 0;
   }
@@ -507,6 +508,7 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int repairIdx = atoi(argv[5]);
+  int clustersize = atoi(argv[6]);
 
   // XL: do we need number of available nodes?
 
@@ -643,7 +645,7 @@ int main(int argc, char** argv) {
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w);
+  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, clustersize);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;

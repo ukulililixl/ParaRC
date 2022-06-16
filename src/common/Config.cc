@@ -49,19 +49,10 @@ Config::Config(std::string& filepath) {
       _ssDir = std::string(ele->NextSiblingElement("value")->GetText());
     } else if (attName == "tradeoffpoint.directory") {
       _tpDir = std::string(ele->NextSiblingElement("value")->GetText());
-//        } else {
-//          basesize = std::stoi(curele -> GetText());
-//        }
-//        _offlineECMap.insert(make_pair(poolid, ecid));
-//        _offlineECBase.insert(make_pair(poolid, basesize));
-//      }
-////      XMLElement* curele = ele -> NextSiblingElement("value") -> FirstChildElement("poolid");
-////      std::string poolname = curele -> GetText();
-////      curele = curele -> NextSiblingElement("ecid");
-////      std::string ecid = curele -> GetText();
-////      _offlineECMap.insert(make_pair(poolname, ecid));
-     }
-   }
+    } else if (attName == "eccluster.size") {
+      _clusterSize = std::stoi(ele -> NextSiblingElement("value") -> GetText());  
+    }
+  }
 
 //   _fsFactory.insert(make_pair(_fsType, _fsParam));
 }

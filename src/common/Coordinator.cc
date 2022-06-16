@@ -131,14 +131,14 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
         sidx2bidx.insert(make_pair(sidx, repairBlockIdx));
     }
 
-    cout << "sidx2bidx: " << endl;
-    for (auto item: sidx2bidx) {
-        int cidx = item.first;
-        int bidx = item.second;
-        cout << "  cidx: " << cidx << ", bidx: " << bidx << endl;
-    }
-
-    cout << "num shortening: " << shortnum << endl;
+//    cout << "sidx2bidx: " << endl;
+//    for (auto item: sidx2bidx) {
+//        int cidx = item.first;
+//        int bidx = item.second;
+//        cout << "  cidx: " << cidx << ", bidx: " << bidx << endl;
+//    }
+//
+//    cout << "num shortening: " << shortnum << endl;
 
     // 9. for intermediate vertices
     // note that virtual vertices for shortening are not counted as intermediate vertices
@@ -163,106 +163,106 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
     vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
 
-    cout << "itm coloring: " << endl;
-    for (int i=0; i<itm_idx.size(); i++) {
-        cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
-    }
-    cout << endl;
-
-    cout << "itm.size: " << itm_idx.size() << endl;
+//    cout << "itm coloring: " << endl;
+//    for (int i=0; i<itm_idx.size(); i++) {
+//        cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
+//    }
+//    cout << endl;
+//
+//    cout << "itm.size: " << itm_idx.size() << endl;
 
     int bdwt, maxload;
     stat(sidx2bidx, itm_coloring, itm_idx, ecdag, &bdwt, &maxload);
     cout << "maxload: " << maxload << ", bdwt: " << bdwt << endl;
 
-//    // 11. generate coloring results
-//    unordered_map<int, unsigned int> coloring_res;
-//    for (auto item: sidx2bidx) {
-//        int idx = item.first;
-//        int color = item.second;
-//        unsigned int ip;
-//        if (color < 0)
-//            ip = 0;
-//        else
-//            ip = loclist[color];
-//        coloring_res.insert(make_pair(idx, ip));
-//    }
-//    for (int i=0; i<itm_idx.size(); i++) {
-//        int idx = itm_idx[i];
-//        int color = itm_coloring[i];
-//        unsigned int ip = loclist[color];
-//        coloring_res.insert(make_pair(idx, ip));
-//    }
-//
-//    cout << "coloring res: " << endl;
-//    for (auto item: coloring_res) {
-//        cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
-//    }
-//
-//    // 12. generate ectasks by ECClusters
-//    cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
-//    vector<ECTask*> tasklist;
-//    ecdag->genECTasksByECClusters(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, coloring_res);
-//    cout << "tasklist: " << endl;
-//    for (int i=0; i<tasklist.size(); i++) {
-//        cout << "  " << tasklist[i]->dumpStr() << endl;
-//    }
-//
-//    // 13. generate agcommands
-//    cout << "AGCommands: " << endl;
-//    vector<AGCommand*> cmdlist;
-//    int debug = 0;
-//    for (auto task: tasklist) {
-//      AGCommand* agcmd = task->genAGCommand();
-//      cmdlist.push_back(agcmd);
-//      cout << "  " << agcmd->dumpStr() << endl; 
-//
-//      debug++;
-//    }
-//
-//   // 14. send out commands
-//   vector<char*> todelete;
-//   redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
-//   
-//   redisAppendCommand(distCtx, "MULTI");
-//   for (auto agcmd: cmdlist) {
-//     unsigned int ip = agcmd->getSendIp();
-//     ip = htonl(ip);
-//     char* cmdstr = agcmd->getCmd();
-//     int cmLen = agcmd->getCmdLen();
-//     char* todist = (char*)calloc(cmLen + 4, sizeof(char));
-//     memcpy(todist, (char*)&ip, 4);
-//     memcpy(todist+4, cmdstr, cmLen); 
-//     todelete.push_back(todist);
-//     redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
-//   }
-//   redisAppendCommand(distCtx, "EXEC");
-//   
-//   redisReply* distReply;
-//   redisGetReply(distCtx, (void **)&distReply);
-//   freeReplyObject(distReply);
-//   for (auto item: todelete) {
-//     redisGetReply(distCtx, (void **)&distReply);
-//     freeReplyObject(distReply);
-//   }
-//   redisGetReply(distCtx, (void **)&distReply);
-//   freeReplyObject(distReply);
-//   redisFree(distCtx);
-// 
-//   // wait for finish flag?
-//   redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-//   string wkey = "writefinish:"+blockName;
-//   redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-//   freeReplyObject(fReply);
-//   redisFree(waitCtx);
-//   gettimeofday(&time3, NULL);
-//   cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
-// 
-//   // delete
-//   delete ec;
-//   delete ecdag;
-//   for (auto item: cmdlist) delete item;
-//   for (auto item: todelete) free(item);
+    // 11. generate coloring results
+    unordered_map<int, unsigned int> coloring_res;
+    for (auto item: sidx2bidx) {
+        int idx = item.first;
+        int color = item.second;
+        unsigned int ip;
+        if (color < 0)
+            ip = 0;
+        else
+            ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+    for (int i=0; i<itm_idx.size(); i++) {
+        int idx = itm_idx[i];
+        int color = itm_coloring[i];
+        unsigned int ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+
+    cout << "coloring res: " << endl;
+    for (auto item: coloring_res) {
+        cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
+    }
+
+    // 12. generate ectasks by ECClusters
+    cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
+    vector<ECTask*> tasklist;
+    ecdag->genECTasksByECClusters(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, coloring_res);
+    cout << "tasklist: " << endl;
+    for (int i=0; i<tasklist.size(); i++) {
+        cout << "  " << tasklist[i]->dumpStr() << endl;
+    }
+
+    // 13. generate agcommands
+    cout << "AGCommands: " << endl;
+    vector<AGCommand*> cmdlist;
+    int debug = 0;
+    for (auto task: tasklist) {
+      AGCommand* agcmd = task->genAGCommand();
+      cmdlist.push_back(agcmd);
+      cout << "  " << agcmd->dumpStr() << endl; 
+
+      debug++;
+    }
+
+   // 14. send out commands
+   vector<char*> todelete;
+   redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
+   
+   redisAppendCommand(distCtx, "MULTI");
+   for (auto agcmd: cmdlist) {
+     unsigned int ip = agcmd->getSendIp();
+     ip = htonl(ip);
+     char* cmdstr = agcmd->getCmd();
+     int cmLen = agcmd->getCmdLen();
+     char* todist = (char*)calloc(cmLen + 4, sizeof(char));
+     memcpy(todist, (char*)&ip, 4);
+     memcpy(todist+4, cmdstr, cmLen); 
+     todelete.push_back(todist);
+     redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
+   }
+   redisAppendCommand(distCtx, "EXEC");
+   
+   redisReply* distReply;
+   redisGetReply(distCtx, (void **)&distReply);
+   freeReplyObject(distReply);
+   for (auto item: todelete) {
+     redisGetReply(distCtx, (void **)&distReply);
+     freeReplyObject(distReply);
+   }
+   redisGetReply(distCtx, (void **)&distReply);
+   freeReplyObject(distReply);
+   redisFree(distCtx);
+ 
+   // wait for finish flag?
+   redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+   string wkey = "writefinish:"+blockName;
+   redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+   freeReplyObject(fReply);
+   redisFree(waitCtx);
+   gettimeofday(&time3, NULL);
+   cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+ 
+   // delete
+   delete ec;
+   delete ecdag;
+   for (auto item: cmdlist) delete item;
+   for (auto item: todelete) free(item);
 }
 
 void Coordinator::stat(unordered_map<int, int> sidx2ip,
@@ -279,7 +279,7 @@ void Coordinator::stat(unordered_map<int, int> sidx2ip,
     }
     // gen ECClusters
     ecdag->clearECCluster();
-    ecdag->genECCluster(coloring_res);
+    ecdag->genECCluster(coloring_res, _conf->_clusterSize);
 
     // gen stat
     unordered_map<int, int> inmap;

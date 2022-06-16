@@ -216,6 +216,7 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
       AGCommand* agcmd = task->genAGCommand();
       cmdlist.push_back(agcmd);
       cout << "  " << agcmd->dumpStr() << endl; 
+      //cout << "  " << agcmd->getCmdLen() << endl;
 
       debug++;
     }

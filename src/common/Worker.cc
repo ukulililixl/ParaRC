@@ -56,6 +56,8 @@ void Worker::doProcess() {
 
 void Worker::readAndCache(AGCommand* agcmd) {
   cout << "Worker::readDisk!" << endl;
+  struct timeval time1, time2, time3;                                                                                                                                                                    
+  gettimeofday(&time1, NULL); 
 
   string blockname = agcmd->getBlockName();
   int blkbytes = agcmd->getBlkBytes();
@@ -102,6 +104,9 @@ void Worker::readAndCache(AGCommand* agcmd) {
   cacheThread.join();
 
   delete readqueue;
+
+  gettimeofday(&time2, NULL); 
+  cout << "Worker::readDisk.duration: " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Worker::fetchAndCompute(AGCommand* agcmd) {
@@ -413,7 +418,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      int pktbytes) {
   int pktnum = blkbytes / pktbytes;
   int slicesize = pktbytes / ecw;
-  cout << "fetchWorker::pktnum = " << pktnum << ", slicesize: " << slicesize << endl;
+  //cout << "fetchWorker::pktnum = " << pktnum << ", slicesize: " << slicesize << endl;
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
@@ -446,7 +451,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
       char* content = rReply->element[1]->str;
       DataPacket* pkt = new DataPacket(content);
       int curDataLen = pkt->getDatalen();
-      cout << "fetch data len: " << curDataLen << endl;
+      //cout << "fetch data len: " << curDataLen << endl;
       fetchQueue->push(pkt);
       freeReplyObject(rReply);
     }

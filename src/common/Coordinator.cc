@@ -160,6 +160,7 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
 
     // 10. read the tradeoff point and calculate maxload and bdwt
     string tpentry = stripemeta->getCodeName() + "_" + to_string(ecn) + "_" + to_string(eck) + "_" + to_string(ecw);
+    cout << "tpentry: " << tpentry << endl;
     TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
     vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
 
@@ -221,49 +222,51 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
       debug++;
     }
 
-   // 14. send out commands
-   vector<char*> todelete;
-   redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
-   
-   redisAppendCommand(distCtx, "MULTI");
-   for (auto agcmd: cmdlist) {
-     unsigned int ip = agcmd->getSendIp();
-     ip = htonl(ip);
-     char* cmdstr = agcmd->getCmd();
-     int cmLen = agcmd->getCmdLen();
-     char* todist = (char*)calloc(cmLen + 4, sizeof(char));
-     memcpy(todist, (char*)&ip, 4);
-     memcpy(todist+4, cmdstr, cmLen); 
-     todelete.push_back(todist);
-     redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
-   }
-   redisAppendCommand(distCtx, "EXEC");
-   
-   redisReply* distReply;
-   redisGetReply(distCtx, (void **)&distReply);
-   freeReplyObject(distReply);
-   for (auto item: todelete) {
-     redisGetReply(distCtx, (void **)&distReply);
-     freeReplyObject(distReply);
-   }
-   redisGetReply(distCtx, (void **)&distReply);
-   freeReplyObject(distReply);
-   redisFree(distCtx);
+    gettimeofday(&time2, NULL);
+
+    // 14. send out commands
+    vector<char*> todelete;
+    redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
+    
+    redisAppendCommand(distCtx, "MULTI");
+    for (auto agcmd: cmdlist) {
+      unsigned int ip = agcmd->getSendIp();
+      ip = htonl(ip);
+      char* cmdstr = agcmd->getCmd();
+      int cmLen = agcmd->getCmdLen();
+      char* todist = (char*)calloc(cmLen + 4, sizeof(char));
+      memcpy(todist, (char*)&ip, 4);
+      memcpy(todist+4, cmdstr, cmLen); 
+      todelete.push_back(todist);
+      redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
+    }
+    redisAppendCommand(distCtx, "EXEC");
+    
+    redisReply* distReply;
+    redisGetReply(distCtx, (void **)&distReply);
+    freeReplyObject(distReply);
+    for (auto item: todelete) {
+      redisGetReply(distCtx, (void **)&distReply);
+      freeReplyObject(distReply);
+    }
+    redisGetReply(distCtx, (void **)&distReply);
+    freeReplyObject(distReply);
+    redisFree(distCtx);
  
-   // wait for finish flag?
-   redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-   string wkey = "writefinish:"+blockName;
-   redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-   freeReplyObject(fReply);
-   redisFree(waitCtx);
-   gettimeofday(&time3, NULL);
-   cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    // wait for finish flag?
+    redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+    string wkey = "writefinish:"+blockName;
+    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    freeReplyObject(fReply);
+    redisFree(waitCtx);
+    gettimeofday(&time3, NULL);
+    cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
  
-   // delete
-   delete ec;
-   delete ecdag;
-   for (auto item: cmdlist) delete item;
-   for (auto item: todelete) free(item);
+    // delete
+    delete ec;
+    delete ecdag;
+    for (auto item: cmdlist) delete item;
+    for (auto item: todelete) free(item);
 }
 
 void Coordinator::stat(unordered_map<int, int> sidx2ip,

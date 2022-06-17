@@ -36,6 +36,7 @@ vector<int> TradeoffPoints::getColoringByIdx(int idx) {
     assert(idx < _ecN);
 
     string tmps = _points[idx];
+    cout << tmps << endl;
     for (int i=0; i<tmps.length(); i+=_digits) {
         int v = std::stoi(tmps.substr(i, _digits));
         toret.push_back(v);

@@ -38,6 +38,7 @@ class CoorCommand {
 
     // type 0 
     string _blockName;
+    string _method;
 
 //    string _ecid;
 //    int _mode;
@@ -86,6 +87,7 @@ class CoorCommand {
     int getType();
     unsigned int getClientIp();
     string getBlockName();
+    string getMethod();
 //    string getEcid();
 //    int getMode();
 //    int getFilesizeMB();
@@ -105,7 +107,8 @@ class CoorCommand {
     // build CoorCommand
     void buildType0(int type,
                     unsigned int ip,
-                    string blockname); 
+                    string blockname,
+                    string method); 
 //    void buildType2(int type,
 //                    unsigned int ip,
 //                    string filename);

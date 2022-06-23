@@ -58,6 +58,19 @@ class AGCommand {
     // _stripeName
     // _blockName
 
+    // type 3
+    unordered_map<unsigned int, vector<int>> _ip2cidlist;
+    int _taskid;
+    int _nFetchStream;
+    int _nCompute;
+    int _nOutCids;
+    // _ctlist
+    // _stripeName
+    // _cid2refs
+    // _ecw
+    // _blkbytes
+    // _pktbytes
+
   public:
     AGCommand();
     ~AGCommand();
@@ -83,6 +96,12 @@ class AGCommand {
     unordered_map<int, int> getCid2Refs();
     int getBlkBytes();
     int getPktBytes();
+    int getTaskid();
+    int getNFetchStream();
+    int getNCompute();
+    int getNOutCids();
+
+    void sendTo(unsigned int ip);
 
     void buildType0(int type, 
             unsigned int sendip, 
@@ -112,11 +131,32 @@ class AGCommand {
             int ecw,
             int blkbytes,
             int pktbytes);
+    void buildType3(int type,
+            unsigned int sendip,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            vector<ComputeTask*> ctlist,
+            string stripename,
+            unordered_map<int, int> cid2refs,
+            int ecw,
+            int blkbytes,
+            int pktbytes,
+            int taskid);
+    void buildType4(int type,
+            unsigned int sendip,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            string stripename,
+            string blockname,
+            int ecw,
+            int blkbytes,
+            int pktbytes,
+            int taskid);
 
     // resolve AGCommand
     void resolveType0();
     void resolveType1();
     void resolveType2();
+    void resolveType3();
+    void resolveType4();
 
     string dumpStr();
 };

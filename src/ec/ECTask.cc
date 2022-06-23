@@ -68,6 +68,99 @@ void ECTask::buildConcatenate(int type,
   _pktBytes = pktbytes;
 }
 
+void ECTask::buildFetchCompute2(int type,
+        unsigned int loc,
+        unordered_map<unsigned int, vector<int>> ip2cidlist,
+        vector<ComputeTask*> computelist,
+        string stripename,
+        unordered_map<int, int> cid2refs,
+        int ecw, int blkbytes, int pktbytes) {
+    _type = type;
+    _loc = loc;
+    _ip2cidlist = ip2cidlist;
+    _computeTaskList = computelist;
+    _stripeName = stripename;
+    _cid2refs = cid2refs;
+    _ecw = ecw;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+}
+
+void ECTask::buildConcatenate2(int type,                                                                                                                                                  
+        unsigned int loc,                                                                                                                                                                              
+        unordered_map<unsigned int, vector<int>> ip2cidlist,                                                                                                                                           
+        string stripename, string blockname,
+        int ecw, int blkbytes, int pktbytes) {
+    _type = type;
+    _loc = loc;
+    _ip2cidlist = ip2cidlist;
+    _stripeName = stripename;
+    _blockName = blockname;
+    _ecw = ecw;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+}
+
+void ECTask::sendTask(int taskid) {
+    if (_type == 0) {
+        // readDisk
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType0(0, _loc, _blockName, _blkBytes, _pktBytes, _ecw, _cid2refs, _stripeName);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+    } else if (_type == 3) {
+        // fetchAndCompute2
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType3(3, _loc, _ip2cidlist, _computeTaskList, _stripeName, _cid2refs, _ecw, _blkBytes, _pktBytes, taskid);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+
+        // fetch commands
+        for (auto item: _ip2cidlist) {
+            unsigned int fetchip = item.first;
+            vector<int> cidlist = item.second;
+            FetchCommand* fcmd = new FetchCommand(_stripeName, fetchip, cidlist, taskid);
+            fcmd->buildCommand();
+            fcmd->sendTo(_loc);
+            delete fcmd;
+        }
+        
+        // compute commands
+        for (int i=0; i<_computeTaskList.size(); i++) {
+            ComputeTask* ct = _computeTaskList[i];
+            vector<int> srclist = ct->_srclist;
+            vector<int> dstlist = ct->_dstlist;
+            vector<vector<int>> coefs = ct->_coefs;
+            ComputeCommand* ccmd = new ComputeCommand(_stripeName, srclist, dstlist, coefs, taskid);
+            ccmd->buildCommand();
+            ccmd->sendTo(_loc);
+            delete ccmd;
+        }
+        
+        // cache commands
+        CacheCommand* cacmd = new CacheCommand(_stripeName, _cid2refs, taskid);
+        cacmd->buildCommand();
+        cacmd->sendTo(_loc);
+        delete cacmd;
+    } else if (_type == 4) {
+        // concatenate2
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType4(4, _loc, _ip2cidlist, _stripeName, _blockName, _ecw, _blkBytes, _pktBytes, taskid);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+
+        // fetch commands
+        for (auto item: _ip2cidlist) {
+            unsigned int fetchip = item.first;
+            vector<int> cidlist = item.second;
+            FetchCommand* fcmd = new FetchCommand(_stripeName, fetchip, cidlist, taskid);
+            fcmd->buildCommand();
+            fcmd->sendTo(_loc);
+            delete fcmd;
+        }
+    }
+}
+
 int ECTask::getType() {
   return _type;
 }
@@ -118,6 +211,46 @@ string ECTask::dumpStr() {
       toret += "  fetch: " + _stripeName + ":" + to_string(_prevIndices[i]) + " from " + RedisUtil::ip2Str(_prevLocs[i]) + "\n";
     }
     toret += "  concatenate to " + _blockName + "\n";
+  } else if (_type == 3) {
+    for (auto item: _ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        toret += "  fetch from " + RedisUtil::ip2Str(ip) + ": ";
+        for (int i=0; i<cidlist.size(); i++)
+            toret += to_string(cidlist[i]) + " ";
+        toret += "\n";
+    }
+    for (int i=0; i<_computeTaskList.size(); i++) {
+      toret += "  compute: ";
+      vector<int> srclist = _computeTaskList[i]->_srclist; 
+      vector<int> dstlist = _computeTaskList[i]->_dstlist; 
+      vector<vector<int>> coefs = _computeTaskList[i]->_coefs; 
+      
+      toret += "    srclist: ";
+      for (auto item: srclist)
+        toret += to_string(item) + " ";
+      toret += "\n";
+      
+      for (int j=0; j<dstlist.size(); j++) {
+        toret += "    dstidx: " + to_string(dstlist[j]) + "\n";
+        vector<int> coef = coefs[j];
+        toret += "      coef: ";
+        for (int l=0; l<coef.size(); l++)
+          toret += to_string(coef[l]) + " ";
+        toret += "\n";
+      }
+      toret += "  cache key prefix: " + _stripeName + "\n";
+    }
+  } else if (_type == 4) {
+    for (auto item: _ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        toret += "  fetch from " + RedisUtil::ip2Str(ip) + ": ";
+        for (int i=0; i<cidlist.size(); i++)
+            toret += to_string(cidlist[i]) + " ";
+        toret += "\n";
+    }
+    toret += "  concatenate to " + _blockName + "\n";  
   }
   return toret;
 }

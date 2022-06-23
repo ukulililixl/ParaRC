@@ -89,6 +89,10 @@ string CoorCommand::getBlockName() {
   return _blockName;
 }
 
+string CoorCommand::getMethod() {
+  return _method;
+}
+
 //string CoorCommand::getEcid() {
 //  return _ecid;
 //}
@@ -145,11 +149,12 @@ void CoorCommand::sendTo(unsigned int ip) {
 //  freeReplyObject(rReply);
 //}
 
-void CoorCommand::buildType0(int type, unsigned int ip, string blockname) {
+void CoorCommand::buildType0(int type, unsigned int ip, string blockname, string method) {
   // set up corresponding parameters
   _type = type;
   _clientIp = ip;
   _blockName = blockname;
+  _method = method;
 
   // 1. type
   writeInt(_type);
@@ -157,6 +162,8 @@ void CoorCommand::buildType0(int type, unsigned int ip, string blockname) {
   writeInt(_clientIp);
   // 3. blockname
   writeString(_blockName);
+  // 4. method
+  writeString(_method);
 }
 
 void CoorCommand::resolveType0() {
@@ -164,6 +171,8 @@ void CoorCommand::resolveType0() {
   _clientIp = readInt();
   // 3. filename
   _blockName = readString();
+  // 4. method
+  _method = readString();
 }
 
 //void CoorCommand::resolveType1() {

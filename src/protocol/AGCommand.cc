@@ -27,7 +27,8 @@ AGCommand::AGCommand(char* reqStr) {
     case 0: resolveType0(); break;
     case 1: resolveType1(); break;
     case 2: resolveType2(); break;
-    //case 3: resolveType3(); break;
+    case 3: resolveType3(); break;
+    case 4: resolveType4(); break;
     //case 5: resolveType5(); break;
     //case 7: resolveType7(); break;
     //case 10: resolveType10(); break;
@@ -122,6 +123,29 @@ int AGCommand::getBlkBytes() {
 
 int AGCommand::getPktBytes() {
     return _pktbytes;
+}
+
+int AGCommand::getTaskid() {
+    return _taskid;
+}
+
+int AGCommand::getNFetchStream() {
+    return _nFetchStream;
+}
+
+int AGCommand::getNCompute() {
+    return _nCompute;
+}
+
+int AGCommand::getNOutCids() {
+    return _nOutCids;
+}
+
+void AGCommand::sendTo(unsigned int ip) {
+    redisContext* sendCtx = RedisUtil::createContext(ip);
+    redisReply* sendReply = (redisReply*)redisCommand(sendCtx, "RPUSH ag_request %b", _agCmd, _cmLen);
+    freeReplyObject(sendReply);
+    redisFree(sendCtx);
 }
 
 void AGCommand::buildType0(int type,
@@ -388,6 +412,124 @@ void AGCommand::resolveType2() {
   _blkbytes = readInt();
   // 8. pktbytes
   _pktbytes = readInt();
+}
+
+void AGCommand::buildType3(int type,
+        unsigned int sendip,
+        unordered_map<unsigned int, vector<int>> ip2cidlist,
+        vector<ComputeTask*> ctlist,
+        string stripename,
+        unordered_map<int, int> cid2refs,
+        int ecw,
+        int blkbytes,
+        int pktbytes,
+        int taskid) {
+
+    // set up parameters
+    _type = type;
+    _sendIp = sendip;
+    _ip2cidlist = ip2cidlist;
+    _ctlist;
+    _stripeName = stripename;
+    _cid2refs = cid2refs;
+    _ecw = ecw;
+    _blkbytes = blkbytes;
+    _pktbytes = pktbytes;
+    _taskid = taskid;
+
+    // 1. type
+    writeInt(type);
+    // 2. number of fetching streams
+    writeInt(ip2cidlist.size());
+    // 3. number of compute tasks
+    writeInt(ctlist.size());
+    // 4. stripename
+    writeString(stripename);
+    // 5. number of output cids
+    writeInt(cid2refs.size());
+    // 6. ecw
+    writeInt(ecw);
+    // 7. blkbytes
+    writeInt(blkbytes);
+    // 8. pktbytes
+    writeInt(pktbytes);
+    // 9. taskid
+    writeInt(taskid);
+}
+
+void AGCommand::resolveType3() {
+    // 2. number of fetching streams
+    _nFetchStream = readInt();
+    // 3. number of compute tasks
+    _nCompute = readInt();
+    // 4. stripename 
+    _stripeName = readString();
+    // 5. number of output cids
+    _nOutCids = readInt();
+    // 6. ecw
+    _ecw = readInt();
+    // 7. blkbytes
+    _blkbytes = readInt();
+    // 8. pktbytes
+    _pktbytes = readInt();
+    // 9. taskid
+    _taskid = readInt();
+}
+
+void AGCommand::buildType4(int type,
+        unsigned int sendip,
+        unordered_map<unsigned int, vector<int>> ip2cidlist,
+        string stripename,
+        string blockname,
+        int ecw,
+        int blkbytes,
+        int pktbytes,
+        int taskid) {
+
+    // set up parameters
+    _type = type;
+    _sendIp = sendip;
+    _ip2cidlist = ip2cidlist;
+    _stripeName = stripename;
+    _blockName = blockname;
+    _ecw = ecw;
+    _blkbytes = blkbytes;
+    _pktbytes = pktbytes;
+    _taskid = taskid;
+
+    // 1. type
+    writeInt(type);
+    // 2. number of fetching streams
+    writeInt(ip2cidlist.size());
+    // 3. stripename
+    writeString(stripename);
+    // 4. blockname
+    writeString(blockname);
+    // 5. ecw
+    writeInt(ecw);
+    // 6. blkbytes
+    writeInt(blkbytes);
+    // 7. pktbytes
+    writeInt(pktbytes);
+    // 8. taskid
+    writeInt(taskid);
+}
+
+void AGCommand::resolveType4() {
+    // 2. number of fetching streams
+    _nFetchStream = readInt();
+    // 3. stripename 
+    _stripeName = readString();
+    // 4. blockname
+    _blockName = readString();
+    // 5. ecw
+    _ecw = readInt();
+    // 6. blkbytes
+    _blkbytes = readInt();
+    // 7. pktbytes
+    _pktbytes = readInt();
+    // 8. taskid
+    _taskid = readInt();
 }
 
 string AGCommand::dumpStr() {

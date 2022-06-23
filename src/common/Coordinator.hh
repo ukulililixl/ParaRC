@@ -26,6 +26,9 @@ class Coordinator {
             ECDAG* ecdag, int* bdwt, int* maxload);
 
     void repairBlock(CoorCommand* coorCmd);
+    void repairBlockConv(string blockname);
+    void repairBlockDist(string blockname);
+    void repairBlockDist1(string blockname);
 };
 
 #endif

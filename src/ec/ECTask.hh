@@ -4,6 +4,10 @@
 #include "../inc/include.hh"
 #include "../util/RedisUtil.hh"
 #include "../protocol/AGCommand.hh"
+#include "../protocol/FetchCommand.hh"
+#include "../protocol/ComputeCommand.hh"
+#include "../protocol/CacheCommand.hh"
+
 
 using namespace std;
 
@@ -45,6 +49,10 @@ class ECTask {
     //_stripeName
     // _blockName
 
+    // for type 3: new version of fetch and compute
+    unordered_map<unsigned int, vector<int>> _ip2cidlist;
+
+
   public:
     ECTask();
     ~ECTask();
@@ -73,6 +81,20 @@ class ECTask {
                string stripename,
                string blockname,
                int ecw, int blkbytes, int pktbytes);
+    void buildFetchCompute2(int type,
+            unsigned int loc,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            vector<ComputeTask*> computelist,
+            string stripename, 
+            unordered_map<int, int> cid2refs,
+            int ecw, int blkbytes, int pktbytes);
+    void buildConcatenate2(int type,
+            unsigned int loc,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            string stripename,
+            string blockname,
+            int ecw, int blkbytes, int pktbytes);
+    void sendTask(int taskid);
 
     int getType();
     vector<ComputeTask*> getComputeTaskList();

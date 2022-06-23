@@ -42,6 +42,8 @@ void Worker::doProcess() {
         case 0: readAndCache(agCmd); break;
         case 1: fetchAndCompute(agCmd); break;
         case 2: concatenate(agCmd); break;
+        case 3: fetchAndCompute2(agCmd); break;
+        case 4: concatenate2(agCmd); break;
         default:break;
       }
 //      gettimeofday(&time2, NULL);
@@ -180,6 +182,125 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
     cout << "Worker::fetchAndCompute end!" << endl;
   
   //}
+}
+
+void Worker::fetchAndCompute2(AGCommand* agcmd) {
+    cout << "Worker::fetchAndCompute2" << endl;
+
+    int nFetchStream = agcmd->getNFetchStream();
+    int nCompute = agcmd->getNCompute();
+    string stripename = agcmd->getStripeName();
+    int nOutCids = agcmd->getNOutCids();
+    int ecw = agcmd->getECW();
+    int blkbytes = agcmd->getBlkBytes();
+    int pktbytes = agcmd->getPktBytes();
+    int taskid = agcmd->getTaskid();
+    
+    // cout << "Worker::fetchAndCompute2:nFetchStream = " << nFetchStream << endl;
+    // cout << "Worker::fetchAndCompute2:nCompute = " << nCompute << endl;
+    // cout << "Worker::fetchAndCompute2:stripename = " << stripename << endl;
+    // cout << "Worker::fetchAndCompute2:nOutCids = " << nOutCids << endl;
+    // cout << "Worker::fetchAndCompute2:ecw = " << ecw << endl;
+    // cout << "Worker::fetchAndCompute2:blkbytes = " << blkbytes << endl;
+    // cout << "Worker::fetchAndCompute2:pktbytes = " << pktbytes << endl;
+    // cout << "Worker::fetchAndCompute2:taskid = " << taskid << endl;
+
+    redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
+    redisReply* rReply;
+
+    // read FetchCommands
+    unordered_map<unsigned int, vector<int>> ip2cidlist;
+    unordered_map<int, BlockingQueue<DataPacket*>*> fetchmap;
+    string rkey = stripename + ":task"+to_string(taskid)+":fetch";
+    for (int i=0; i<nFetchStream; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        FetchCommand* fetchCmd = new FetchCommand(reqStr);
+        unsigned int ip = fetchCmd->getFetchIp();
+        vector<int> cidlist = fetchCmd->getCidList();
+        ip2cidlist.insert(make_pair(ip, cidlist));
+
+        for (int j=0; j<cidlist.size(); j++) {
+            int cid = cidlist[j];
+            BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+            fetchmap.insert(make_pair(cid, readqueue));
+        }
+
+        freeReplyObject(rReply);
+        fetchCmd->setCmd(NULL, 0);
+        delete fetchCmd;
+    }
+
+    // create fetchthreads
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
+        for (auto cid: cidlist) {
+            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
+        }
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
+    }
+
+    // read compute commands
+    vector<ComputeTask*> computeTaskList;
+    rkey = stripename + ":task" + to_string(taskid) + ":compute";
+    for (int i=0; i<nCompute; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        ComputeCommand* computeCmd = new ComputeCommand(reqStr);
+        vector<int> srclist = computeCmd->getSrcList();
+        vector<int> dstlist = computeCmd->getDstList();
+        vector<vector<int>> coefs = computeCmd->getCoefs();
+
+        ComputeTask* ct = new ComputeTask(srclist, dstlist, coefs);
+        computeTaskList.push_back(ct);
+
+        freeReplyObject(rReply);
+        computeCmd->setCmd(NULL, 0);
+        delete computeCmd;
+    }
+
+    // read cache command
+    rkey = stripename + ":task" + to_string(taskid) + ":cache";
+    rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+    char* reqStr = rReply -> element[1] -> str;
+    CacheCommand* cacheCmd = new CacheCommand(reqStr);
+    unordered_map<int, int> cacheRefs = cacheCmd->getCid2Refs();
+    cacheCmd->setCmd(NULL, 0);
+    freeReplyObject(rReply);
+    delete cacheCmd;
+
+    unordered_map<int, BlockingQueue<DataPacket*>*> cachemap;
+    for (auto item: cacheRefs) {
+        int cid = item.first;
+        BlockingQueue<DataPacket*>* queue = new BlockingQueue<DataPacket*>();
+        cachemap.insert(make_pair(cid, queue));
+    }
+
+    // create compute thread
+    thread computeThread = thread([=]{computeWorker2(fetchmap, cachemap, computeTaskList, ecw, blkbytes, pktbytes);});
+
+    // create cache thread
+    thread cacheThread = thread([=]{cacheWorker2(cachemap, cacheRefs, ecw, stripename, blkbytes, pktbytes);});
+
+    // join
+    for (int i=0; i<fetchThreads.size(); i++) {
+        fetchThreads[i].join();
+    }
+    computeThread.join();
+    cacheThread.join();
+
+    // free
+    free(redisCtx);
+    for (auto item: fetchmap) {
+        delete item.second;
+    }
+    for (auto item: cachemap) {
+        delete item.second;
+    }
 }
 
 void Worker::debugFetchAndCompute(AGCommand* agcmd) {
@@ -328,6 +449,116 @@ void Worker::concatenate(AGCommand* agcmd) {
   free(fetchQueue);
 }
 
+void Worker::concatenate2(AGCommand* agcmd) {
+
+    int nFetchStream = agcmd->getNFetchStream();
+    string stripename = agcmd->getStripeName();
+    string blockname = agcmd->getBlockName();
+    int ecw = agcmd->getECW();
+    int blkbytes = agcmd->getBlkBytes();
+    int pktbytes = agcmd->getPktBytes();
+    int taskid = agcmd->getTaskid();
+
+    string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+
+    cout << "Worker::concatenate2:nFetchStream = " << nFetchStream << endl;
+    cout << "Worker::concatenate2:stripename = " << stripename << endl;
+    cout << "Worker::concatenate2:blockname = " << blockname << endl;
+    cout << "Worker::concatenate2:ecw = " << ecw << endl;
+    cout << "Worker::concatenate2:blkbytes = " << blkbytes << endl;
+    cout << "Worker::concatenate2:pktbytes = " << pktbytes << endl;
+    cout << "Worker::concatenate2:taskid = " << taskid << endl;
+
+    redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
+    redisReply* rReply;
+
+    // read FetchCommands
+    unordered_map<unsigned int, vector<int>> ip2cidlist;
+    unordered_map<int, BlockingQueue<DataPacket*>*> fetchmap;
+    string rkey = stripename + ":task"+to_string(taskid)+":fetch";
+    for (int i=0; i<nFetchStream; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        FetchCommand* fetchCmd = new FetchCommand(reqStr);
+        unsigned int ip = fetchCmd->getFetchIp();
+        vector<int> cidlist = fetchCmd->getCidList();
+        ip2cidlist.insert(make_pair(ip, cidlist));
+
+        for (int j=0; j<cidlist.size(); j++) {
+            int cid = cidlist[j];
+            BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+            fetchmap.insert(make_pair(cid, readqueue));
+        }
+
+        freeReplyObject(rReply);
+        fetchCmd->setCmd(NULL, 0);
+        delete fetchCmd;
+    }
+
+    // create fetchthreads
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
+        for (auto cid: cidlist) {
+            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
+        }
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
+    }
+
+    ofstream ofs(fullpath);
+    ofs.close();
+    ofs.open(fullpath, ios::app);
+
+    int subpktbytes = pktbytes / ecw;
+    int pktnum = blkbytes / pktbytes;
+
+    vector<int> prevIndices;
+    for(auto item: fetchmap) {
+        int cid = item.first;
+        prevIndices.push_back(cid);
+    }
+    sort(prevIndices.begin(), prevIndices.end());
+
+    for (int i=0; i<pktnum; i++) {
+        for (int j=0; j<prevIndices.size(); j++) {
+            int cid = prevIndices[j];
+            DataPacket* curPkt = fetchmap[cid]->pop();
+            int len = curPkt->getDatalen();
+            if (len) {
+                ofs.write(curPkt->getData(), len);
+            }
+            else break;
+            delete curPkt;
+        }
+    }
+
+    ofs.close();
+
+    // join
+    for (int i=0; i<fetchThreads.size(); i++) {
+        fetchThreads[i].join();
+    }
+    cout << "Worker::concatenate fetch ends!" << endl;
+    free(redisCtx);
+
+    // finish
+    redisReply* wReply;
+    redisContext* waitCtx = RedisUtil::createContext(_conf->_localIp);
+    string wkey = "writefinish:" + blockname;
+    int tmpval = htonl(1);
+    wReply = (redisReply*)redisCommand(waitCtx, "rpush %s %b", wkey.c_str(), (char*)&tmpval, sizeof(tmpval));
+    freeReplyObject(wReply);
+    redisFree(waitCtx);
+
+    // free
+    for (auto item: fetchmap) {
+        delete item.second;
+    }
+}
+
 void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes) {
   string fullpath = _conf->_blkDir + "/" + blockname;
   cout << "Worker::readWorker:fullpath = " << fullpath << endl;
@@ -382,7 +613,8 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
       //if (cid2refs.find(cid) != cid2refs.end())
       //    ref = cid2refs[cid];
 
-      string key = keybase+":"+to_string(idxlist[j])+":"+to_string(i);  
+      //string key = keybase+":"+to_string(idxlist[j])+":"+to_string(i);  
+      string key = keybase+":"+to_string(idxlist[j]);
       
       int len = curslice->getDatalen();
       char* raw = curslice->getRaw();
@@ -406,6 +638,57 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
   cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << ":";
   for (int i=0; i<idxlist.size(); i++) {
       cout << idxlist[i] << " ";
+  }
+  cout << endl;
+}
+
+void Worker::cacheWorker2(
+        unordered_map<int, BlockingQueue<DataPacket*>*> cacheMap,
+        unordered_map<int, int> cacheRefs,
+        int ecw, string stripename,
+        int blkbytes, int pktbytes) {
+  struct timeval time1, time2;
+  gettimeofday(&time1, NULL);
+
+  redisContext* writeCtx = RedisUtil::createContext(_conf->_localIp);
+  redisReply* rReply;
+
+  int subpktbytes = pktbytes / ecw;
+  int pktnum = blkbytes / pktbytes;
+
+  int count=0;
+  int replyid=0;
+  for (int i=0; i<pktnum; i++) {
+      for (auto item: cacheMap) {
+          int cid = item.first;
+          BlockingQueue<DataPacket*>* queue = cacheMap[cid];
+          int ref = cacheRefs[cid];
+
+          string key = stripename + ":" + to_string(cid);
+
+          DataPacket* curslice = queue->pop();
+          int len = curslice->getDatalen();
+          char* raw = curslice->getRaw();
+          int rawlen = len + 4;
+          for (int k=0; k<ref; k++) {
+              redisAppendCommand(writeCtx, "RPUSH %s %b", key.c_str(), raw, rawlen); count++;
+          }
+          delete curslice;
+          if (i>1) {
+              redisGetReply(writeCtx, (void**)&rReply); replyid++;
+              freeReplyObject(rReply);
+          }
+      }
+  }
+  for (int i=replyid; i<count; i++)  {
+    redisGetReply(writeCtx, (void**)&rReply); replyid++;
+    freeReplyObject(rReply);
+  }
+  
+  gettimeofday(&time2, NULL);
+  cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << stripename << ":";
+  for (auto item: cacheRefs) {
+      cout << item.first << " ";
   }
   cout << endl;
 }
@@ -436,14 +719,16 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
 
     int replyid=0;
     for (int i=0; i<pktnum; i++) {
-      string key = keybase+":"+to_string(i);
+      //string key = keybase+":"+to_string(i);
+      string key = keybase;
       redisAppendCommand(fetchCtx, "blpop %s 0", key.c_str());
     }
     
     struct timeval t1, t2;
     double t;
     for (int i=replyid; i<pktnum; i++) {
-      string key = keybase+":"+to_string(i);
+      //string key = keybase+":"+to_string(i);
+      string key = keybase;
       gettimeofday(&t1, NULL);
       redisGetReply(fetchCtx, (void**)&rReply);
       gettimeofday(&t2, NULL);
@@ -457,6 +742,66 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
     }
     gettimeofday(&time2, NULL);
     cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << endl;
+    redisFree(fetchCtx);
+  }
+}
+
+void Worker::fetchWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
+                     string stripename,
+                     unsigned int loc,
+                     int ecw,
+                     int blkbytes, 
+                     int pktbytes) {
+  int pktnum = blkbytes / pktbytes;
+  int slicesize = pktbytes / ecw;
+  //cout << "fetchWorker::pktnum = " << pktnum << ", slicesize: " << slicesize << endl;
+
+  struct timeval time1, time2;
+  gettimeofday(&time1, NULL);
+
+  if (loc == 0) {
+      for (int i=0; i<pktnum; i++) {
+          for (auto item: fetchMap) {
+              cout << "Worker::fetchWorker generates zero bytes for " << stripename + ":" + to_string(item.first) << endl;
+              DataPacket* pkt = new DataPacket(slicesize);
+              item.second->push(pkt);
+          }
+      }
+  } else {
+    redisReply* rReply;
+    redisContext* fetchCtx = RedisUtil::createContext(loc);
+    for (auto item: fetchMap) {
+        string key = stripename + ":" + to_string(item.first);
+        cout << "fetchWorker2::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << key << endl;
+    }
+
+    int replyid=0;
+    for (int i=0; i<pktnum; i++) {
+      //string key = keybase+":"+to_string(i);
+      
+        for (auto item: fetchMap) {
+            int cid = item.first;
+            string key = stripename + ":" + to_string(cid);
+            redisAppendCommand(fetchCtx, "blpop %s 0", key.c_str());
+        }
+    }
+    
+    for (int i=replyid; i<pktnum; i++) {
+      //string key = keybase+":"+to_string(i);
+        for (auto item: fetchMap) {
+            redisGetReply(fetchCtx, (void**)&rReply);
+            char* content = rReply->element[1]->str;
+            DataPacket* pkt = new DataPacket(content);
+            item.second->push(pkt);
+            freeReplyObject(rReply);
+        }
+    }
+    gettimeofday(&time2, NULL);
+    cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for ";
+    for (auto item: fetchMap) {
+        cout << item.first << " ";
+    }
+    cout << endl;
     redisFree(fetchCtx);
   }
 }
@@ -552,6 +897,109 @@ void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
       DataPacket* curpkt = pktMap[curidx];
       delete curpkt;
       ignore.insert(make_pair(curidx, 1));
+    }
+    // free bufMap
+    for (auto item: bufMap) {
+      int curidx = item.first;
+      if(ignore.find(curidx) == ignore.end() && item.second)
+        free(item.second);
+    }
+    bufMap.clear();
+    pktMap.clear();
+  }
+}
+
+void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
+        unordered_map<int, BlockingQueue<DataPacket*>*> cacheMap,
+        vector<ComputeTask*> ctlist, 
+        int ecw, int blkbytes, int pktbytes) {
+
+  struct timeval time1, time2, time3;
+  gettimeofday(&time1, NULL);
+
+  int subpktbytes = pktbytes / ecw;
+  int pktnum = blkbytes / pktbytes;
+   
+  for (int i=0; i<pktnum; i++) {
+    unordered_map<int, char*> bufMap;
+    unordered_map<int, DataPacket*> pktMap;
+
+    // read from fetchmap
+    for (auto item: fetchMap) {
+        int curidx = item.first;
+        DataPacket* curpkt = fetchMap[curidx]->pop();
+        pktMap.insert(make_pair(curidx, curpkt));
+        bufMap.insert(make_pair(curidx, curpkt->getData()));
+    }
+
+    // prepare data pkt for writemap
+    for (auto item: cacheMap) {
+        int curidx = item.first;
+        DataPacket* curpkt = new DataPacket(subpktbytes);
+        pktMap.insert(make_pair(curidx, curpkt));
+        bufMap.insert(make_pair(curidx, curpkt->getData()));
+    }
+    
+    // iterate through ctlist
+    for (int ctidx=0; ctidx<ctlist.size(); ctidx++) {
+      ComputeTask* curtask = ctlist[ctidx];
+      vector<int> srclist = curtask->_srclist;
+      vector<int> dstlist = curtask->_dstlist;
+      vector<vector<int>> coefs = curtask->_coefs;
+
+      // make sure that index in srclits has been in bufmap
+      for(auto srcidx: srclist)
+        assert(bufMap.find(srcidx) != bufMap.end());
+      // now we create buf in bufMap
+      for (auto dstidx: dstlist) {
+        if (bufMap.find(dstidx) == bufMap.end()) {
+          char* tmpbuf = (char*)calloc(subpktbytes, sizeof(char));
+          bufMap.insert(make_pair(dstidx, tmpbuf));
+        }
+      }
+      
+      int col = srclist.size();
+      int row = dstlist.size();
+      
+      int* matrix = (int*)calloc(row*col, sizeof(int));
+      char** data = (char**)calloc(col, sizeof(char*));
+      char** code = (char**)calloc(row, sizeof(char*));
+      // prepare data buf 
+      for (int bufIdx = 0; bufIdx < srclist.size(); bufIdx++) {
+        int child = srclist[bufIdx];
+        // check whether there is buf in databuf
+        assert (bufMap.find(child) != bufMap.end());
+        data[bufIdx] = bufMap[child];
+      }
+      // prepare code buf and matrix
+      for (int codeBufIdx = 0; codeBufIdx < dstlist.size(); codeBufIdx++) {
+        int target = dstlist[codeBufIdx];
+        char* codebuf;
+        assert(bufMap.find(target) != bufMap.end());
+        code[codeBufIdx] = bufMap[target];
+        vector<int> curcoef = coefs[codeBufIdx];
+        for (int j=0; j<col; j++) {
+          matrix[codeBufIdx * col + j] = curcoef[j];
+        }
+      }
+      // perform computation
+      Computation::Multi(code, data, matrix, row, col, subpktbytes, "Isal"); 
+    }
+    // now the computation is finished
+    // we write pkts into writeQueue
+    unordered_map<int, int> ignore;
+    for (auto item: cacheMap) {
+        int curidx = item.first;
+        DataPacket* curpkt = pktMap[curidx];
+        cacheMap[curidx]->push(curpkt);
+        ignore.insert(make_pair(curidx, 1));
+    }
+    // free data packet
+    for (auto item: fetchMap) {
+        int curidx = item.first;
+        DataPacket* curpkt = pktMap[curidx]; 
+        delete curpkt;
+        ignore.insert(make_pair(curidx, 1));
     }
     // free bufMap
     for (auto item: bufMap) {

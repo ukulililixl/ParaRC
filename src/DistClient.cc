@@ -7,7 +7,7 @@
 using namespace std;
 
 void usage() {
-  cout << "usage: ./DistClient repairBlock blockname" << endl;
+  cout << "usage: ./DistClient repairBlock blockname method" << endl;
 //  cout << "usage: ./OECClient write inputfile saveas ecid online sizeinMB" << endl;
 //  cout << "       ./OECClient write inputfile saveas poolid offline sizeinMB" << endl;
 //  cout << "       ./OECClient read filename saveas" << endl;
@@ -17,13 +17,13 @@ void usage() {
 //  cout << "       ./OECClient writeLayer inputfile saveas ecid online sizeinMB layer" << endl;
 }
 
-void repairBlock(string blockname) {
+void repairBlock(string blockname, string method) {
 
   string confpath("./conf/sysSetting.xml");
   Config* conf = new Config(confpath);
 
   CoorCommand* cmd = new CoorCommand();
-  cmd->buildType0(0, conf->_localIp, blockname);
+  cmd->buildType0(0, conf->_localIp, blockname, method);
   cmd->sendTo(conf->_coorIp);
 
   delete cmd;
@@ -131,13 +131,14 @@ int main(int argc, char** argv) {
 
   string reqType(argv[1]);
   if (reqType == "repairBlock") {
-    if (argc != 3) {
+    if (argc != 4) {
       usage();
       return -1;
     }
 
     string blockname(argv[2]);
-    repairBlock(blockname);
+    string method(argv[3]);
+    repairBlock(blockname, method);
   }
 //  if (reqType == "write") {
 //    if (argc != 7) {

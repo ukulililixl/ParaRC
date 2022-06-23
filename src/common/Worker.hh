@@ -7,6 +7,9 @@
 #include "../ec/Computation.hh"
 #include "../inc/include.hh"
 #include "../protocol/AGCommand.hh"
+#include "../protocol/FetchCommand.hh"
+#include "../protocol/ComputeCommand.hh"
+#include "../protocol/CacheCommand.hh"
 #include "../util/BlockingQueue.hh"
 #include "../util/DistUtil.hh"
 
@@ -28,8 +31,10 @@ class Worker {
     // deal with coor instruction
     void readAndCache(AGCommand* agCmd);
     void fetchAndCompute(AGCommand* agCmd);
+    void fetchAndCompute2(AGCommand* agCmd);
     void debugFetchAndCompute(AGCommand* agCmd);
     void concatenate(AGCommand* agCmd);
+    void concatenate2(AGCommand* agCmd);
 
     // basic routines
     void readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw,
@@ -37,8 +42,18 @@ class Worker {
     void cacheWorker(BlockingQueue<DataPacket*>* cachequeue,
                      vector<int> idxlis, int ecw, string keybase,
                      int blkbytes, int pktbytes, unordered_map<int, int> cid2refs);
+    void cacheWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> cacheMap,
+                     unordered_map<int, int> cacheRefs,
+                     int ecw, string stripename,
+                     int blkbytes, int pktbytes);
     void fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      string keybase,
+                     unsigned int loc,
+                     int ecw,
+                     int blkbytes, 
+                     int pktbytes);
+    void fetchWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
+                     string stripename,
                      unsigned int loc,
                      int ecw,
                      int blkbytes, 
@@ -49,6 +64,9 @@ class Worker {
                        vector<int> writeIndices,
                        vector<ComputeTask*> ctlist, int ecw,
                        int blkbytes, int pktbytes);
+    void computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
+            unordered_map<int, BlockingQueue<DataPacket*>*> cacheMap,
+            vector<ComputeTask*> ctlist, int ecw, int blkbytes, int pktbytes);
 };
 
 #endif

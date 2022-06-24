@@ -53,7 +53,7 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     cout << "Coor::repairBlock.blockname: " << blockName << ", method: " << method << endl;
 
     if (method == "dist") {
-        repairBlockDist(blockName);
+        repairBlockDist1(blockName);
     } else if (method == "conv") {
         repairBlockConv(blockName);
     } else {
@@ -84,10 +84,11 @@ void Coordinator::repairBlockConv(string blockName) {
 
     vector<string> blocklist = stripemeta->getBlockList();
     vector<unsigned int> loclist = stripemeta->getLocList();
-    cout << "Coor::repairBlock.blocklist: " << endl;
-    for (int i=0; i<ecn; i++) {
-        cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
-    }
+
+    //cout << "Coor::repairBlock.blocklist: " << endl;
+    //for (int i=0; i<ecn; i++) {
+    //    cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
+    //}
 
     // 3. now we repair at the same location
     unsigned int repairLoc = loclist[repairBlockIdx];
@@ -140,7 +141,7 @@ void Coordinator::repairBlockConv(string blockName) {
         //    break;
 
         ECTask* task = tasklist[i];
-        cout << "  " << tasklist[i]->dumpStr() << endl;
+        //cout << "  " << tasklist[i]->dumpStr() << endl;
         task->sendTask(i);
     }
 
@@ -151,7 +152,7 @@ void Coordinator::repairBlockConv(string blockName) {
     freeReplyObject(fReply);
     redisFree(waitCtx);
     gettimeofday(&time3, NULL);
-    cout << "repairBlock:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
  
     // delete
     delete ec;
@@ -184,10 +185,11 @@ void Coordinator::repairBlockDist(string blockName) {
 
     vector<string> blocklist = stripemeta->getBlockList();
     vector<unsigned int> loclist = stripemeta->getLocList();
-    cout << "Coor::repairBlock.blocklist: " << endl;
-    for (int i=0; i<ecn; i++) {
-        cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
-    }
+
+    //cout << "Coor::repairBlock.blocklist: " << endl;
+    //for (int i=0; i<ecn; i++) {
+    //    cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
+    //}
 
     // 3. now we repair at the same location
     unsigned int repairLoc = loclist[repairBlockIdx];
@@ -311,10 +313,10 @@ void Coordinator::repairBlockDist(string blockName) {
         coloring_res.insert(make_pair(idx, ip));
     }
 
-    cout << "coloring res: " << endl;
-    for (auto item: coloring_res) {
-        cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
-    }
+    // cout << "coloring res: " << endl;
+    // for (auto item: coloring_res) {
+    //     cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
+    // }
 
     // 12. generate ectasks by ECClusters
     cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
@@ -323,17 +325,32 @@ void Coordinator::repairBlockDist(string blockName) {
 
     gettimeofday(&time2, NULL);
     // 8. send out tasks
-    cout << "ECTasks: " << endl;
+    cout << "ECTasks: " << tasklist.size() << endl;
     for (int i=0; i<tasklist.size(); i++) {
 
-        if (i > 9)
-            break;
+        //if (i > 347)
+        //    break;
 
         ECTask* task = tasklist[i];
-        cout << "  " << tasklist[i]->dumpStr() << endl;
+        //cout << "  " << tasklist[i]->dumpStr() << endl;
         task->sendTask(i);
     }
 
+    // wait for finish flag?
+    redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+    string wkey = "writefinish:"+blockName;
+    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    freeReplyObject(fReply);
+    redisFree(waitCtx);
+    gettimeofday(&time3, NULL);
+    cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+ 
+    // delete
+    delete ec;
+    delete ecdag;
+    for (int i=0; i<tasklist.size(); i++) {
+        delete tasklist[i];
+    }
 }
 
 void Coordinator::repairBlockDist1(string blockName) {
@@ -360,10 +377,11 @@ void Coordinator::repairBlockDist1(string blockName) {
 
     vector<string> blocklist = stripemeta->getBlockList();
     vector<unsigned int> loclist = stripemeta->getLocList();
-    cout << "Coor::repairBlock.blocklist: " << endl;
-    for (int i=0; i<ecn; i++) {
-        cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
-    }
+
+    // cout << "Coor::repairBlock.blocklist: " << endl;
+    // for (int i=0; i<ecn; i++) {
+    //     cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
+    // }
 
     // 3. now we repair at the same location
     unsigned int repairLoc = loclist[repairBlockIdx];

@@ -953,18 +953,18 @@ void Clay::repair_one_lost_chunk(unordered_map<int, bool>& recovered_data,
         }
     }
 
-    cout << "list1: ";
-    for (auto item: list1)
-        cout << item << " ";
-    cout << endl;
-    cout << "list2: ";
-    for (auto item: list2)
-        cout << item << " ";
-    cout << endl;
-    cout << "list3: ";
-    for (auto item: list3)
-        cout << item << " ";
-    cout << endl;
+    //cout << "list1: ";
+    //for (auto item: list1)
+    //    cout << item << " ";
+    //cout << endl;
+    //cout << "list2: ";
+    //for (auto item: list2)
+    //    cout << item << " ";
+    //cout << endl;
+    //cout << "list3: ";
+    //for (auto item: list3)
+    //    cout << item << " ";
+    //cout << endl;
 
 //    int vidx1 = ecdag->BindX(list1);
 //    int vidx2 = ecdag->BindX(list2);

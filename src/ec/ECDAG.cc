@@ -191,10 +191,10 @@ void ECDAG::genECUnits() {
     //  break;
   }
 
-  // debug
-  for (int i=0; i<_ecUnitList.size(); i++)  {
-    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
-  }
+  // // debug
+  // for (int i=0; i<_ecUnitList.size(); i++)  {
+  //   cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
+  // }
 }
 
 void ECDAG::clearECCluster() {
@@ -245,10 +245,10 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
       }
     }
 
-    cout << "current leaves: ";
-    for (auto item: leaves)
-      cout << item.first << " ";
-    cout << endl;
+    //cout << "current leaves: ";
+    //for (auto item: leaves)
+    //  cout << item.first << " ";
+    //cout << endl;
 
     vector<int> curunitlist;
     //cout << "starti: " << starti << ", all: " << _ecUnitList.size() << endl;
@@ -276,11 +276,11 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
       }
     }
 
-    cout << "current layer of ECUnit: ";
-    for (int ui=0; ui<curunitlist.size(); ui++) {
-      cout << curunitlist[ui] << " ";
-    }
-    cout << endl;
+    // cout << "current layer of ECUnit: ";
+    // for (int ui=0; ui<curunitlist.size(); ui++) {
+    //   cout << curunitlist[ui] << " ";
+    // }
+    // cout << endl;
 
     // collect coloring for the parent in each unit
     unordered_map<int, vector<int>> color2unitlist;
@@ -310,9 +310,9 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
         leaves.insert(make_pair(pnodeidx, 1));
     }
 
-    cout << "current color2unitlist: " << endl;
+    // cout << "current color2unitlist: " << endl;
     for (auto item: color2unitlist) {
-        cout << "  color: " << item.first << ", unit num:  " << item.second.size() << endl;
+        //cout << "  color: " << item.first << ", unit num:  " << item.second.size() << endl;
         unordered_map<string, vector<int>> cstr2unitlist;
         vector<string> cstrlist;
         for (auto tmpunit: item.second) {
@@ -325,12 +325,12 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
                 cstr2unitlist[cstr].push_back(tmpunit);
             }
         }
-        for (auto tmpitem: cstr2unitlist) {
-            cout << "    cstr: " << tmpitem.first << ", unitlist: ";
-            for (auto tmpunit: tmpitem.second)
-                cout << tmpunit << " ";
-            cout << endl;
-        }
+        //for (auto tmpitem: cstr2unitlist) {
+        //    cout << "    cstr: " << tmpitem.first << ", unitlist: ";
+        //    for (auto tmpunit: tmpitem.second)
+        //        cout << tmpunit << " ";
+        //    cout << endl;
+        //}
 
         // we generate ecclusters according to cstr2unitlist; 
         int cstridx=0;
@@ -349,7 +349,7 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
                 _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
                 _ecClusterList.push_back(eccluster->getClusterId());
                 curclusterunits.clear();
-                cout << "    "  << eccluster->dump() << endl;
+                //cout << "    "  << eccluster->dump() << endl;
             }
         }
 
@@ -358,7 +358,7 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
             _ecClusterMap.insert(make_pair(eccluster->getClusterId(), eccluster));
             _ecClusterList.push_back(eccluster->getClusterId());
             curclusterunits.clear();
-            cout << "    "  << eccluster->dump() << endl;
+            //cout << "    "  << eccluster->dump() << endl;
         }
     }
 
@@ -372,12 +372,12 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
     //}
   }
 
-  // debug the ecclusters
-  for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
-    int clusterid = _ecClusterList[tmpi];
-    ECCluster* cluster = _ecClusterMap[clusterid];
-    cout << cluster->dump() << endl;
-  }
+  // // debug the ecclusters
+  // for (int tmpi=0; tmpi<_ecClusterList.size(); tmpi++) {
+  //   int clusterid = _ecClusterList[tmpi];
+  //   ECCluster* cluster = _ecClusterMap[clusterid];
+  //   cout << cluster->dump() << endl;
+  // }
 }
 
 void ECDAG::genStat(unordered_map<int, int> coloring, 
@@ -432,12 +432,12 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         int ecn, int eck, int ecw, int blkbytes, int pktbytes, 
         string stripename, vector<string> blocklist,
         unordered_map<int, unsigned int> coloring_res) {
-    cout << "ECUnits: " << endl;
-    for (int i=0; i<_ecUnitList.size(); i++) {
-        int unitId = _ecUnitList[i];
-        ECUnit* cunit = _ecUnitMap[unitId];
-        cout << "  " << cunit->dump() << endl;
-    }
+    // cout << "ECUnits: " << endl;
+    // for (int i=0; i<_ecUnitList.size(); i++) {
+    //     int unitId = _ecUnitList[i];
+    //     ECUnit* cunit = _ecUnitMap[unitId];
+    //     cout << "  " << cunit->dump() << endl;
+    // }
 
     // for each vertex, figure out the number of referenced ECClusters for it
     unordered_map<int, int> cidRefs;
@@ -453,11 +453,11 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
             shortening.insert(make_pair(cid, 0));
     }
 
-    cout << "ECCluster:" << endl;
+    //cout << "ECCluster:" << endl;
     for (int i=0; i<_ecClusterList.size(); i++) {
         int clusterId = _ecClusterList[i];
         ECCluster* ccluster = _ecClusterMap[clusterId];
-        cout << "  " << ccluster->dump() << endl;
+        //cout << "  " << ccluster->dump() << endl;
 
         // data structure for current cluster
         vector<int> childlist;
@@ -471,7 +471,7 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         for (int j=0; j<unitlist.size(); j++) {
             int unitId = unitlist[j];
             ECUnit* cunit = _ecUnitMap[unitId];
-            cout << "    unit: " << cunit->dump() << endl;
+            //cout << "    unit: " << cunit->dump() << endl;
 
             vector<int> unitchilds = cunit->getChilds();
             for (auto cid: unitchilds) {
@@ -500,28 +500,28 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         //        leaveRefs[cid]++;
         //}
         
-        cout << "    childlist: ";
-        for (int tmpi=0; tmpi < childlist.size(); tmpi++) {
-            cout << childlist[tmpi] << " ";
-        }
-        cout << endl;
+        //cout << "    childlist: ";
+        //for (int tmpi=0; tmpi < childlist.size(); tmpi++) {
+        //    cout << childlist[tmpi] << " ";
+        //}
+        //cout << endl;
 
         // update coefs for childlist
         for (int j=0; j<unitlist.size(); j++) {
             int unitId = unitlist[j];
             ECUnit* cunit = _ecUnitMap[unitId];
-            cout << "    unit: " << cunit->dump() << endl;
+            //cout << "    unit: " << cunit->dump() << endl;
             vector<int> unitchilds = cunit->getChilds();
             vector<int> unitcoefs = cunit->getCoefs();
             int parent = cunit->getParent();
 
-            cout << "    parent: " << parent << ", childs: ";
-            for (int tmpi=0; tmpi<unitchilds.size(); tmpi++)
-                cout << unitchilds[tmpi] << " ";
-            cout << ", coefs: ";
-            for (int tmpi=0; tmpi<unitcoefs.size(); tmpi++)
-                cout << unitcoefs[tmpi] << " ";
-            cout << endl;
+            //cout << "    parent: " << parent << ", childs: ";
+            //for (int tmpi=0; tmpi<unitchilds.size(); tmpi++)
+            //    cout << unitchilds[tmpi] << " ";
+            //cout << ", coefs: ";
+            //for (int tmpi=0; tmpi<unitcoefs.size(); tmpi++)
+            //    cout << unitcoefs[tmpi] << " ";
+            //cout << endl;
 
             vector<int> coeflist(childlist.size());
             for (int tmpi=0; tmpi<childlist.size(); tmpi++) {
@@ -534,13 +534,13 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
                 coeflist[tmpi] = c;
             }
             
-            cout << "    parent: " << parent << ", newchilds: ";
-            for (int tmpi=0; tmpi<childlist.size(); tmpi++)
-                cout << childlist[tmpi] << " ";
-            cout << ", newcoefs: ";
-            for (int tmpi=0; tmpi<coeflist.size(); tmpi++)
-                cout << coeflist[tmpi] << " ";
-            cout << endl;
+            // cout << "    parent: " << parent << ", newchilds: ";
+            // for (int tmpi=0; tmpi<childlist.size(); tmpi++)
+            //     cout << childlist[tmpi] << " ";
+            // cout << ", newcoefs: ";
+            // for (int tmpi=0; tmpi<coeflist.size(); tmpi++)
+            //     cout << coeflist[tmpi] << " ";
+            // cout << endl;
 
             parentlist.push_back(parent);
             coefmap.insert(make_pair(parent, coeflist));
@@ -589,7 +589,7 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
     for (int i=0; i<_ecClusterList.size(); i++) {
         int clusterId = _ecClusterList[i];
         ECCluster* ccluster = _ecClusterMap[clusterId];
-        cout << "cluster: " << clusterId << endl;
+        //cout << "cluster: " << clusterId << endl;
         vector<int> childlist = ccluster->getChildList();
         vector<int> parentlist = ccluster->getParentList();
         unordered_map<int, vector<int>> coefmap = ccluster->getCoefMap();
@@ -605,7 +605,7 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         
 
         if (ccluster->isConcact(REQUESTOR)) {
-            cout << "  Concact!" << endl;
+            //cout << "  Concact!" << endl;
 
             int type = 2;
             int bidx = childlist[0] / ecw;
@@ -616,7 +616,7 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
             tasklist.push_back(concactTask);
 
         } else {
-            cout << "  FetchCompute!" << endl;
+            //cout << "  FetchCompute!" << endl;
             vector<int> childlist = ccluster->getChildList();
             vector<int> parentlist = ccluster->getParentList();
             unordered_map<int, vector<int>> coefmap = ccluster->getCoefMap();
@@ -651,12 +651,12 @@ void ECDAG::genDistECTasks(vector<ECTask*>& tasklist,
         int ecn, int eck, int ecw, int blkbytes, int pktbytes, 
         string stripename, vector<string> blocklist,
         unordered_map<int, unsigned int> coloring_res) {
-    cout << "ECUnits: " << endl;
-    for (int i=0; i<_ecUnitList.size(); i++) {
-        int unitId = _ecUnitList[i];
-        ECUnit* cunit = _ecUnitMap[unitId];
-        cout << "  " << cunit->dump() << endl;
-    }
+    // cout << "ECUnits: " << endl;
+    // for (int i=0; i<_ecUnitList.size(); i++) {
+    //     int unitId = _ecUnitList[i];
+    //     ECUnit* cunit = _ecUnitMap[unitId];
+    //     cout << "  " << cunit->dump() << endl;
+    // }
 
     // for each vertex, figure out the number of referenced ECClusters for it
     unordered_map<int, int> cidRefs;
@@ -673,11 +673,11 @@ void ECDAG::genDistECTasks(vector<ECTask*>& tasklist,
     }
 
     // figure out cidRefs
-    cout << "ECClusters: " << endl;
+    //cout << "ECClusters: " << endl;
     for (int i=0; i<_ecClusterList.size(); i++) {
         int clusterId = _ecClusterList[i];
         ECCluster* ccluster = _ecClusterMap[clusterId];
-        cout << "  " << ccluster->dump() << endl;
+        //cout << "  " << ccluster->dump() << endl;
 
         vector<int> unitlist = ccluster->getUnitList();
         vector<int> childlist;
@@ -715,10 +715,10 @@ void ECDAG::genDistECTasks(vector<ECTask*>& tasklist,
         ccluster->setParentList(parentlist);
     }
 
-    cout << "cidRefs:" << endl;
-    for (auto item: cidRefs) {
-        cout << item.first << ": " << item.second << endl;
-    }
+    //cout << "cidRefs:" << endl;
+    //for (auto item: cidRefs) {
+    //    cout << item.first << ": " << item.second << endl;
+    //}
 
     // check realleaves, merge cid of the same block
     unordered_map<int, vector<int>> bid2cids;
@@ -760,7 +760,7 @@ void ECDAG::genDistECTasks(vector<ECTask*>& tasklist,
     for (int i=0; i<_ecClusterList.size(); i++) {
         int clusterId = _ecClusterList[i];
         ECCluster* ccluster = _ecClusterMap[clusterId];
-        cout << "cluster: " << clusterId << endl; 
+        //cout << "cluster: " << clusterId << endl; 
 
         vector<int> childlist = ccluster->getChildList();
         vector<int> parentlist = ccluster->getParentList();

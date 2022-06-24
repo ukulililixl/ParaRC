@@ -57,7 +57,7 @@ void Worker::doProcess() {
 }
 
 void Worker::readAndCache(AGCommand* agcmd) {
-  cout << "Worker::readDisk!" << endl;
+  //cout << "Worker::readDisk!" << endl;
   struct timeval time1, time2, time3;                                                                                                                                                                    
   gettimeofday(&time1, NULL); 
 
@@ -68,18 +68,18 @@ void Worker::readAndCache(AGCommand* agcmd) {
   unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
   string stripename = agcmd->getStripeName();
 
-  cout << "Worker::readDisk.blockname: " << blockname << endl;
-  cout << "Worker::readDisk.blkbytes: " << blkbytes << endl;
-  cout << "Worker::readDisk.pktbytes: " << pktbytes << endl;
-  cout << "Worker::readDisk.ecw: " << ecw << endl;
-  cout << "Worker::readDisk.cid2refs: ";
-  for (auto item: cid2refs) {
-      int cid = item.first;
-      int ref = item.second;
-      cout << "(" << cid << ", " << ref << ") ";
-  }
-  cout << endl;
-  cout << "Worker::readDisk.stripename: " << stripename << endl;
+  //cout << "Worker::readDisk.blockname: " << blockname << endl;
+  //cout << "Worker::readDisk.blkbytes: " << blkbytes << endl;
+  //cout << "Worker::readDisk.pktbytes: " << pktbytes << endl;
+  //cout << "Worker::readDisk.ecw: " << ecw << endl;
+  //cout << "Worker::readDisk.cid2refs: ";
+  //for (auto item: cid2refs) {
+  //    int cid = item.first;
+  //    int ref = item.second;
+  //    cout << "(" << cid << ", " << ref << ") ";
+  //}
+  //cout << endl;
+  //cout << "Worker::readDisk.stripename: " << stripename << endl;
 
   vector<int> pattern;
   vector<int> indices;
@@ -461,13 +461,13 @@ void Worker::concatenate2(AGCommand* agcmd) {
 
     string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
 
-    cout << "Worker::concatenate2:nFetchStream = " << nFetchStream << endl;
-    cout << "Worker::concatenate2:stripename = " << stripename << endl;
-    cout << "Worker::concatenate2:blockname = " << blockname << endl;
-    cout << "Worker::concatenate2:ecw = " << ecw << endl;
-    cout << "Worker::concatenate2:blkbytes = " << blkbytes << endl;
-    cout << "Worker::concatenate2:pktbytes = " << pktbytes << endl;
-    cout << "Worker::concatenate2:taskid = " << taskid << endl;
+    //cout << "Worker::concatenate2:nFetchStream = " << nFetchStream << endl;
+    //cout << "Worker::concatenate2:stripename = " << stripename << endl;
+    //cout << "Worker::concatenate2:blockname = " << blockname << endl;
+    //cout << "Worker::concatenate2:ecw = " << ecw << endl;
+    //cout << "Worker::concatenate2:blkbytes = " << blkbytes << endl;
+    //cout << "Worker::concatenate2:pktbytes = " << pktbytes << endl;
+    //cout << "Worker::concatenate2:taskid = " << taskid << endl;
 
     redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
     redisReply* rReply;
@@ -707,7 +707,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
   gettimeofday(&time1, NULL);
 
   if (loc == 0) {
-      cout << "Worker::fetchWorker generates zero bytes for " << keybase << endl;
+      //cout << "Worker::fetchWorker generates zero bytes for " << keybase << endl;
       for (int i=0; i<pktnum; i++) {
           DataPacket* pkt = new DataPacket(slicesize);
           fetchQueue->push(pkt);
@@ -715,7 +715,7 @@ void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
   } else {
     redisReply* rReply;
     redisContext* fetchCtx = RedisUtil::createContext(loc);
-    cout << "fetchWorker::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << keybase << endl;
+    //cout << "fetchWorker::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << keybase << endl;
 
     int replyid=0;
     for (int i=0; i<pktnum; i++) {
@@ -772,7 +772,7 @@ void Worker::fetchWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchM
     redisContext* fetchCtx = RedisUtil::createContext(loc);
     for (auto item: fetchMap) {
         string key = stripename + ":" + to_string(item.first);
-        cout << "fetchWorker2::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << key << endl;
+        //cout << "fetchWorker2::connect to " << RedisUtil::ip2Str(loc) << " for keybase " << key << endl;
     }
 
     int replyid=0;

@@ -26,9 +26,10 @@ class Coordinator {
             ECDAG* ecdag, int* bdwt, int* maxload);
 
     void repairBlock(CoorCommand* coorCmd);
-    void repairBlockConv(string blockname);
-    void repairBlockDist(string blockname);
-    void repairBlockDist1(string blockname);
+    void repairBlockConv(string blockname); // new protocol
+    void repairBlockConv1(string blockname); // old protocol
+    void repairBlockDist(string blockname); // new protocol
+    void repairBlockDist1(string blockname); // old protocol
 };
 
 #endif

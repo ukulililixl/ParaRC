@@ -55,7 +55,7 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     if (method == "dist") {
         repairBlockDist1(blockName);
     } else if (method == "conv") {
-        repairBlockConv1(blockName);
+        repairBlockConv(blockName);
     } else {
         cout << "ERROR::wrong method!" << endl;
     }

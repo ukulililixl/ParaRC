@@ -4,13 +4,17 @@ ECDAG::ECDAG() {
 }
 
 ECDAG::~ECDAG() {
-  for (auto it: _ecNodeMap) {
-    if (it.second) {
-      delete it.second;
-      it.second = nullptr;
+    for (auto item: _ecClusterMap)
+        delete item.second;
+    for (auto item: _ecUnitMap)
+        delete item.second;
+    for (auto it: _ecNodeMap) {
+        if (it.second) {
+            delete it.second;
+            it.second = nullptr;
+        }
     }
-  }
-  _ecNodeMap.clear();
+    _ecNodeMap.clear();
   
 }
 

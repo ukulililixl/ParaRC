@@ -108,11 +108,13 @@ void Worker::readAndCache(AGCommand* agcmd) {
   delete readqueue;
 
   gettimeofday(&time2, NULL); 
-  cout << "Worker::readDisk.duration: " << DistUtil::duration(time1, time2) << endl;
+  //cout << "Worker::readDisk.duration: " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Worker::fetchAndCompute(AGCommand* agcmd) {
-  cout << "Worker::fetchAndCompute!" << endl;
+  // cout << "Worker::fetchAndCompute!" << endl;
+  struct timeval time1, time2, time3;                                                                                                                                                                    
+  gettimeofday(&time1, NULL); 
   vector<int> prevIndices = agcmd->getPrevIndices();
   vector<unsigned int> prevLocs = agcmd->getPrevLocs();
   vector<ComputeTask*> computeTaskList = agcmd->getCTList();
@@ -132,10 +134,10 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
   //  debugFetchAndCompute(agcmd);
   //} else {
 
-    // debug
-    cout << "Worker::fetchAndCompute prev: ";
-    for (int i=0; i<prevIndices.size(); i++)
-        cout << "(" << prevIndices[i] << ", " << RedisUtil::ip2Str(prevLocs[i]) << ") ";
+    // // debug
+    // cout << "Worker::fetchAndCompute prev: ";
+    // for (int i=0; i<prevIndices.size(); i++)
+    //     cout << "(" << prevIndices[i] << ", " << RedisUtil::ip2Str(prevLocs[i]) << ") ";
 
     // create blockingqueue for fetching
     BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
@@ -148,6 +150,7 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
 
     // create fetch thread
     vector<thread> fetchThreads = vector<thread>(prevIndices.size());
+    gettimeofday(&time2, NULL); 
     for (int i=0; i<prevIndices.size(); i++) {
       string keybase = stripename+":"+to_string(prevIndices[i]);
       fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
@@ -167,6 +170,8 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
     for (int i=0; i<prevIndices.size(); i++) {
       fetchThreads[i].join();
     }
+    gettimeofday(&time3, NULL); 
+    cout << "Worker::fetchAndCompute.overall fetch time: " << DistUtil::duration(time2, time3) << endl;
     computeThread.join();
     for (int i=0; i<cacheIndices.size(); i++) {
       cacheThreads[i].join();
@@ -186,6 +191,8 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
 
 void Worker::fetchAndCompute2(AGCommand* agcmd) {
     cout << "Worker::fetchAndCompute2" << endl;
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
 
     int nFetchStream = agcmd->getNFetchStream();
     int nCompute = agcmd->getNCompute();
@@ -232,6 +239,7 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
     }
 
     // create fetchthreads
+    gettimeofday(&time2, NULL);
     vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
     int fetchThreadsIdx = 0;
     for (auto item: ip2cidlist) {
@@ -290,7 +298,11 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
     for (int i=0; i<fetchThreads.size(); i++) {
         fetchThreads[i].join();
     }
+    gettimeofday(&time3, NULL);
+    cout << "Worker::fetchAndCompute2.fetch data duration: " << DistUtil::duration(time2, time3) << endl;
     computeThread.join();
+    gettimeofday(&time3, NULL);
+    cout << "Worker::fetchAndCompute2.compute duration: " << DistUtil::duration(time2, time3) << endl;
     cacheThread.join();
 
     // free
@@ -568,6 +580,8 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
   int pktnum = blkbytes / pktbytes;
   int readLen = 0, readl = 0;
 
+  struct timeval time1, time2, time3;                                                                                                                                                                    
+  gettimeofday(&time1, NULL); 
   for (int i=0; i<pktnum; i++) {
     for (int j=0; j<ecw; j++) {
       if (pattern[j] == 0)
@@ -590,6 +604,8 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
     } 
   }
   close(fd);
+  gettimeofday(&time2, NULL); 
+  cout << "Worker::readWorker.duration: " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idxlist, int ecw, string keybase, int blkbytes, int pktbytes, unordered_map<int, int> cid2refs) {
@@ -762,7 +778,7 @@ void Worker::fetchWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchM
   if (loc == 0) {
       for (int i=0; i<pktnum; i++) {
           for (auto item: fetchMap) {
-              cout << "Worker::fetchWorker generates zero bytes for " << stripename + ":" + to_string(item.first) << endl;
+              //cout << "Worker::fetchWorker generates zero bytes for " << stripename + ":" + to_string(item.first) << endl;
               DataPacket* pkt = new DataPacket(slicesize);
               item.second->push(pkt);
           }
@@ -907,6 +923,8 @@ void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
     bufMap.clear();
     pktMap.clear();
   }
+  gettimeofday(&time2, NULL);
+  cout << "Worker::computeWorker.compute duration: " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
@@ -1010,4 +1028,6 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
     bufMap.clear();
     pktMap.clear();
   }
+  gettimeofday(&time2, NULL);
+  cout << "Worker::computeWorker2.compute duration: " << DistUtil::duration(time1, time2) << endl;
 }

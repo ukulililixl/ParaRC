@@ -40,6 +40,11 @@ class CoorCommand {
     string _blockName;
     string _method;
 
+    // type 1
+    unsigned int _nodeIp;
+    string _code;
+    // _method;
+
 //    string _ecid;
 //    int _mode;
 //    int _filesizeMB;
@@ -88,6 +93,8 @@ class CoorCommand {
     unsigned int getClientIp();
     string getBlockName();
     string getMethod();
+    unsigned int getNodeIp();
+    string getCode();
 //    string getEcid();
 //    int getMode();
 //    int getFilesizeMB();
@@ -109,41 +116,15 @@ class CoorCommand {
                     unsigned int ip,
                     string blockname,
                     string method); 
-//    void buildType2(int type,
-//                    unsigned int ip,
-//                    string filename);
-//    void buildType3(int type,
-//                    unsigned int ip,
-//                    string filename);
-//    void buildType4(int type,
-//                    unsigned int ip,
-//                    string poolname,
-//                    string stripename);
-//    void buildType5(int type,
-//                    unsigned int ip,
-//                    string objname);
-//    void buildType7(int type,
-//                    int op,
-//                    string ectype);
-//    void buildType8(int type,
-//                    unsigned int ip,
-//                    string objname);
-//    void buildType9(int type, 
-//                    unsigned int ip,
-//                    string filename,
-//                    vector<int> corruptIdx);
-//    void buildType12(int type,
-//                     unsigned int ip,
-//                     string benchname);
-//	void buildType21(int type,
-//			unsigned int ip,
-//			string filename, 
-//			string ecid,
-//			int mode,
-//			int filesizeMB,
-//			string layer);
+    void buildType1(int type,
+            unsigned int ip,
+            unsigned int nodeip,
+            string code,
+            string method);
+
     // resolve CoorCommand
     void resolveType0();
+    void resolveType1();
 //    void resolveType1();
 //    void resolveType2();
 //    void resolveType3();

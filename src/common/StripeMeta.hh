@@ -4,6 +4,7 @@
 #include "../inc/include.hh"
 #include "../util/tinyxml2.h"
 #include "../util/DistUtil.hh"
+#include "../util/RedisUtil.hh"
 #include "../ec/ECBase.hh"
 #include "../ec/Clay.hh"
 #include "../ec/RSCONV.hh"
@@ -37,6 +38,7 @@ class StripeMeta {
     std::string getCodeName();
     long long getBlockBytes();
     int getPacketBytes();
+    void updateLocForBlock(string block, vector<unsigned int> all_ips);
 };
 
 #endif

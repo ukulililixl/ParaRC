@@ -35,6 +35,9 @@ class Config {
     // group size
     int _clusterSize;
 
+    // repair threads
+    int _rpThreads;
+
 //    // fstype
 //    std::string _fsType;
 //    std::vector<std::string> _fsParam;

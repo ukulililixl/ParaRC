@@ -102,3 +102,33 @@ long long StripeMeta::getBlockBytes() {
 int StripeMeta::getPacketBytes() {
     return _pktbytes;
 }
+
+void StripeMeta::updateLocForBlock(string block, vector<unsigned int> all_ips) {
+    // 0. figure out the block index
+    int index;
+    unsigned int ip_old;
+    for (int i=0; i<_ecN; i++) {
+        if (_blockList[i] == block) {
+            index = i;
+            ip_old = _locList[i];
+            break;
+        }
+    }
+    
+    // 1. get candidates
+    vector<unsigned int> candidates;
+    for (int i=0; i<all_ips.size(); i++) {
+        unsigned int ip = all_ips[i];
+        if (find(_locList.begin(), _locList.end(), ip) == _locList.end())
+            candidates.push_back(ip);
+    }
+
+    assert(candidates.size() > 0);
+    // 2. randomly choose an ip from candidates
+    srand(time(0));
+    int idx = rand()%candidates.size();
+    unsigned int ip_new = candidates[idx];
+
+    // 3. update the new ip
+    _locList[index] = ip_new;
+}

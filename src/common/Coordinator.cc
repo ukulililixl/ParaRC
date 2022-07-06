@@ -33,6 +33,7 @@ void Coordinator::doProcess() {
       int type = coorCmd->getType();
       switch (type) {
         case 0: repairBlock(coorCmd); break;
+        case 1: repairNode(coorCmd); break;
         default: break;
       }
       delete coorCmd;
@@ -159,6 +160,13 @@ void Coordinator::repairBlockConv(string blockName) {
     delete ecdag;
     for (int i=0; i<tasklist.size(); i++) {
         delete tasklist[i];
+    }
+}
+
+void Coordinator::repairBlockListConv(vector<string> blocklist) {
+    cout << "Coordinator::repairBlockListConv" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockConv(blocklist[i]);
     }
 }
 
@@ -810,6 +818,13 @@ void Coordinator::repairBlockDist1(string blockName) {
     for (auto item: todelete) free(item);
 }
 
+void Coordinator::repairBlockListDist1(vector<string> blocklist) {
+    cout << "Coordinator::repairBlockListDist1" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockDist1(blocklist[i]);
+    }
+}
+
 void Coordinator::stat(unordered_map<int, int> sidx2ip,
         vector<int> curres, vector<int> itm_idx,
         ECDAG* ecdag, int* bdwt, int* maxload) {
@@ -845,3 +860,104 @@ void Coordinator::stat(unordered_map<int, int> sidx2ip,
     *maxload = max;
 }
 
+void Coordinator::repairNode(CoorCommand* coorCmd) {
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    unsigned int clientIp = coorCmd->getClientIp();
+    unsigned int nodeip = coorCmd->getNodeIp();
+    string code = coorCmd->getCode();
+    string method = coorCmd->getMethod();
+
+    cout << "Coor::repairNode.node: " << RedisUtil::ip2Str(nodeip) << ", code: " << code << ", method: " << method << endl;
+
+    // 0. figure out blocks of code in nodeip
+    unordered_map<string, StripeMeta*> blk2meta = _stripeStore->getBlock2StripeMeta(nodeip, code);
+
+    // 1. allocate a random ip for each block to repair
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        StripeMeta* meta = item.second;
+        // whether directly update in meta
+        meta->updateLocForBlock(blk, _conf->_agentsIPs);
+    }
+
+    if (method == "dist") {
+        repairNodeDist(nodeip, code, blk2meta);
+    } else if (method == "conv") {
+        repairNodeConv(nodeip, code, blk2meta);
+    } else {
+        cout << "ERROR::wrong method!" << endl;
+    }
+}
+
+void Coordinator::repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta) {
+    cout << "Coordinator::repairNodeDist!" << endl;
+
+    int rpthreads = _conf->_rpThreads;
+    
+    // 0. devide all the blocks into groups
+    vector<vector<string>> rpgroups;
+    for (int i=0; i<rpthreads; i++) {
+        vector<string> tmplist;
+        rpgroups.push_back(tmplist);
+    }
+
+    int idx=0;
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        rpgroups[idx].push_back(blk);
+        idx=(idx+1)%rpthreads;
+    }
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+    // 1. create threads
+    vector<thread> repairThreads = vector<thread>(rpthreads);
+    for (int i=0; i<rpthreads; i++) {
+        repairThreads[i] = thread([=]{repairBlockListDist1(rpgroups[i]);});
+    }
+
+    // 2. join
+    for (int i=0; i<rpthreads; i++) {
+        repairThreads[i].join();
+    }
+    gettimeofday(&time2, NULL);
+    cout << "Coordinator::repairNodeDist.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
+}
+
+void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta) {
+    cout << "Coordinator::repairNodeConv!" << endl;
+
+    int rpthreads = _conf->_rpThreads;
+    
+    // 0. devide all the blocks into groups
+    vector<vector<string>> rpgroups;
+    for (int i=0; i<rpthreads; i++) {
+        vector<string> tmplist;
+        rpgroups.push_back(tmplist);
+    }
+
+    int idx=0;
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        rpgroups[idx].push_back(blk);
+        idx=(idx+1)%rpthreads;
+    }
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+    // 1. create threads
+    vector<thread> repairThreads = vector<thread>(rpthreads);
+    for (int i=0; i<rpthreads; i++) {
+        repairThreads[i] = thread([=]{repairBlockListConv(rpgroups[i]);});
+    }
+
+    // 2. join
+    for (int i=0; i<rpthreads; i++) {
+        repairThreads[i].join();
+    }
+    gettimeofday(&time2, NULL);
+    cout << "Coordinator::repairNodeConv.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
+}

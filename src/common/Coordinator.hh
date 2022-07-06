@@ -7,6 +7,7 @@
 #include "../inc/include.hh"
 #include "../protocol/AGCommand.hh"
 #include "../protocol/CoorCommand.hh"
+#include "../util/RedisUtil.hh"
 
 using namespace std;
 
@@ -30,6 +31,13 @@ class Coordinator {
     void repairBlockConv1(string blockname); // old protocol
     void repairBlockDist(string blockname); // new protocol
     void repairBlockDist1(string blockname); // old protocol
+
+    void repairBlockListConv(vector<string> blocklist);
+    void repairBlockListDist1(vector<string> blocklist);
+
+    void repairNode(CoorCommand* coorCmd);
+    void repairNodeConv(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
+    void repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
 };
 
 #endif

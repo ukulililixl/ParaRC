@@ -25,6 +25,7 @@ class StripeStore {
     // metadata for stripes
     unordered_map<string, StripeMeta*> _stripeMetaMap; 
     unordered_map<string, string> _blk2stripe;
+    unordered_map<string, unsigned int> _blk2ip;
 
     // tradeoff point for codes
     unordered_map<string, TradeoffPoints*> _tradeoffPointsMap;
@@ -39,6 +40,7 @@ class StripeStore {
     StripeMeta* getStripeMetaFromBlockName(string blockname);
     StripeMeta* getStripeMetaFromStripeName(string stripename);
     TradeoffPoints* getTradeoffPoints(string tpentry);
+    unordered_map<string, StripeMeta*> getBlock2StripeMeta(unsigned int nodeip, string code);
     // void lockLoadVector();
     // void unlockLoadVector();
     // void getLoadValueFor(LoadVector* lv);

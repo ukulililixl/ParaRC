@@ -387,6 +387,7 @@ void ECDAG::genECCluster(unordered_map<int, int> coloring, int clustersize) {
 void ECDAG::genStat(unordered_map<int, int> coloring, 
                     unordered_map<int, int>& inmap, 
                     unordered_map<int, int>& outmap) {
+  unordered_map<int, int> opmap;
   for (int i=0; i<_ecClusterList.size(); i++) {
     int clusterIdx = _ecClusterList[i];
     ECCluster* cluster = _ecClusterMap[clusterIdx];
@@ -404,6 +405,13 @@ void ECDAG::genStat(unordered_map<int, int> coloring,
       }
       int pidx = unit->getParent();
       pcolor = coloring[pidx];
+
+      // collect ops
+      if (opmap.find(pcolor) == opmap.end()) {
+          opmap.insert(make_pair(pcolor, tmpchilds.size()));
+      } else {
+          opmap[pcolor]+=tmpchilds.size();
+      }
     }
     //cout << "clusterIdx: " << clusterIdx << ", pcolor: " << pcolor << endl;
 
@@ -429,6 +437,11 @@ void ECDAG::genStat(unordered_map<int, int> coloring,
       }
       //cout << "    out[" << ccolor << "]: " <<outmap[ccolor] << ", in[" << pcolor << "]: " << inmap[pcolor] << endl;
     }
+  }
+
+  cout << "opmap: " << endl;
+  for (auto item: opmap) {
+      cout << "  " << item.first << ": " << item.second << endl;
   }
 }
 

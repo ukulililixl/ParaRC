@@ -51,6 +51,8 @@ Config::Config(std::string& filepath) {
       _tpDir = std::string(ele->NextSiblingElement("value")->GetText());
     } else if (attName == "eccluster.size") {
       _clusterSize = std::stoi(ele -> NextSiblingElement("value") -> GetText());  
+    } else if (attName == "repair.thread.num") {
+      _rpThreads = std::stoi(ele -> NextSiblingElement("value") -> GetText());
     }
   }
 

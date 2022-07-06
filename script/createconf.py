@@ -10,6 +10,7 @@ import subprocess
 BLKBYTES=sys.argv[1]
 PKTBYTES=sys.argv[2]
 ECCSIZE="10"
+RPTHREADS="4"
 
 cluster=[
 "172.16.108.138",
@@ -91,6 +92,8 @@ for node in cluster:
     line="<attribute><name>eccluster.size</name><value>"+ECCSIZE+"</value></attribute>\n"
     content.append(line)
 
+    line="<attribute><name>repair.thread.num</name><value>"+RPTHREADS+"</value></attribute>\n"
+    content.append(line)
 
     line="</setting>\n"
     content.append(line)

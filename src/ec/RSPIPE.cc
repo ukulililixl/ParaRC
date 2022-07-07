@@ -43,7 +43,8 @@ ECDAG* RSPIPE::Decode(vector<int> from, vector<int> to) {
     }
 
     int _invert_matrix[_k*_k];
-    jerasure_invert_matrix(_select_matrix, _invert_matrix, _k, _k);
+    //jerasure_invert_matrix(_select_matrix, _invert_matrix, _k, _k);
+    Computation::JerasureInvertMatrix(_select_matrix, _invert_matrix, _k, _k);
     
     int tmpname = _k + _m;
 
@@ -53,7 +54,10 @@ ECDAG* RSPIPE::Decode(vector<int> from, vector<int> to) {
         memcpy(_select_vector,
                 _encode_matrix + ridx * _k,
                 _k * sizeof(int));
-        int* _coef_vector = jerasure_matrix_multiply(
+        //int* _coef_vector = jerasure_matrix_multiply(
+        //        _select_vector, _invert_matrix, 1, _k, _k, _k, 8
+        //        );
+        int* _coef_vector = Computation::JerasureMatrixMultiply(
                 _select_vector, _invert_matrix, 1, _k, _k, _k, 8
                 );
 

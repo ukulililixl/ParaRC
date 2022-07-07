@@ -91,3 +91,11 @@ unordered_map<string, StripeMeta*> StripeStore::getBlock2StripeMeta(unsigned int
     }
     return toret;
 }
+
+void StripeStore::lock() {
+    _lock.lock();
+}
+
+void StripeStore::unlock() {
+    _lock.unlock();
+}

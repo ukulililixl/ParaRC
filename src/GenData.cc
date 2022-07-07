@@ -203,14 +203,14 @@ int main(int argc, char** argv) {
     ofs.close();
   }  
 
-  // write metadata
-  vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist, blkbytes, pktbytes);
-  string metapath = "./stripeStore/"+stripename+".xml";
-  ofstream metaofs(metapath, ofstream::app);
-  for (auto line: metadata) {
-    metaofs << line;
-  }
-  metaofs.close();
+  // // write metadata
+  // vector<string> metadata = genMetaData(code, n, k, w, stripename, blklist, blkbytes, pktbytes);
+  // string metapath = "./stripeStore/"+stripename+".xml";
+  // ofstream metaofs(metapath, ofstream::app);
+  // for (auto line: metadata) {
+  //   metaofs << line;
+  // }
+  // metaofs.close();
 
   for (auto t: encctasklist)
     delete t;

@@ -132,3 +132,4 @@ void StripeMeta::updateLocForBlock(string block, vector<unsigned int> all_ips) {
     // 3. update the new ip
     _locList[index] = ip_new;
 }
+

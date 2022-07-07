@@ -106,11 +106,17 @@ void Coordinator::repairBlockConv(string blockName) {
                 availIndex.push_back(pktidx);
         }
     }
+    cout << "avail: ";
+    for (auto item: availIndex)
+        cout << item << " ";
+    cout << endl;
 
     // 5. construct ECDAG
     ECBase* ec = stripemeta->createECClass();
     ecw = ec->_w;
+    _stripeStore->lock();
     ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    _stripeStore->unlock();
     ecdag->Concact(toRepairIndex);
 
     // 6. divide ecdag into ecunits
@@ -944,6 +950,13 @@ void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map
         string blk = item.first;
         rpgroups[idx].push_back(blk);
         idx=(idx+1)%rpthreads;
+    }
+
+    for (int i=0; i<rpgroups.size(); i++) {
+        cout << "group " << i << ": ";
+        for (int j=0; j<rpgroups[i].size(); j++)
+            cout << rpgroups[i][j] << " ";
+        cout << endl;
     }
 
     struct timeval time1, time2, time3;

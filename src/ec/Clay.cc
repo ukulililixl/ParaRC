@@ -393,7 +393,8 @@ void Clay::get_coupled_from_uncoupled(int x, int y, int z, int* z_vec, ECDAG* ec
     }
 
     int _invert_matrix[_pft_k*_pft_k];
-    jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    //jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    Computation::JerasureInvertMatrix(_select_matrix, _invert_matrix, _pft_k, 8);
 
     // calculate idx0
     vector<int> coef0;
@@ -469,14 +470,18 @@ vector<int> Clay::get_coupled1_from_pair02(int x, int y, int z, int* z_vec, ECDA
     }
 
     int _invert_matrix[_pft_k*_pft_k];
-    jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    //jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    Computation::JerasureInvertMatrix(_select_matrix, _invert_matrix, _pft_k, 8);
 
     int _select_vector[_pft_k];
     memcpy(_select_vector,
             _pft_encode_matrix + 1 * _pft_k,
             _pft_k * sizeof(int));
-    int* _coef_vector = jerasure_matrix_multiply(
-            _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8);
+    //int* _coef_vector = jerasure_matrix_multiply(
+    //        _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8);
+    int* _coef_vector = Computation::JerasureMatrixMultiply(
+            _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8
+            );
 
     // calculate idx1
     vector<int> coef;
@@ -536,14 +541,18 @@ vector<int> Clay::get_coupled0_from_pair13(int x, int y, int z, int* z_vec, ECDA
     }
 
     int _invert_matrix[_pft_k*_pft_k];
-    jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    //jerasure_invert_matrix(_select_matrix, _invert_matrix, _pft_k, 8);
+    Computation::JerasureInvertMatrix(_select_matrix, _invert_matrix, _pft_k, 8);
 
     int _select_vector[_pft_k];
     memcpy(_select_vector,
             _pft_encode_matrix + 0 * _pft_k,
             _pft_k * sizeof(int));
-    int* _coef_vector = jerasure_matrix_multiply(
-            _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8);
+    //int* _coef_vector = jerasure_matrix_multiply(
+    //        _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8);
+    int* _coef_vector = Computation::JerasureMatrixMultiply( 
+            _select_vector, _invert_matrix, 1, _pft_k, _pft_k, _pft_k, 8
+            );
 
     // calculate idx1
     vector<int> coef;
@@ -594,7 +603,8 @@ vector<int> Clay::decode_uncoupled(vector<int> erased_chunks, int z, ECDAG* ecda
     }
 
     int _invert_matrix[_mds_k*_mds_k];
-    jerasure_invert_matrix(_select_matrix, _invert_matrix, _mds_k, 8); 
+    //jerasure_invert_matrix(_select_matrix, _invert_matrix, _mds_k, 8); 
+    Computation::JerasureInvertMatrix(_select_matrix, _invert_matrix, _mds_k, 8);
 
     vector<int> tobind;
     for (int i=0; i<erased_chunks.size(); i++) {
@@ -603,8 +613,11 @@ vector<int> Clay::decode_uncoupled(vector<int> erased_chunks, int z, ECDAG* ecda
         memcpy(_select_vector,
                 _mds_encode_matrix + cidx * _mds_k,
                 _mds_k * sizeof(int));
-        int* _coef_vector = jerasure_matrix_multiply(
-                _select_vector, _invert_matrix, 1, _mds_k, _mds_k, _mds_k, 8);
+//        int* _coef_vector = jerasure_matrix_multiply(
+//                _select_vector, _invert_matrix, 1, _mds_k, _mds_k, _mds_k, 8);
+        int* _coef_vector = Computation::JerasureMatrixMultiply( 
+                _select_vector, _invert_matrix, 1, _mds_k, _mds_k, _mds_k, 8
+                );
         vector<int> coef;
         for (int i=0; i<_mds_k; i++) coef.push_back(_coef_vector[i]);
         int targetidx = cidx * _w + z + (_n+_nu) * _w;

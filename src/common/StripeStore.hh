@@ -30,6 +30,8 @@ class StripeStore {
     // tradeoff point for codes
     unordered_map<string, TradeoffPoints*> _tradeoffPointsMap;
 
+    mutex _lock;
+
     // // load vector
     // mutex _lockLoadVector;
     // LoadVector* _loadVector;
@@ -45,6 +47,9 @@ class StripeStore {
     // void unlockLoadVector();
     // void getLoadValueFor(LoadVector* lv);
     // void updateLoadVector(LoadVector* lv);
+
+    void lock();
+    void unlock();
 };
 
 #endif

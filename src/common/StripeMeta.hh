@@ -39,6 +39,7 @@ class StripeMeta {
     long long getBlockBytes();
     int getPacketBytes();
     void updateLocForBlock(string block, vector<unsigned int> all_ips);
+
 };
 
 #endif

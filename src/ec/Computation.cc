@@ -28,3 +28,16 @@ void Computation::Multi(char** dst, char** src, int* mat, int rowCnt, int colCnt
     ec_encode_data(len, colCnt, rowCnt, itable, (unsigned char**)src, (unsigned char**)dst);
   }
 }
+
+void Computation::JerasureInvertMatrix(int* mat1, int* mat2, int m, int n) {
+    Computation::_cLock.lock();
+    jerasure_invert_matrix(mat1, mat2, m, n);
+    Computation::_cLock.unlock();
+}
+
+int* Computation::JerasureMatrixMultiply(int* mat1, int* mat2, int a1, int b1, int a2, int b2, int w) {
+    Computation::_cLock.lock(); 
+    int* ret = jerasure_matrix_multiply(mat1, mat2, a1, b1, a2, b2, w);
+    Computation::_cLock.unlock(); 
+    return ret;
+}

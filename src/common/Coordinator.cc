@@ -719,13 +719,13 @@ void Coordinator::repairBlockDist1(string blockName) {
     TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
     vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
 
-//    cout << "itm coloring: " << endl;
-//    for (int i=0; i<itm_idx.size(); i++) {
-//        cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
-//    }
-//    cout << endl;
-//
-//    cout << "itm.size: " << itm_idx.size() << endl;
+    //cout << "itm coloring: " << endl;
+    //for (int i=0; i<itm_idx.size(); i++) {
+    //    cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
+    //}
+    //cout << endl;
+
+    //cout << "itm.size: " << itm_idx.size() << endl;
 
     int bdwt, maxload;
     stat(sidx2bidx, itm_coloring, itm_idx, ecdag, &bdwt, &maxload);
@@ -769,6 +769,7 @@ void Coordinator::repairBlockDist1(string blockName) {
     vector<AGCommand*> cmdlist;
     int debug = 0;
     for (auto task: tasklist) {
+      //cout << "debug: " << debug << endl;
       AGCommand* agcmd = task->genAGCommand();
       cmdlist.push_back(agcmd);
       //cout << "  " << agcmd->dumpStr() << endl; 
@@ -782,7 +783,8 @@ void Coordinator::repairBlockDist1(string blockName) {
     // 14. send out commands
     vector<char*> todelete;
     redisContext* distCtx = RedisUtil::createContext(_conf->_coorIp);
-    
+
+    debug=0;
     redisAppendCommand(distCtx, "MULTI");
     for (auto agcmd: cmdlist) {
       unsigned int ip = agcmd->getSendIp();
@@ -794,6 +796,8 @@ void Coordinator::repairBlockDist1(string blockName) {
       memcpy(todist+4, cmdstr, cmLen); 
       todelete.push_back(todist);
       redisAppendCommand(distCtx, "RPUSH dist_request %b", todist, cmLen+4);
+
+      debug++;
     }
     redisAppendCommand(distCtx, "EXEC");
     

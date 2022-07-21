@@ -13,6 +13,8 @@
 
 using namespace std;
 
+#define CLUSTERSIZE 32768
+
 void usage() {
   cout << "Usage: ./TradeoffAnalysis" << endl;
   cout << "    1. code" << endl;
@@ -20,10 +22,11 @@ void usage() {
   cout << "    3. k" << endl;
   cout << "    4. w" << endl;
   cout << "    5. repairIdx" << endl;
-  cout << "    6. clusterSize" << endl;
+  cout << "    6. terminate str [100|110|101|111]" << endl;
 }  
 
-void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload, int clustersize) {
+//void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload, int clustersize) {
+void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload) {
 
     unordered_map<int, int> coloring_res;
     for (auto item: sidx2ip) {
@@ -42,7 +45,7 @@ void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_i
 
     // gen ECClusters
     ecdag->clearECCluster();
-    ecdag->genECCluster(coloring_res, clustersize);
+    ecdag->genECCluster(coloring_res, CLUSTERSIZE);
     
     // gen stat
     unordered_map<int, int> inmap;
@@ -242,8 +245,8 @@ bool updateTradeoffCurve(Solution* head, Solution* tail, Solution* sol,
 void expand(Solution* current, int v, int m, unordered_map<string, bool>& visited,
         unordered_map<int, int> sidx2ip, vector<int> itm_idx, ECDAG* ecdag,
         unordered_map<int, int>& load2bdwt, unordered_map<int, int>& bdwt2load,
-        Solution* tradeoff_curve_head, Solution* tradeoff_curve_tail, int clustersize) {
-    cout << "    expand: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
+        Solution* tradeoff_curve_head, Solution* tradeoff_curve_tail) {
+    //cout << "    expand: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
 
     vector<int> solution = current->getSolution();
     current->setExpanded(true);
@@ -270,7 +273,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
                 // this solution hasn't been visited before
                 // get stat for the neighbor
                 int neighbor_bdwt, neighbor_load;
-                stat(sidx2ip, neighbor->getSolution(), itm_idx, ecdag, &neighbor_bdwt, &neighbor_load, clustersize);
+                stat(sidx2ip, neighbor->getSolution(), itm_idx, ecdag, &neighbor_bdwt, &neighbor_load);
                 neighbor->setBdwt(neighbor_bdwt);
                 neighbor->setLoad(neighbor_load);
                 visited.insert(make_pair(tmps, true));
@@ -304,7 +307,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
                         delete neighbor;
                         neighbor = NULL;
                     } else {
-                        cout << "update tradeoff curve at i: " << i << ", j: " << j << endl;
+                        //cout << "update tradeoff curve at i: " << i << ", j: " << j << endl;
                     }
                 }
 
@@ -316,7 +319,7 @@ void expand(Solution* current, int v, int m, unordered_map<string, bool>& visite
 }
 
 Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int clustersize) {
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag) {
     // 0. initialize a head and tail with NULL for the tradeoff curve
     Solution* head = new Solution(true);
     Solution* tail = new Solution(false);
@@ -335,10 +338,10 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     int v = itm_idx.size();
     int m = candidates.size();
     int init_bdwt, init_load;
-    stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load, clustersize);
+    stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load);
     init_sol->setBdwt(init_bdwt);
     init_sol->setLoad(init_load);
-    cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
+    //cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
 
     // 2. generate a map that records the solution that we visited.
     unordered_map<string, bool> visited;
@@ -358,24 +361,24 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
 
         // find the first solution that not expanded
         while (current != tail) {
-            cout << "  iterate: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
+            //cout << "  iterate: " << current->getString() << ", load: " << current->getLoad() << ", bdwt: " << current->getBdwt() << endl;
             if (current->getExpanded()) {
-                cout << "    expanded, skip" << endl;
+                //cout << "    expanded, skip" << endl;
                 current = current->getNext();
             } else {
-                cout << "    not expanded" << endl;
+                //cout << "    not expanded" << endl;
                 break;
             }
         }
 
         if (current == tail) {
             // all the solutions has been expanded
-            cout << "  reach the tail" << endl;
+            //cout << "  reach the tail" << endl;
             break;
         }
 
         // now we expand the current solution
-        expand(current, v, m, visited, sidx2ip, itm_idx, ecdag, load2bdwt, bdwt2load, head, tail, clustersize);
+        expand(current, v, m, visited, sidx2ip, itm_idx, ecdag, load2bdwt, bdwt2load, head, tail);
 
     }
 
@@ -391,7 +394,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
 }
 
 Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
-        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int rounds, int target_load, int target_bdwt, int clustersize) {
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag, int rounds, int target_load, int target_bdwt, string terminatestr) {
     
     Solution* prev_sol;
     Solution* cur_sol;
@@ -405,7 +408,7 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
     int mlp_bdwt = -1;
 
     while (true) {
-        Solution* head = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag, clustersize);
+        Solution* head = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
         
         // get the mlp 
         cur_sol = head->getNext();
@@ -447,24 +450,39 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
         }
         total_num++;
 
-        // enable non_update_flag
-        if (total_num < rounds) {
-            if (mlp_load <= target_load && mlp_bdwt <= target_bdwt) {
-                // we find a solution that is better enough, start to stat the
-                // number of non-update rounds
-                if (!non_update_flag) {
-                    non_update_num = 0;
-                    non_update_flag = true;
-                    cout << "enable non_update_flag at round "  << total_num << endl;
-                }
-            }
-        } else {
-            if (!non_update_flag) {
-                non_update_num = 0;
-                non_update_flag = true;
-                cout << "enable non_update_flag at round "  << total_num << endl;
-            }
-        }
+        bool exit = false;
+
+        if (total_num > rounds)
+            exit = true;
+
+        if (terminatestr[1] == '1' && mlp_load <= target_load && mlp_bdwt < target_bdwt)
+            exit = true;
+
+        non_update_ratio = (double)non_update_num / (double)total_num;
+        cout << "round " << total_num-1  << ", mlp: " << mlp_sol->getString() << ", load: " << mlp_sol->getLoad() << ", bdwt: " << mlp_sol->getBdwt()
+            << ", total_num: " << total_num << ", non_update_num: " << non_update_num << ", ratio: " << non_update_ratio << endl;
+
+        if (terminatestr[2] == '1' && non_update_ratio > 0.5)
+            exit = true;
+
+        //// enable non_update_flag
+        //if (total_num < rounds) {
+        //    if (mlp_load <= target_load && mlp_bdwt <= target_bdwt) {
+        //        // we find a solution that is better enough, start to stat the
+        //        // number of non-update rounds
+        //        if (!non_update_flag) {
+        //            non_update_num = 0;
+        //            non_update_flag = true;
+        //            cout << "enable non_update_flag at round "  << total_num << endl;
+        //        }
+        //    }
+        //} else {
+        //    if (!non_update_flag) {
+        //        non_update_num = 0;
+        //        non_update_flag = true;
+        //        cout << "enable non_update_flag at round "  << total_num << endl;
+        //    }
+        //}
 
         // free
         Solution* cur = cur_sol->getNext();
@@ -480,17 +498,16 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
 
         delete head;
 
-        // calculate non_update_ratio
-        non_update_ratio = (double)non_update_num / (double)total_num;
-        cout << "round " << total_num-1  << ", mlp: " << mlp_sol->getString() << ", load: " << mlp_sol->getLoad() << ", bdwt: " << mlp_sol->getBdwt() 
-            << ", total_num: " << total_num << ", non_update_num: " << non_update_num << ", ratio: " << non_update_ratio << endl;
-
-        // stop?
-        if (non_update_flag) {
-            if (non_update_ratio > 0.1) {
-                cout << "non_update_num: " << non_update_num << ", total_num: " << total_num << ", non_update_ratio: " << non_update_ratio << ", stop!" << endl;
-                break;
-            }
+        //// stop?
+        //if (non_update_flag) {
+        //    if (non_update_ratio > 0.1) {
+        //        cout << "non_update_num: " << non_update_num << ", total_num: " << total_num << ", non_update_ratio: " << non_update_ratio << ", stop!" << endl;
+        //        break;
+        //    }
+        //}
+        if (exit) {
+            cout << "non_update_num: " << non_update_num << ", total_num: " << total_num << ", non_update_ratio: " << non_update_ratio << ", stop!" << endl;
+            break;
         }
     }
     return mlp_sol;
@@ -508,15 +525,15 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int repairIdx = atoi(argv[5]);
-  int clustersize = atoi(argv[6]);
-
+  string terminatestr = argv[6];
+  
   // XL: do we need number of available nodes?
 
   ECBase* ec;
   vector<string> param;
   if (code == "Clay")
     ec = new Clay(n, k, w, {to_string(n-1)});
-  else if (code == "IA")
+  else if (code == "MISER")
     ec = new IA(n, k, w, param);
   else if (code == "Butterfly")
     ec = new BUTTERFLY64(n, k, w, param);
@@ -639,13 +656,13 @@ int main(int argc, char** argv) {
   unordered_map<int, vector<int>> max2bwlist;
   unordered_map<int, double> process;
 
-  int round = k*w;
+  int round = n*w;
   if (code == "Clay" && n==14)
       round = 1;
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, clustersize);
+  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;

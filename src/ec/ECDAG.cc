@@ -439,10 +439,10 @@ void ECDAG::genStat(unordered_map<int, int> coloring,
     }
   }
 
-  cout << "opmap: " << endl;
-  for (auto item: opmap) {
-      cout << "  " << item.first << ": " << item.second << endl;
-  }
+  //cout << "opmap: " << endl;
+  //for (auto item: opmap) {
+  //    cout << "  " << item.first << ": " << item.second << endl;
+  //}
 }
 
 void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,                                                                                                                         

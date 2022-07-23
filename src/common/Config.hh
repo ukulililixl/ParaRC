@@ -14,6 +14,7 @@ class Config {
 //    //ip
     unsigned int _localIp;
     std::vector<unsigned int> _agentsIPs;
+    std::vector<unsigned int> _clientIPs;
     unsigned int _coorIp;
     std::unordered_map<unsigned int, std::string> _ip2Rack;
     std::unordered_map<std::string, std::vector<unsigned int>> _rack2Ips;

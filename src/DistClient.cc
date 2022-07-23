@@ -4,6 +4,8 @@
 
 #include "inc/include.hh"
 #include "util/RedisUtil.hh"
+#include "util/DistUtil.hh"
+
 using namespace std;
 
 void usage() {
@@ -13,15 +15,28 @@ void usage() {
 
 void repairBlock(string blockname, string method) {
 
-  string confpath("./conf/sysSetting.xml");
-  Config* conf = new Config(confpath);
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
 
-  CoorCommand* cmd = new CoorCommand();
-  cmd->buildType0(0, conf->_localIp, blockname, method);
-  cmd->sendTo(conf->_coorIp);
+    string confpath("./conf/sysSetting.xml");
+    Config* conf = new Config(confpath);
+    
+    CoorCommand* cmd = new CoorCommand();
+    cmd->buildType0(0, conf->_localIp, blockname, method);
+    cmd->sendTo(conf->_coorIp);
+    
+    delete cmd;
+    delete conf;
+    
+    // wait for finish flag?
+    redisContext* waitCtx = RedisUtil::createContext(conf->_localIp);
+    string wkey = "writefinish:"+blockname;
+    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    freeReplyObject(fReply);
+    redisFree(waitCtx);
 
-  delete cmd;
-  delete conf;
+    gettimeofday(&time2, NULL);
+    cout << "repairBlock::repair time: " << DistUtil::duration(time1, time2) << endl;
 }
 
 void repairNode(string nodeipstr, string code, string method) {

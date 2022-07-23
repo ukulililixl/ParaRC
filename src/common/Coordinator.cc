@@ -51,18 +51,26 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     string blockName = coorCmd->getBlockName();
     string method = coorCmd->getMethod();
 
+    // verify whether client is in clientnodes
+    if (find(_conf->_clientIPs.begin(), _conf->_clientIPs.end(), clientIp) == _conf->_clientIPs.end()) {
+        // we find that the request is sent from a non-client node
+        // modify the client to a client node
+        clientIp = _conf->_clientIPs[0];
+        cout << "Coor::repairBlock.revise repair ip to " << RedisUtil::ip2Str(clientIp) << endl;
+    }
+
     cout << "Coor::repairBlock.blockname: " << blockName << ", method: " << method << endl;
 
     if (method == "dist") {
-        repairBlockDist1(blockName);
+        repairBlockDist1(blockName, clientIp);
     } else if (method == "conv") {
-        repairBlockConv(blockName);
+        repairBlockConv(blockName, clientIp);
     } else {
         cout << "ERROR::wrong method!" << endl;
     }
 }
 
-void Coordinator::repairBlockConv(string blockName) {
+void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
     cout << "Coor::repairBlockConv:blockName: " << blockName << endl;
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
@@ -92,6 +100,7 @@ void Coordinator::repairBlockConv(string blockName) {
     //}
 
     // 3. now we repair at the same location
+    loclist[repairBlockIdx] = clientip;
     unsigned int repairLoc = loclist[repairBlockIdx];
 
     // 4. prepare availidx
@@ -141,7 +150,7 @@ void Coordinator::repairBlockConv(string blockName) {
 
     gettimeofday(&time2, NULL);
     // 8. send out tasks
-    cout << "ECTasks: " << endl;
+    //cout << "ECTasks: " << endl;
     for (int i=0; i<tasklist.size(); i++) {
 
         //if (i > 4)
@@ -152,14 +161,14 @@ void Coordinator::repairBlockConv(string blockName) {
         task->sendTask(i);
     }
 
-    // wait for finish flag?
-    redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-    string wkey = "writefinish:"+blockName;
-    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-    freeReplyObject(fReply);
-    redisFree(waitCtx);
-    gettimeofday(&time3, NULL);
-    cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    // // wait for finish flag?
+    // redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+    // string wkey = "writefinish:"+blockName;
+    // redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    // freeReplyObject(fReply);
+    // redisFree(waitCtx);
+    // gettimeofday(&time3, NULL);
+    // cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
  
     // delete
     delete ec;
@@ -170,10 +179,10 @@ void Coordinator::repairBlockConv(string blockName) {
 }
 
 void Coordinator::repairBlockListConv(vector<string> blocklist) {
-    cout << "Coordinator::repairBlockListConv" << endl;
-    for (int i=0; i<blocklist.size(); i++) {
-        repairBlockConv(blocklist[i]);
-    }
+//    cout << "Coordinator::repairBlockListConv" << endl;
+//    for (int i=0; i<blocklist.size(); i++) {
+//        repairBlockConv(blocklist[i]);
+//    }
 }
 
 void Coordinator::repairBlockConv1(string blockName) {
@@ -598,7 +607,7 @@ void Coordinator::repairBlockDist(string blockName) {
     }
 }
 
-void Coordinator::repairBlockDist1(string blockName) {
+void Coordinator::repairBlockDist1(string blockName, unsigned int clientip) {
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
 
@@ -628,8 +637,12 @@ void Coordinator::repairBlockDist1(string blockName) {
     //     cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
     // }
 
-    // 3. now we repair at the same location
-    unsigned int repairLoc = loclist[repairBlockIdx];
+    // // 3. now we repair at the same location
+    // unsigned int repairLoc = loclist[repairBlockIdx];
+
+    // 3. now we repair at the client node
+    unsigned int repairLoc = clientip;
+    loclist[repairBlockIdx] = clientip;
 
     // 4. prepare availidx
     vector<int> availIndex;
@@ -812,14 +825,14 @@ void Coordinator::repairBlockDist1(string blockName) {
     freeReplyObject(distReply);
     redisFree(distCtx);
  
-    // wait for finish flag?
-    redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-    string wkey = "writefinish:"+blockName;
-    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-    freeReplyObject(fReply);
-    redisFree(waitCtx);
-    gettimeofday(&time3, NULL);
-    cout << "repairBlockDist1:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    //// wait for finish flag?
+    //redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+    //string wkey = "writefinish:"+blockName;
+    //redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    //freeReplyObject(fReply);
+    //redisFree(waitCtx);
+    //gettimeofday(&time3, NULL);
+    //cout << "repairBlockDist1:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
  
     // delete
     delete ec;
@@ -829,10 +842,10 @@ void Coordinator::repairBlockDist1(string blockName) {
 }
 
 void Coordinator::repairBlockListDist1(vector<string> blocklist) {
-    cout << "Coordinator::repairBlockListDist1" << endl;
-    for (int i=0; i<blocklist.size(); i++) {
-        repairBlockDist1(blocklist[i]);
-    }
+//    cout << "Coordinator::repairBlockListDist1" << endl;
+//    for (int i=0; i<blocklist.size(); i++) {
+//        repairBlockDist1(blocklist[i]);
+//    }
 }
 
 void Coordinator::stat(unordered_map<int, int> sidx2ip,

@@ -27,6 +27,17 @@ for attr in res:
                 entrysplit=slaveentry.split("/")
                 slave=entrysplit[2][0:-1]
 	        slavelist.append(slave)
+    if attr.find("clients.addr") != -1:
+        valuestart=attr.find("<value>")
+	valueend=attr.find("</attribute>")
+	attrtmp=attr[valuestart:valueend]
+	slavestmp=attrtmp.split("<value>")
+	for slaveentry in slavestmp:
+	    if slaveentry.find("</value>") != -1:
+                entrysplit=slaveentry.split("/")
+                slave=entrysplit[2][0:-1]
+	        slavelist.append(slave)
+
 
 # stop
 

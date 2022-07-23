@@ -39,6 +39,9 @@ StripeMeta::StripeMeta(std::string& stripename, std::string& filepath) {
         _pktbytes = std::stoi(ele -> NextSiblingElement("value") -> GetText());
     }
   }
+
+  // revise pktbytes when ecw > 1
+  _pktbytes = _pktbytes * _ecW;
 }
 
 std::string StripeMeta::getStripeName() {

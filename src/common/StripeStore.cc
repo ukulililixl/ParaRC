@@ -24,10 +24,6 @@ StripeStore::StripeStore(Config* conf) {
         _blk2stripe.insert(make_pair(blk, stripename));
         _blk2ip.insert(make_pair(blk, loc));
     }
-
-    // for (string blkname: meta->getBlockList()) {
-    //   _blk2stripe.insert(make_pair(blkname, stripename));
-    // }
   }
 
   string tpdir = conf->_tpDir;

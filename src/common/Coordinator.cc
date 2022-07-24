@@ -62,15 +62,15 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     cout << "Coor::repairBlock.blockname: " << blockName << ", method: " << method << endl;
 
     if (method == "dist") {
-        repairBlockDist1(blockName, clientIp);
+        repairBlockDist1(blockName, clientIp, true);
     } else if (method == "conv") {
-        repairBlockConv(blockName, clientIp);
+        repairBlockConv(blockName, clientIp, true);
     } else {
         cout << "ERROR::wrong method!" << endl;
     }
 }
 
-void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
+void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool enforceip) {
     cout << "Coor::repairBlockConv:blockName: " << blockName << endl;
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
@@ -99,8 +99,10 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
     //    cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
     //}
 
-    // 3. now we repair at the same location
-    loclist[repairBlockIdx] = clientip;
+    // 3. figure out repairloc
+    if (enforceip) {
+        loclist[repairBlockIdx] = clientip;
+    }
     unsigned int repairLoc = loclist[repairBlockIdx];
 
     // 4. prepare availidx
@@ -149,6 +151,7 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
     ecdag->genConvECTasks(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, loclist, repairBlockIdx);
 
     gettimeofday(&time2, NULL);
+
     // 8. send out tasks
     //cout << "ECTasks: " << endl;
     for (int i=0; i<tasklist.size(); i++) {
@@ -161,15 +164,6 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
         task->sendTask(i);
     }
 
-    // // wait for finish flag?
-    // redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-    // string wkey = "writefinish:"+blockName;
-    // redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-    // freeReplyObject(fReply);
-    // redisFree(waitCtx);
-    // gettimeofday(&time3, NULL);
-    // cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
- 
     // delete
     delete ec;
     delete ecdag;
@@ -179,10 +173,10 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip) {
 }
 
 void Coordinator::repairBlockListConv(vector<string> blocklist) {
-//    cout << "Coordinator::repairBlockListConv" << endl;
-//    for (int i=0; i<blocklist.size(); i++) {
-//        repairBlockConv(blocklist[i]);
-//    }
+    cout << "Coordinator::repairBlockListConv" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockConv(blocklist[i], 0, false);
+    }
 }
 
 void Coordinator::repairBlockConv1(string blockName) {
@@ -607,7 +601,7 @@ void Coordinator::repairBlockDist(string blockName) {
     }
 }
 
-void Coordinator::repairBlockDist1(string blockName, unsigned int clientip) {
+void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool enforceip) {
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
 
@@ -640,9 +634,14 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip) {
     // // 3. now we repair at the same location
     // unsigned int repairLoc = loclist[repairBlockIdx];
 
-    // 3. now we repair at the client node
-    unsigned int repairLoc = clientip;
-    loclist[repairBlockIdx] = clientip;
+    // 3. if enforceip, enforce clientip; otherwise choose the default
+    unsigned int repairLoc;
+    if (enforceip) {
+        repairLoc = clientip;
+        loclist[repairBlockIdx] = clientip;
+    } else {
+        repairLoc = loclist[repairBlockIdx];
+    }
 
     // 4. prepare availidx
     vector<int> availIndex;
@@ -842,10 +841,10 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip) {
 }
 
 void Coordinator::repairBlockListDist1(vector<string> blocklist) {
-//    cout << "Coordinator::repairBlockListDist1" << endl;
-//    for (int i=0; i<blocklist.size(); i++) {
-//        repairBlockDist1(blocklist[i]);
-//    }
+    cout << "Coordinator::repairBlockListDist1" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockDist1(blocklist[i], 0, false);
+    }
 }
 
 void Coordinator::stat(unordered_map<int, int> sidx2ip,

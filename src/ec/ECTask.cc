@@ -4,10 +4,10 @@ ECTask::ECTask() {
 }
 
 ECTask::~ECTask() {
-  if (_computeTaskList.size()) {
-    for (auto t: _computeTaskList)
-      delete t;
-  }
+    if (_computeTaskList.size() > 0) {
+        for (auto t: _computeTaskList)
+            delete t;
+    }
 }
 
 void ECTask::buildReadDisk(int type,
@@ -101,6 +101,23 @@ void ECTask::buildConcatenate2(int type,
     _pktBytes = pktbytes;
 }
 
+void ECTask::buildReadCompute(int type, unsigned int loc,
+        string blockname, int blkbytes, int pktbytes,
+        vector<int> cidlist, int ecw, string stripename,
+        vector<ComputeTask*> computelist,
+        unordered_map<int, int> cid2refs) {
+    _type = type;
+    _loc = loc;
+    _blockName = blockname;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+    _prevIndices = cidlist;
+    _ecw = ecw;
+    _stripeName = stripename;
+    _computeTaskList = computelist;
+    _cid2refs = cid2refs;
+}
+
 void ECTask::sendTask(int taskid) {
     if (_type == 0) {
         // readDisk
@@ -157,6 +174,24 @@ void ECTask::sendTask(int taskid) {
             fcmd->buildCommand();
             fcmd->sendTo(_loc);
             delete fcmd;
+        }
+    } else if (_type == 5) {
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType5(5, _loc, _blockName, _blkBytes, _pktBytes, _prevIndices, 
+                _ecw, _stripeName, _computeTaskList, _cid2refs, taskid);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+
+        // compute commands
+        for (int i=0; i<_computeTaskList.size(); i++) {
+            ComputeTask* ct = _computeTaskList[i];
+            vector<int> srclist = ct->_srclist;
+            vector<int> dstlist = ct->_dstlist;
+            vector<vector<int>> coefs = ct->_coefs;
+            ComputeCommand* ccmd = new ComputeCommand(_stripeName, srclist, dstlist, coefs, taskid);
+            ccmd->buildCommand();
+            ccmd->sendTo(_loc);
+            delete ccmd;
         }
     }
 }

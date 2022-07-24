@@ -6,7 +6,7 @@
 #include "util/DistUtil.hh"
 
 #include "ec/Clay.hh"
-#include "ec/IA.hh"
+#include "ec/MISER.hh"
 #include "ec/BUTTERFLY64.hh"
 
 #include "dist/Solution.hh"
@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
   if (code == "Clay") {
     ec = new Clay(n, k, w, {to_string(n-1)});
     dec = new Clay(n, k, w, {to_string(n-1)});
-  } else if (code == "IA") {
-    ec = new IA(n, k, w, param);
-    dec = new IA(n, k, w, param);
+  } else if (code == "MISER") {
+    ec = new MISER(n, k, w, param);
+    dec = new MISER(n, k, w, param);
   } else if (code == "Butterfly") {
     ec = new BUTTERFLY64(n, k, w, param);
     dec = new BUTTERFLY64(n, k, w, param);

@@ -90,6 +90,9 @@ ECBase* StripeMeta::createECClass() {
   } else if (_codeName == "RSPIPE") {
       cout << "StripeMeta::createECClass RSPIPE" << endl;
       toret = new RSPIPE(_ecN, _ecK, _ecW, {});
+  } else if (_codeName == "MISER") {
+      cout << "StripeMeta::createECClass MISER" << endl;
+      toret = new MISER(_ecN, _ecK, _ecW, {});
   }
   return toret;
 }

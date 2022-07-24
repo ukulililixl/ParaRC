@@ -71,6 +71,8 @@ class AGCommand {
     // _blkbytes
     // _pktbytes
 
+    // type 5: repair by transfer
+    //
   public:
     AGCommand();
     ~AGCommand();
@@ -150,6 +152,17 @@ class AGCommand {
             int blkbytes,
             int pktbytes,
             int taskid);
+    void buildType5(int type,
+            unsigned int sendip,
+            string blockname, 
+            int blkbytes,
+            int pktbytes,
+            vector<int> cidlist,
+            int ecw, 
+            string stripename,
+            vector<ComputeTask*> ctlist,
+            unordered_map<int, int> cid2refs,
+            int taskid);
 
     // resolve AGCommand
     void resolveType0();
@@ -157,6 +170,7 @@ class AGCommand {
     void resolveType2();
     void resolveType3();
     void resolveType4();
+    void resolveType5();
 
     string dumpStr();
 };

@@ -9,6 +9,7 @@
 #include "../ec/Clay.hh"
 #include "../ec/RSCONV.hh"
 #include "../ec/RSPIPE.hh"
+#include "../ec/MISER.hh"
 
 using namespace tinyxml2;
 

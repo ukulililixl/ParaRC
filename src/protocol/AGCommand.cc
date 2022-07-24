@@ -29,7 +29,7 @@ AGCommand::AGCommand(char* reqStr) {
     case 2: resolveType2(); break;
     case 3: resolveType3(); break;
     case 4: resolveType4(); break;
-    //case 5: resolveType5(); break;
+    case 5: resolveType5(); break;
     //case 7: resolveType7(); break;
     //case 10: resolveType10(); break;
     //case 11: resolveType11(); break;
@@ -529,6 +529,81 @@ void AGCommand::resolveType4() {
     // 7. pktbytes
     _pktbytes = readInt();
     // 8. taskid
+    _taskid = readInt();
+}
+
+void AGCommand::buildType5(int type, unsigned int sendip, string blockname, int blkbytes, 
+        int pktbytes, vector<int> cidlist, int ecw, string stripename, vector<ComputeTask*> ctlist,
+        unordered_map<int, int> cid2refs, int taskid) {
+
+    // set up parameters
+    _type = type;
+    _sendIp = sendip;
+    _blockName = blockname;
+    _blkbytes = blkbytes;
+    _pktbytes = pktbytes;
+    _indices = cidlist;
+    _ecw = ecw;
+    _stripeName = stripename;
+    _ctlist;
+    _cid2refs = cid2refs;
+    _taskid = taskid;
+
+    // 1. type
+    writeInt(type);
+    // 2. blockname
+    writeString(blockname);
+    // 3. blkbytes
+    writeInt(blkbytes);
+    // 4. pktbytes
+    writeInt(pktbytes);
+    // 5. cidlist
+    writeInt(cidlist.size());
+    for (int i=0; i<cidlist.size(); i++) {
+        writeInt(cidlist[i]);
+    }
+    // 6. ecw
+    writeInt(ecw);
+    // 7. stripename
+    writeString(stripename);
+    // 8. ctnum
+    writeInt(ctlist.size());
+    // 9. cid2refs
+    writeInt(cid2refs.size());
+    for (auto item: cid2refs) {
+        writeInt(item.first);
+        writeInt(item.second);
+    }
+    // 10. taskid
+    writeInt(taskid);
+}
+
+void AGCommand::resolveType5() {
+    // 2. blockname
+    _blockName = readString();
+    // 3. blkbytes
+    _blkbytes = readInt();
+    // 4. pktbytes
+    _pktbytes = readInt();
+    // 5. cidlist
+    int num = readInt();
+    for (int i=0; i<num; i++) {
+        _indices.push_back(readInt());
+    }
+    // 6. ecw
+    _ecw = readInt();
+    // 7. stripename
+    _stripeName = readString();
+    // 8. ctnum
+    _nCompute = readInt();
+    // 9. cid2refs
+    num = readInt();
+    for (int i=0; i<num; i++) {
+        int k = readInt();
+        int v = readInt();
+        _cid2refs.insert(make_pair(k, v));
+    }
+    // 10. taskid
     _taskid = readInt();
 }
 

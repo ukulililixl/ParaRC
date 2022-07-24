@@ -1,7 +1,7 @@
-#include "IA.hh"
+#include "MISER.hh"
 
-IA::IA(int n, int k, int w, vector<string> param) {
-//IA::IA(int n, int k, int w, int opt, vector<string> param) {
+MISER::MISER(int n, int k, int w, vector<string> param) {
+//MISER::MISER(int n, int k, int w, int opt, vector<string> param) {
   _n = n;
   _k = k;
   _w = w;
@@ -13,7 +13,7 @@ IA::IA(int n, int k, int w, vector<string> param) {
   _total_chunk_num = _sys_chunk_num + _enc_chunk_num;
 }
 
-ECDAG* IA::Encode() {
+ECDAG* MISER::Encode() {
   ECDAG* ecdag = new ECDAG();
   vector<int> data;
   vector<int> code;
@@ -36,7 +36,7 @@ ECDAG* IA::Encode() {
   return ecdag;
 }
 
-void IA::generate_encoding_matrix() {
+void MISER::generate_encoding_matrix() {
   //  cout << "generate_encoding_matrix" << endl;
   
   int* UMat = (int *)calloc(_k * _k, sizeof(int));
@@ -159,7 +159,7 @@ void IA::generate_encoding_matrix() {
   free(invPMat);
 }
 
-void IA::square_cauchy_matrix(int *des, int size) {
+void MISER::square_cauchy_matrix(int *des, int size) {
   //  cout << "generate square_cachy_matrix" << endl;
   int *Xset = (int *)calloc(size, sizeof(int));
   int *Yset = (int *)calloc(size, sizeof(int));
@@ -176,9 +176,9 @@ void IA::square_cauchy_matrix(int *des, int size) {
   free(Yset);
 }
 
-ECDAG* IA::Decode(vector<int> from, vector<int> to) {
+ECDAG* MISER::Decode(vector<int> from, vector<int> to) {
   ECDAG* ecdag = new ECDAG();
-  //  cout << "IA::decode" << endl;
+  //  cout << "MISER::decode" << endl;
   generate_encoding_matrix();
   int rBlkIdx = to[0]/_k;
   generate_decoding_matrix(rBlkIdx);
@@ -229,7 +229,7 @@ ECDAG* IA::Decode(vector<int> from, vector<int> to) {
   return ecdag;
 }
 
-void IA::generate_decoding_matrix(int rBlkIdx) {
+void MISER::generate_decoding_matrix(int rBlkIdx) {
   //  cout << "generate decoding matrix" << endl;
   memset(_recovery_equations, 0, _chunk_num_per_node*(_n-1)*sizeof(int));
   int* recvData = (int *)calloc((_n - 1) * _sys_chunk_num, sizeof(int));
@@ -255,7 +255,7 @@ void IA::generate_decoding_matrix(int rBlkIdx) {
     }
 
     //
-//    cout << "recvData before IA interfere alignment :" << endl;
+//    cout << "recvData before MISER interfere alignment :" << endl;
 //    print_matrix(recvData, _n-1, _sys_chunk_num);
 
     // Now we eliminate the interference alignment
@@ -279,7 +279,7 @@ void IA::generate_decoding_matrix(int rBlkIdx) {
       }
       survInd++;
     }
-//    cout << "After IA elimination, _recovery_equations : " << endl;
+//    cout << "After MISER elimination, _recovery_equations : " << endl;
 //    print_matrix(_recovery_equations, _k, _n-1);
 
     // Now generate final recover equations
@@ -375,6 +375,6 @@ void IA::generate_decoding_matrix(int rBlkIdx) {
   free(recvData);
 }
 
-//void IA::Place(vector<vector<int>>& group) {
+//void MISER::Place(vector<vector<int>>& group) {
 //}
 

@@ -94,6 +94,11 @@ class ECTask {
             string stripename,
             string blockname,
             int ecw, int blkbytes, int pktbytes);
+    void buildReadCompute(int type, unsigned int loc, 
+            string blockname, int blkbytes, int pktbytes,
+            vector<int> cidlist, int ecw, string stripename,
+            vector<ComputeTask*> computelist,
+            unordered_map<int, int> cid2refs);
     void sendTask(int taskid);
 
     int getType();

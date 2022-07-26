@@ -195,10 +195,10 @@ void ECDAG::genECUnits() {
     //  break;
   }
 
-  // // debug
-  // for (int i=0; i<_ecUnitList.size(); i++)  {
-  //   cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
-  // }
+  // debug
+  for (int i=0; i<_ecUnitList.size(); i++)  {
+    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
+  }
 }
 
 void ECDAG::clearECCluster() {
@@ -912,11 +912,22 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
     vector<int> finalunits; // record units for repair node
     unordered_map<unsigned int, vector<int>> ip2cidlist; // map ip to cid for disk read without repair by transfer
 
+    //unordered_map<int, int> cid2refs;
+
     for (int i=0; i<_ecUnitList.size(); i++) {
         int unitIdx = _ecUnitList[i];
         ECUnit* cunit = _ecUnitMap[unitIdx];
 
         vector<int> srclist = cunit->getChilds();
+
+        //// cid2refs
+        //for (auto cid: srclist) {
+        //    if (cid2refs.find(cid) == cid2refs.end())
+        //        cid2refs.insert(make_pair(cid, 1));
+        //    else
+        //        cid2refs[cid]++;
+        //}
+
         int parent = cunit->getParent();
         if (parent == REQUESTOR)
             continue;
@@ -956,22 +967,22 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         }
     }
 
-    // cout << "ECDAG::genConvECTasks.ip2transferunits: " << endl;
-    // for (auto item: ip2transferunits) {
-    //     unsigned int ip = item.first;
-    //     vector<int> list = item.second;
-    //     cout << "  ip: " << RedisUtil::ip2Str(ip) << ", ";
-    //     for (auto id: list)
-    //         cout << id << " ";
-    //     cout << endl;
-    // }
+    cout << "ECDAG::genConvECTasks.ip2transferunits: " << endl;
+    for (auto item: ip2transferunits) {
+        unsigned int ip = item.first;
+        vector<int> list = item.second;
+        cout << "  ip: " << RedisUtil::ip2Str(ip) << ", ";
+        for (auto id: list)
+            cout << id << " ";
+        cout << endl;
+    }
 
-    // cout << "ECDAG::genConvECTasks.finalunits: ";
-    // for (auto item: finalunits)
-    //     cout << item << " ";
-    // cout << endl;
+    cout << "ECDAG::genConvECTasks.finalunits: ";
+    for (auto item: finalunits)
+        cout << item << " ";
+    cout << endl;
 
-    // 2. generate cidrefs for finalunits
+    // 2. generate readbid2cids for finalunits
     unordered_map<int, int> finalrefs;
     unordered_map<int, vector<int>> readbid2cids;
     for (auto unitidx: finalunits) {
@@ -991,7 +1002,9 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
                     vector<int> tmplist = {cid};
                     readbid2cids.insert(make_pair(bid, tmplist));
                 } else {
-                    readbid2cids[bid].push_back(cid);
+                    vector<int> tmplist = readbid2cids[bid];
+                    if (find(tmplist.begin(), tmplist.end(), cid) == tmplist.end())
+                        readbid2cids[bid].push_back(cid);
                 }
             }
         } 
@@ -1039,7 +1052,8 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
                 ctlist.push_back(ct);
 
                 assert(finalrefs.find(parent) != finalrefs.end());
-                cacherefs.insert(make_pair(parent, finalrefs[parent]));
+                //cacherefs.insert(make_pair(parent, finalrefs[parent]));
+                cacherefs.insert(make_pair(parent, 1));
 
                 if (ip2cidlist.find(ip) == ip2cidlist.end()) {
                     vector<int> tmplist = {parent};
@@ -1065,6 +1079,10 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         int bid = item.first;
         vector<int> cidlist = item.second;
         sort(cidlist.begin(), cidlist.end());
+        cout << "bid: " << bid << ": ";
+        for (auto cid: cidlist)
+            cout << cid << " ";
+        cout << endl;
 
         unordered_map<int, int> cid2refs;
         for (auto cid: cidlist) {
@@ -1077,7 +1095,13 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         tasklist.push_back(readtask);
 
         // fill in ip2cidlist
-        ip2cidlist.insert(make_pair(loclist[bid], cidlist));
+        unsigned int ip = loclist[bid];
+        if (ip2cidlist.find(ip) == ip2cidlist.end())
+            ip2cidlist.insert(make_pair(loclist[bid], cidlist));
+        else {
+            for (auto cid: cidlist)
+                ip2cidlist[ip].push_back(cid);
+        }
     }
 
     // 2. update shortening in ip2cidlist
@@ -1113,6 +1137,16 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         int cid = repairIdx * ecw + i;
         cid2refs.insert(make_pair(cid, 1));
         concatenatelist.push_back(cid);
+    }
+    
+    // debug ip2cidlist
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> list = item.second;
+        cout << "ip: " << RedisUtil::ip2Str(ip) << ": ";
+        for (auto cid: list)
+            cout << cid << " ";
+        cout << endl;
     }
 
     // 4. create fetch and compute

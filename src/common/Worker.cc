@@ -59,7 +59,7 @@ void Worker::doProcess() {
 
 void Worker::readAndCache(AGCommand* agcmd) {
   //cout << "Worker::readDisk!" << endl;
-  struct timeval time1, time2, time3;                                                                                                                                                                    
+  struct timeval time1, time2, time3;  
   gettimeofday(&time1, NULL); 
 
   string blockname = agcmd->getBlockName();
@@ -69,18 +69,18 @@ void Worker::readAndCache(AGCommand* agcmd) {
   unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
   string stripename = agcmd->getStripeName();
 
-  //cout << "Worker::readDisk.blockname: " << blockname << endl;
-  //cout << "Worker::readDisk.blkbytes: " << blkbytes << endl;
-  //cout << "Worker::readDisk.pktbytes: " << pktbytes << endl;
-  //cout << "Worker::readDisk.ecw: " << ecw << endl;
-  //cout << "Worker::readDisk.cid2refs: ";
-  //for (auto item: cid2refs) {
-  //    int cid = item.first;
-  //    int ref = item.second;
-  //    cout << "(" << cid << ", " << ref << ") ";
-  //}
-  //cout << endl;
-  //cout << "Worker::readDisk.stripename: " << stripename << endl;
+  cout << "Worker::readDisk.blockname: " << blockname << endl;
+  cout << "Worker::readDisk.blkbytes: " << blkbytes << endl;
+  cout << "Worker::readDisk.pktbytes: " << pktbytes << endl;
+  cout << "Worker::readDisk.ecw: " << ecw << endl;
+  cout << "Worker::readDisk.cid2refs: ";
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      int ref = item.second;
+      cout << "(" << cid << ", " << ref << ") ";
+  }
+  cout << endl;
+  cout << "Worker::readDisk.stripename: " << stripename << endl;
 
   vector<int> pattern;
   vector<int> indices;
@@ -204,14 +204,14 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
     int pktbytes = agcmd->getPktBytes();
     int taskid = agcmd->getTaskid();
     
-    // cout << "Worker::fetchAndCompute2:nFetchStream = " << nFetchStream << endl;
-    // cout << "Worker::fetchAndCompute2:nCompute = " << nCompute << endl;
-    // cout << "Worker::fetchAndCompute2:stripename = " << stripename << endl;
-    // cout << "Worker::fetchAndCompute2:nOutCids = " << nOutCids << endl;
-    // cout << "Worker::fetchAndCompute2:ecw = " << ecw << endl;
-    // cout << "Worker::fetchAndCompute2:blkbytes = " << blkbytes << endl;
-    // cout << "Worker::fetchAndCompute2:pktbytes = " << pktbytes << endl;
-    // cout << "Worker::fetchAndCompute2:taskid = " << taskid << endl;
+    cout << "Worker::fetchAndCompute2:nFetchStream = " << nFetchStream << endl;
+    cout << "Worker::fetchAndCompute2:nCompute = " << nCompute << endl;
+    cout << "Worker::fetchAndCompute2:stripename = " << stripename << endl;
+    cout << "Worker::fetchAndCompute2:nOutCids = " << nOutCids << endl;
+    cout << "Worker::fetchAndCompute2:ecw = " << ecw << endl;
+    cout << "Worker::fetchAndCompute2:blkbytes = " << blkbytes << endl;
+    cout << "Worker::fetchAndCompute2:pktbytes = " << pktbytes << endl;
+    cout << "Worker::fetchAndCompute2:taskid = " << taskid << endl;
 
     redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
     redisReply* rReply;
@@ -267,6 +267,14 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         ComputeTask* ct = new ComputeTask(srclist, dstlist, coefs);
         computeTaskList.push_back(ct);
 
+        cout << "Compute: ( ";
+        for (auto tmpid: srclist)
+            cout << tmpid << " ";
+        cout << ")->( ";
+        for (auto tmpid: dstlist)
+            cout << tmpid << " ";
+        cout << ")" << endl;
+
         freeReplyObject(rReply);
         computeCmd->setCmd(NULL, 0);
         delete computeCmd;
@@ -281,6 +289,11 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
     cacheCmd->setCmd(NULL, 0);
     freeReplyObject(rReply);
     delete cacheCmd;
+
+    cout << "cache: ";
+    for (auto tmpitem: cacheRefs)
+        cout << "(" << tmpitem.first << "," << tmpitem.second << ") ";
+    cout << endl;
 
     unordered_map<int, BlockingQueue<DataPacket*>*> cachemap;
     for (auto item: cacheRefs) {
@@ -978,6 +991,9 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
 
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
+
+  cout << "subpktbytes: " << subpktbytes << " , pktnum: " << pktnum << endl;
+  cout << "fetchmap.size: " << fetchMap.size() << ", cacheMap.size: " << cacheMap.size() << endl;
    
   for (int i=0; i<pktnum; i++) {
     unordered_map<int, char*> bufMap;
@@ -986,9 +1002,13 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
     // read from fetchmap
     for (auto item: fetchMap) {
         int curidx = item.first;
+        cout << "get " << curidx << endl;
         DataPacket* curpkt = fetchMap[curidx]->pop();
         pktMap.insert(make_pair(curidx, curpkt));
         bufMap.insert(make_pair(curidx, curpkt->getData()));
+
+        if (i == 0)
+            cout << "prepare fetch cid: " << curidx << endl;
     }
 
     // prepare data pkt for writemap
@@ -997,6 +1017,9 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
         DataPacket* curpkt = new DataPacket(subpktbytes);
         pktMap.insert(make_pair(curidx, curpkt));
         bufMap.insert(make_pair(curidx, curpkt->getData()));
+
+        if (i == 0)
+            cout << "prepare cache cid: " << curidx << endl;
     }
     
     // iterate through ctlist
@@ -1088,21 +1111,21 @@ void Worker::readAndCompute(AGCommand* agcmd) {
     unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
     int taskid = agcmd->getTaskid();
     
-//    cout << "Worker::blockname = " << blockname << endl;
-//    cout << "Worker::blkbytes = " << blkbytes << endl;
-//    cout << "Worker::pktbytes = " << pktbytes << endl;
-//    cout << "Worker::cidlist: ";
-//    for (auto cid: cidlist)
-//        cout << cid << " ";
-//    cout << endl;
-//    cout << "Worker::ecw = " << ecw << endl;
-//    cout << "Worker::stripename = " << stripename << endl;
-//    cout << "Worker::nCompute = " << nCompute << endl;
-//    cout << "Worker::cid2refs: ";
-//    for (auto item: cid2refs) 
-//        cout << "(" << item.first << "," << item.second << ") ";
-//    cout << endl;
-//    cout << "Worker::taskid = " << taskid << endl;
+    cout << "Worker::blockname = " << blockname << endl;
+    cout << "Worker::blkbytes = " << blkbytes << endl;
+    cout << "Worker::pktbytes = " << pktbytes << endl;
+    cout << "Worker::cidlist: ";
+    for (auto cid: cidlist)
+        cout << cid << " ";
+    cout << endl;
+    cout << "Worker::ecw = " << ecw << endl;
+    cout << "Worker::stripename = " << stripename << endl;
+    cout << "Worker::nCompute = " << nCompute << endl;
+    cout << "Worker::cid2refs: ";
+    for (auto item: cid2refs) 
+        cout << "(" << item.first << "," << item.second << ") ";
+    cout << endl;
+    cout << "Worker::taskid = " << taskid << endl;
 
     // read threads
     vector<int> pattern;

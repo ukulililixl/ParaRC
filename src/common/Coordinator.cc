@@ -117,10 +117,10 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool 
                 availIndex.push_back(pktidx);
         }
     }
-    cout << "avail: ";
-    for (auto item: availIndex)
-        cout << item << " ";
-    cout << endl;
+    //cout << "avail: ";
+    //for (auto item: availIndex)
+    //    cout << item << " ";
+    //cout << endl;
 
     // 5. construct ECDAG
     ECBase* ec = stripemeta->createECClass();

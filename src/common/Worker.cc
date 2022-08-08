@@ -710,6 +710,7 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
   //    cout << idxlist[i] << " ";
   //}
   cout << endl;
+  redisFree(writeCtx);
 }
 
 void Worker::cacheWorker2(
@@ -761,6 +762,7 @@ void Worker::cacheWorker2(
       cout << item.first << " ";
   }
   cout << endl;
+  redisFree(writeCtx);
 }
 
 void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,

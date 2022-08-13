@@ -79,6 +79,10 @@ class ECDAG {
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,
             string stripename, vector<string> blocklist, 
             vector<unsigned int> loclist, int repairIdx);
+    void genConvECTasksWithOffset(vector<ECTask*>& tasklist,
+            int ecn, int eck, int ecw, int blkbytes, int pktbytes,
+            string stripename, vector<string> blocklist, 
+            vector<unsigned int> loclist, int repairIdx, int offset);
     void genDistECTasks(vector<ECTask*>& tasklist,
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,
             string stripename, vector<string> blocklist,

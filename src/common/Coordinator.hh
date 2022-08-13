@@ -38,6 +38,9 @@ class Coordinator {
     void repairNode(CoorCommand* coorCmd);
     void repairNodeConv(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
     void repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
+
+    void readBlock(CoorCommand* coorCmd);
+    void readBlockConv(string blockname, unsigned int clientip, bool enforceip, int offset, int length); 
 };
 
 #endif

@@ -45,6 +45,8 @@ void Worker::doProcess() {
         case 3: fetchAndCompute2(agCmd); break;
         case 4: concatenate2(agCmd); break;
         case 5: readAndCompute(agCmd); break;
+        case 6: readAndCacheWithOffset(agCmd); break;
+        case 7: readAndComputeWithOffset(agCmd); break;
         default:break;
       }
 //      gettimeofday(&time2, NULL);
@@ -101,6 +103,63 @@ void Worker::readAndCache(AGCommand* agcmd) {
   BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
 
   thread readThread = thread([=]{readWorker(readqueue, blockname, ecw, pattern, blkbytes, pktbytes);});
+  thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename, blkbytes, pktbytes, cid2refs);});
+
+  readThread.join();
+  cacheThread.join();
+
+  delete readqueue;
+
+  gettimeofday(&time2, NULL); 
+  //cout << "Worker::readDisk.duration: " << DistUtil::duration(time1, time2) << endl;
+}
+
+void Worker::readAndCacheWithOffset(AGCommand* agcmd) {
+  //cout << "Worker::readDisk!" << endl;
+  struct timeval time1, time2, time3;  
+  gettimeofday(&time1, NULL); 
+
+  string blockname = agcmd->getBlockName();
+  int blkbytes = agcmd->getBlkBytes();
+  int pktbytes = agcmd->getPktBytes();
+  int ecw = agcmd->getECW();
+  unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
+  string stripename = agcmd->getStripeName();
+  int offset = agcmd->getOffset();
+
+  //cout << "Worker::readAndCacheWithOffset.blockname: " << blockname << endl;
+  //cout << "Worker::readAndCacheWithOffset.blkbytes: " << blkbytes << endl;
+  //cout << "Worker::readAndCacheWithOffset.pktbytes: " << pktbytes << endl;
+  //cout << "Worker::readAndCacheWithOffset.ecw: " << ecw << endl;
+  //cout << "Worker::readAndCacheWithOffset.cid2refs: ";
+  //for (auto item: cid2refs) {
+  //    int cid = item.first;
+  //    int ref = item.second;
+  //    cout << "(" << cid << ", " << ref << ") ";
+  //}
+  //cout << endl;
+  //cout << "Worker::readAndCacheWithOffset.stripename: " << stripename << endl;
+  //cout << "Worker::readAndCacheWithOffset.offset: " << offset << endl;
+
+  vector<int> pattern;
+  vector<int> indices;
+  for (int i=0; i<ecw; i++)
+    pattern.push_back(0);
+  for (auto item: cid2refs) {
+      int cid = item.first;
+      indices.push_back(cid);
+      int j = cid % ecw;
+      pattern[j] = 1;
+  }
+  sort(indices.begin(), indices.end());
+  cout << "Worker::readDisk.pattern: ";
+  for (int i=0; i<ecw; i++)
+    cout << pattern[i] << " ";
+  cout << endl;
+
+  BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+
+  thread readThread = thread([=]{readWorkerWithOffset(readqueue, blockname, ecw, pattern, blkbytes, pktbytes, offset);});
   thread cacheThread = thread([=]{cacheWorker(readqueue, indices, ecw, stripename, blkbytes, pktbytes, cid2refs);});
 
   readThread.join();
@@ -622,6 +681,43 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
   cout << "Worker::readWorker.duration: " << DistUtil::duration(time1, time2) << endl;
 }
 
+void Worker::readWorkerWithOffset(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes, int offset) {
+  string fullpath = _conf->_blkDir + "/" + blockname;
+  cout << "Worker::readWorker:fullpath = " << fullpath << endl;
+  
+  int fd = open(fullpath.c_str(), O_RDONLY);
+  int subpktbytes = pktbytes / ecw;
+  int pktnum = blkbytes / pktbytes;
+  int readLen = 0, readl = 0;
+  
+  struct timeval time1, time2, time3;
+  gettimeofday(&time1, NULL); 
+  for (int i=0; i<pktnum; i++) {
+    for (int j=0; j<ecw; j++) {
+      if (pattern[j] == 0)
+        continue;
+      // now we erad the j-th subpacket in packet i
+      int start = offset + i * pktbytes + j * subpktbytes;
+      readLen = 0;
+      DataPacket* curpkt = new DataPacket(subpktbytes);
+      while (readLen < subpktbytes) {
+        if ((readl = pread(fd, 
+                           curpkt->getData() + readLen, 
+                           subpktbytes - readLen, 
+                           start)) < 0) {
+          cout << "ERROR during disk read" << endl;
+        } else {
+          readLen += readl;
+        }
+      }
+      readqueue->push(curpkt);
+    } 
+  }
+  close(fd);
+  gettimeofday(&time2, NULL); 
+  cout << "Worker::readWorker.duration: " << DistUtil::duration(time1, time2) << endl;
+}
+
 void Worker::readWorker(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
         string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
         int blkbytes, int pktbytes) {
@@ -642,6 +738,46 @@ void Worker::readWorker(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
             int cid = patternidx[j];
             // now we erad the j-th subpacket in packet i
             int start = i * pktbytes + j * subpktbytes;
+            readLen = 0;
+            DataPacket* curpkt = new DataPacket(subpktbytes);
+            while (readLen < subpktbytes) {
+                if ((readl = pread(fd, 
+                                curpkt->getData() + readLen, 
+                                subpktbytes - readLen, 
+                                start)) < 0) {
+                    cout << "ERROR during disk read" << endl;
+                } else {
+                    readLen += readl;
+                }
+            }
+            readmap[cid]->push(curpkt);
+        } 
+    }
+    close(fd);
+    gettimeofday(&time2, NULL); 
+    cout << "Worker::readWorker.duration: " << DistUtil::duration(time1, time2) << endl;
+}
+
+void Worker::readWorkerWithOffset(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
+        string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
+        int blkbytes, int pktbytes, int offset) {
+    string fullpath = _conf->_blkDir + "/" + blockname;
+    cout << "Worker::readWorker:fullpath = " << fullpath << endl;
+    
+    int fd = open(fullpath.c_str(), O_RDONLY);
+    int subpktbytes = pktbytes / ecw;
+    int pktnum = blkbytes / pktbytes;
+    int readLen = 0, readl = 0;
+    
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL); 
+    for (int i=0; i<pktnum; i++) {
+        for (int j=0; j<ecw; j++) {
+            if (pattern[j] == 0)
+                continue;
+            int cid = patternidx[j];
+            // now we erad the j-th subpacket in packet i
+            int start = offset + i * pktbytes + j * subpktbytes;
             readLen = 0;
             DataPacket* curpkt = new DataPacket(subpktbytes);
             while (readLen < subpktbytes) {
@@ -1155,6 +1291,120 @@ void Worker::readAndCompute(AGCommand* agcmd) {
     }
     
     thread readThread = thread([=]{readWorker(readmap, blockname, ecw, pattern, patternidx, blkbytes, pktbytes);});
+
+    redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
+    redisReply* rReply;
+
+    // read compute commands
+    vector<ComputeTask*> computeTaskList;
+    string rkey = stripename + ":task" + to_string(taskid) + ":compute";
+    for (int i=0; i<nCompute; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        ComputeCommand* computeCmd = new ComputeCommand(reqStr);
+        vector<int> srclist = computeCmd->getSrcList();
+        vector<int> dstlist = computeCmd->getDstList();
+        vector<vector<int>> coefs = computeCmd->getCoefs();
+
+        ComputeTask* ct = new ComputeTask(srclist, dstlist, coefs);
+        computeTaskList.push_back(ct);
+
+        freeReplyObject(rReply);
+        computeCmd->setCmd(NULL, 0);
+        delete computeCmd;
+    }
+
+    // create cachemap
+    unordered_map<int, BlockingQueue<DataPacket*>*> cachemap;
+    for (auto item: cid2refs) {
+        int cid = item.first;
+        BlockingQueue<DataPacket*>* queue = new BlockingQueue<DataPacket*>();
+        cachemap.insert(make_pair(cid, queue));
+    }
+
+    // create compute thread
+    thread computeThread = thread([=]{computeWorker2(readmap, cachemap, computeTaskList, ecw, blkbytes, pktbytes);});
+
+    // create cache thread
+    thread cacheThread = thread([=]{cacheWorker2(cachemap, cid2refs, ecw, stripename, blkbytes, pktbytes);});
+
+    readThread.join();
+    computeThread.join();
+    cacheThread.join();
+
+    // free
+    free(redisCtx);
+    for (auto item: readmap) {
+        delete item.second;
+    }
+    for (auto item: cachemap) {
+        delete item.second;
+    }
+    for (auto item: computeTaskList){
+        delete item;
+    }
+}
+
+void Worker::readAndComputeWithOffset(AGCommand* agcmd) {
+    
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+    
+    string blockname = agcmd->getBlockName();
+    int blkbytes = agcmd->getBlkBytes();
+    int pktbytes = agcmd->getPktBytes();
+    vector<int> cidlist = agcmd->getIndices();
+    int ecw = agcmd->getECW();
+    string stripename = agcmd->getStripeName();
+    int nCompute = agcmd->getNCompute();
+    unordered_map<int, int> cid2refs = agcmd->getCid2Refs();
+    int taskid = agcmd->getTaskid();
+    int offset = agcmd->getOffset();
+    
+    //cout << "Worker::blockname = " << blockname << endl;
+    //cout << "Worker::blkbytes = " << blkbytes << endl;
+    //cout << "Worker::pktbytes = " << pktbytes << endl;
+    //cout << "Worker::cidlist: ";
+    //for (auto cid: cidlist)
+    //    cout << cid << " ";
+    //cout << endl;
+    //cout << "Worker::ecw = " << ecw << endl;
+    //cout << "Worker::stripename = " << stripename << endl;
+    //cout << "Worker::nCompute = " << nCompute << endl;
+    //cout << "Worker::cid2refs: ";
+    //for (auto item: cid2refs) 
+    //    cout << "(" << item.first << "," << item.second << ") ";
+    //cout << endl;
+    //cout << "Worker::taskid = " << taskid << endl;
+
+    // read threads
+    vector<int> pattern;
+    vector<int> patternidx;
+    for (int i=0; i<ecw; i++)
+        pattern.push_back(0);
+    for (int i=0; i<ecw; i++)
+        patternidx.push_back(-1);
+    for (auto item: cidlist) {
+        int cid = item;
+        int j = cid % ecw;
+        pattern[j] = 1;
+        patternidx[j] = cid;
+    }
+    cout << "Worker::readDisk.pattern: ";
+    for (int i=0; i<ecw; i++)
+      cout << pattern[i] << " ";
+    cout << endl;
+
+    unordered_map<int, BlockingQueue<DataPacket*>*> readmap;
+    for (int i=0; i<patternidx.size(); i++) {
+        if (patternidx[i] == -1)
+            continue;
+        int cid = patternidx[i];
+        BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+        readmap.insert(make_pair(cid, readqueue));
+    }
+    
+    thread readThread = thread([=]{readWorkerWithOffset(readmap, blockname, ecw, pattern, patternidx, blkbytes, pktbytes, offset);});
 
     redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
     redisReply* rReply;

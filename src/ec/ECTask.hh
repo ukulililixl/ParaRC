@@ -52,6 +52,8 @@ class ECTask {
     // for type 3: new version of fetch and compute
     unordered_map<unsigned int, vector<int>> _ip2cidlist;
 
+    // for type 6:
+    int _offset;
 
   public:
     ECTask();
@@ -65,6 +67,14 @@ class ECTask {
             int ecw,
             unordered_map<int, int> cid2ref,
             string stripename);
+    void buildReadDiskWithOffset(int type,
+            unsigned int loc,
+            string blockname,
+            int blkbytes,
+            int pktbytes,
+            int ecw,
+            unordered_map<int, int> cid2ref,
+            string stripename, int offset);
     void buildFetchCompute(int type,
                unsigned int loc,
                vector<int> prevIndices,
@@ -99,6 +109,11 @@ class ECTask {
             vector<int> cidlist, int ecw, string stripename,
             vector<ComputeTask*> computelist,
             unordered_map<int, int> cid2refs);
+    void buildReadComputeWithOffset(int type, unsigned int loc, 
+            string blockname, int blkbytes, int pktbytes,
+            vector<int> cidlist, int ecw, string stripename,
+            vector<ComputeTask*> computelist,
+            unordered_map<int, int> cid2refs, int offset);
     void sendTask(int taskid);
 
     int getType();

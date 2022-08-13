@@ -37,12 +37,20 @@ class Worker {
     void concatenate2(AGCommand* agCmd);
     void readAndCompute(AGCommand* agCmd);
 
+    void readAndCacheWithOffset(AGCommand* agCmd);
+    void readAndComputeWithOffset(AGCommand* agCmd);
+
     // basic routines
     void readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw,
                     vector<int> pattern, int blkbytes, int pktbytes);
+    void readWorkerWithOffset(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw,
+                    vector<int> pattern, int blkbytes, int pktbytes, int offset);
     void readWorker(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
             string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
             int blkbytes, int pktbytes);
+    void readWorkerWithOffset(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
+            string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
+            int blkbytes, int pktbytes, int offset);
     void cacheWorker(BlockingQueue<DataPacket*>* cachequeue,
                      vector<int> idxlis, int ecw, string keybase,
                      int blkbytes, int pktbytes, unordered_map<int, int> cid2refs);

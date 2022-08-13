@@ -28,6 +28,26 @@ void ECTask::buildReadDisk(int type,
     _stripeName = stripename;
 }
 
+void ECTask::buildReadDiskWithOffset(int type,
+        unsigned int loc,
+        string blockname,
+        int blkbytes,
+        int pktbytes,
+        int ecw,
+        unordered_map<int, int> cid2ref,
+        string stripename, 
+        int offset) {
+    _type = type;
+    _loc = loc;
+    _blockName = blockname;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+    _ecw = ecw;
+    _cid2refs = cid2ref;
+    _stripeName = stripename;
+    _offset = offset;
+}
+
 void ECTask::buildFetchCompute(int type,
                unsigned int loc,
                vector<int> prevIndices,
@@ -118,6 +138,24 @@ void ECTask::buildReadCompute(int type, unsigned int loc,
     _cid2refs = cid2refs;
 }
 
+void ECTask::buildReadComputeWithOffset(int type, unsigned int loc,
+        string blockname, int blkbytes, int pktbytes,
+        vector<int> cidlist, int ecw, string stripename,
+        vector<ComputeTask*> computelist,
+        unordered_map<int, int> cid2refs, int offset) {
+    _type = type;
+    _loc = loc;
+    _blockName = blockname;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+    _prevIndices = cidlist;
+    _ecw = ecw;
+    _stripeName = stripename;
+    _computeTaskList = computelist;
+    _cid2refs = cid2refs;
+    _offset = offset;
+}
+
 void ECTask::sendTask(int taskid) {
     if (_type == 0) {
         // readDisk
@@ -179,6 +217,32 @@ void ECTask::sendTask(int taskid) {
         AGCommand* agcmd = new AGCommand();
         agcmd->buildType5(5, _loc, _blockName, _blkBytes, _pktBytes, _prevIndices, 
                 _ecw, _stripeName, _computeTaskList, _cid2refs, taskid);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+
+        // compute commands
+        for (int i=0; i<_computeTaskList.size(); i++) {
+            ComputeTask* ct = _computeTaskList[i];
+            vector<int> srclist = ct->_srclist;
+            vector<int> dstlist = ct->_dstlist;
+            vector<vector<int>> coefs = ct->_coefs;
+            ComputeCommand* ccmd = new ComputeCommand(_stripeName, srclist, dstlist, coefs, taskid);
+            ccmd->buildCommand();
+            ccmd->sendTo(_loc);
+            delete ccmd;
+        }
+    } else if (_type == 6) {
+        // readDisk
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType6(6, _loc, _blockName, _blkBytes, _pktBytes, _ecw, _cid2refs, _stripeName, _offset);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+        //cout << "send type6 to " << RedisUtil::ip2Str(_loc) << endl;
+    } else if (_type == 7) {
+
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType7(7, _loc, _blockName, _blkBytes, _pktBytes, _prevIndices, 
+                _ecw, _stripeName, _computeTaskList, _cid2refs, taskid, _offset);
         agcmd->sendTo(_loc);
         delete agcmd;
 

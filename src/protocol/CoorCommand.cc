@@ -24,7 +24,7 @@ CoorCommand::CoorCommand(char* reqStr) {
   switch(_type) {
     case 0: resolveType0(); break;
     case 1: resolveType1(); break;
-//    case 2: resolveType2(); break;
+    case 2: resolveType2(); break;
 //    case 3: resolveType3(); break;
 //    case 4: resolveType4(); break;
 //    case 5: resolveType5(); break;
@@ -101,49 +101,13 @@ string CoorCommand::getCode() {
     return _code;
 }
 
-//string CoorCommand::getEcid() {
-//  return _ecid;
-//}
-//
-//int CoorCommand::getMode() {
-//  return _mode;
-//}
-//
-//int CoorCommand::getFilesizeMB() {
-//  return _filesizeMB;
-//}
-//
-//int CoorCommand::getNumOfReplicas() {
-//  return _numOfReplicas;
-//}
-//
-//string CoorCommand::getECPoolId() {
-//  return _ecpoolid;
-//}
-//
-//string CoorCommand::getStripeName() {
-//  return _stripename;
-//}
-//
-//int CoorCommand::getOp() {
-//  return _op;
-//}
-//
-//string CoorCommand::getECType() {
-//  return _ectype;
-//}
-//
-//vector<int> CoorCommand::getCorruptIdx() {
-//  return _corruptIdx;
-//}
-//
-//string CoorCommand::getBenchName() {
-//  return _benchname;
-//}
-//
-//string CoorCommand::getLayer() {
-//    return _layer;
-//}
+int CoorCommand::getOffset() {
+    return _offset;
+}
+
+int CoorCommand::getLength() {
+    return _length;
+}
 
 void CoorCommand::sendTo(unsigned int ip) {
   redisContext* sendCtx = RedisUtil::createContext(ip);
@@ -214,200 +178,42 @@ void CoorCommand::resolveType1() {
   _method = readString();
 }
 
-//void CoorCommand::resolveType1() {
-//  _clientIp = readRawInt();  // This ip is sent from DSS, We test HDFS and find that we should just read raw int.
-//  _filename = readString();
-//  _numOfReplicas = readInt();
-//}
-//
-//void CoorCommand::buildType2(int type, unsigned int ip, string filename) {
-//  // set up corresponding parameters
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = filename;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_filename);
-//}
-//
-//void CoorCommand::resolveType2() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//}
-//
-//void CoorCommand::buildType3(int type,
-//                             unsigned int ip,
-//                             string filename) {
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = filename;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_filename);
-//}
-//
-//void CoorCommand::resolveType3() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//}
-//
-//void CoorCommand::buildType4(int type, unsigned int ip, string poolname, string stripename) {
-//  _type = type;
-//  _clientIp = ip;
-//  _ecpoolid = poolname;
-//  _stripename = stripename;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_ecpoolid);
-//  writeString(_stripename);
-//}
-//
-//void CoorCommand::resolveType4() {
-//  _clientIp = readInt();
-//  _ecpoolid = readString();
-//  _stripename = readString();
-//}
-//
-//void CoorCommand::buildType5(int type, unsigned int ip, string objname) {
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = objname;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_filename);
-//}
-//
-//void CoorCommand::resolveType5() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//}
-//
-//void CoorCommand::resolveType6() {
-//  _clientIp = readInt();
-//  _filename = readString(); 
-//}
-//
-//void CoorCommand::buildType7(int type, int op, string ectype) {
-//  _type = type;
-//  _op = op;
-//  _ectype = ectype;
-//
-//  writeInt(type);
-//  writeInt(op);
-//  writeString(ectype);
-//}
-//
-//void CoorCommand::resolveType7() {
-//  _op = readInt();
-//  _ectype = readString();
-//}
-//
-//void CoorCommand::buildType8(int type, unsigned int ip, string objname) {
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = objname;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_filename);
-//}
-//
-//void CoorCommand::resolveType8() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//}
-//
-//void CoorCommand::buildType9(int type,
-//                    unsigned int ip,
-//                    string filename,
-//                    vector<int> corruptIdx) {
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = filename;
-//  _corruptIdx = corruptIdx;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_filename);
-//  writeInt(corruptIdx.size());
-//  for (int i=0; i<corruptIdx.size(); i++) writeInt(corruptIdx[i]);
-//}
-//
-//void CoorCommand::resolveType9() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//  int num = readInt();
-//  for (int i=0; i<num; i++) {
-//    _corruptIdx.push_back(readInt());
-//  }
-//}
-//
-//void CoorCommand::resolveType11() {
-//  _clientIp = readInt();
-//  _filename = readString();
-//}
-//
-//void CoorCommand::buildType12(int type,
-//                              unsigned int ip,
-//                              string benchname) {
-//  _type = type;
-//  _clientIp = ip;
-//  _benchname = benchname;
-//
-//  writeInt(_type);
-//  writeInt(_clientIp);
-//  writeString(_benchname);
-//}
-//
-//void CoorCommand::resolveType12() {
-//  _clientIp = readInt();
-//  _benchname = readString();
-//}
-//
-//void CoorCommand::buildType21(int type, unsigned int ip, string filename, string ecid, int mode, int filesizeMB, string layer) {
-//  // set up corresponding parameters
-//  _type = type;
-//  _clientIp = ip;
-//  _filename = filename;
-//  _ecid = ecid;
-//  _mode = mode;
-//  _filesizeMB = filesizeMB;
-//  _layer = layer;
-//
-//  // 1. type
-//  writeInt(_type);
-//  // 2. ipo
-//  writeInt(_clientIp);
-//  // 3. filename
-//  writeString(_filename);
-//  // 4. ecid
-//  writeString(_ecid);
-//  // 5. mode
-//  writeInt(_mode);
-//  // 6. filesizeMB
-//  writeInt(_filesizeMB);
-//  // 7. layer
-//  writeString(_layer);
-//}
-//
-//void CoorCommand::resolveType21() {
-//  // 2. ip
-//  _clientIp = readInt();
-//  // 3. filename
-//  _filename = readString();
-//  // 4. ecid
-//  _ecid = readString();
-//  // 5. mode
-//  _mode = readInt();
-//  // 6. filesizeMB
-//  _filesizeMB = readInt();
-//  // 7. layer
-//  _layer = readString();
-//}
+void CoorCommand::buildType2(int type, unsigned int ip, string blockname, int offset, int length, string method) {
+  // set up corresponding parameters
+  _type = type;
+  _clientIp = ip;
+  _blockName = blockname;
+  _offset = offset;
+  _length = length;
+  _method = method;
+
+  // 1. type
+  writeInt(_type);
+  // 2. ip
+  writeInt(_clientIp);
+  // 3. blockName
+  writeString(_blockName);
+  // 4. offset
+  writeInt(_offset);
+  // 5. length
+  writeInt(_length);
+  // 6. method
+  writeString(_method);
+}
+
+void CoorCommand::resolveType2() {
+  // 2. ip
+  _clientIp = readInt();
+  // 3. blockName
+  _blockName = readString();
+  // 4. offset
+  _offset = readInt();
+  // 5. lenght
+  _length = readInt();
+  // 6. method
+  _method = readString();
+}
+
 
 void CoorCommand::dump() {
   cout << "CoorCommand::type: " << _type;

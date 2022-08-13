@@ -9,22 +9,9 @@ using namespace std;
 /**
  * CoorCommand Format
  * coor_request: type
- *   type = 0: clientip | blockname | 
- *  
- *   type = 0: clientip | filename | ecid | mode | filesizeMB |
- *   type = 1: clientip | objname |
- *   type = 2: clientip | filename |
- *   type = 3: clientip | filename | get redundancyType, filesize, ecid|
- *   type = 4: clientip | poolname | stripename |
- *   type = 5: clientip | objname // offline degraded for object
- *   type = 5: clientip | filename | poolname | stripename |
- *   type = 6: clientip | filename |   // report lost
- *   type = 7:  0 (disable)/ 1 (enable) | encode/repair
- *   type = 8: clientip | lostobjname |  // stripestore send repair request to coordinator
- *   type = 9: clientip | filename | corrupnum | idx1-idx2..| // 
- *  ? type = 10: clientip| filename |  // update lostmap in stripestore
- *   type = 11: clientip| filename |   // report successfully repair
- *   type = 12: clientip | benchname | 
+ *   type = 0: clientip | blockname | method |
+ *   type = 1: clientip | nodeip | code | method |
+ *   type = 3: clientip | blockname | offset | length | method |
  */
 
 
@@ -45,37 +32,10 @@ class CoorCommand {
     string _code;
     // _method;
 
-//    string _ecid;
-//    int _mode;
-//    int _filesizeMB;
-//
-//    // type 1
-//    int _numOfReplicas;
-//
-//    // type 4
-//    // client ip
-//    string _ecpoolid;
-//    string _stripename;
-//
-//    // type 5
-//    // _filename
-//
-//    // type 6
-//    // _filename
-//
-//    // type 7
-//    int _op; // enable/disable
-//    string _ectype; // encode/repair
-//
-//    // type9
-//    // _filename
-//    vector<int> _corruptIdx;
-//
-//    // type12
-//    string _benchname;
-//
-//    // type21
-//    string _layer;
+    // type 2
+    int _offset;
+    int _length;
+
 
   public:
     CoorCommand();
@@ -95,48 +55,22 @@ class CoorCommand {
     string getMethod();
     unsigned int getNodeIp();
     string getCode();
-//    string getEcid();
-//    int getMode();
-//    int getFilesizeMB();
-//    int getNumOfReplicas();
-//    string getECPoolId();
-//    string getStripeName();
-//    int getOp();
-//    string getECType();
-//    vector<int> getCorruptIdx();
-//    string getBenchName();
-//    string getLayer();
-//
+    int getOffset();
+    int getLength();
+    
     // send method
     void sendTo(unsigned int ip);
 //    void sendTo(redisContext* sendCtx);
 //
     // build CoorCommand
-    void buildType0(int type,
-                    unsigned int ip,
-                    string blockname,
-                    string method); 
-    void buildType1(int type,
-            unsigned int ip,
-            unsigned int nodeip,
-            string code,
-            string method);
+    void buildType0(int type, unsigned int ip, string blockname, string method); 
+    void buildType1(int type, unsigned int ip, unsigned int nodeip, string code, string method);
+    void buildType2(int type, unsigned int ip, string blockname, int offset, int length, string method);
 
     // resolve CoorCommand
     void resolveType0();
     void resolveType1();
-//    void resolveType1();
-//    void resolveType2();
-//    void resolveType3();
-//    void resolveType4();
-//    void resolveType5();
-//    void resolveType6();
-//    void resolveType7();
-//    void resolveType8();
-//    void resolveType9();
-//    void resolveType11();
-//    void resolveType12();
-//	void resolveType21();
+    void resolveType2();
 //
     // for debug
     void dump();

@@ -34,6 +34,7 @@ void Coordinator::doProcess() {
       switch (type) {
         case 0: repairBlock(coorCmd); break;
         case 1: repairNode(coorCmd); break;
+        case 2: readBlock(coorCmd); break;
         default: break;
       }
       delete coorCmd;
@@ -989,4 +990,142 @@ void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map
     }
     gettimeofday(&time2, NULL);
     cout << "Coordinator::repairNodeConv.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
+}
+
+void Coordinator::readBlock(CoorCommand* coorCmd) {
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    unsigned int clientIp = coorCmd->getClientIp();
+    string blockName = coorCmd->getBlockName();
+    int offset = coorCmd->getOffset();
+    int length = coorCmd->getLength();
+    string method = coorCmd->getMethod();
+
+    // verify whether client is in clientnodes
+    if (find(_conf->_clientIPs.begin(), _conf->_clientIPs.end(), clientIp) == _conf->_clientIPs.end()) {
+        // we find that the request is sent from a non-client node
+        // modify the client to a client node
+        clientIp = _conf->_clientIPs[0];
+        cout << "Coor::repairBlock.revise repair ip to " << RedisUtil::ip2Str(clientIp) << endl;
+    }
+    cout << "Coor::readBlock.blockname: " << blockName << ", offset: " << offset << ", length: " << length << ", method: " << method << endl;
+
+    if (method == "dist") {
+//        repairBlockDist1(blockName, clientIp, true);
+    } else if (method == "conv") {
+        readBlockConv(blockName, clientIp, true, offset, length);
+    } else {
+        cout << "ERROR::wrong method!" << endl;
+    }
+}
+
+void Coordinator::readBlockConv(string blockName, unsigned int clientip, bool enforceip, int offset, int length) {
+    cout << "Coor::readBlockConv:blockName: " << blockName << endl;
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    // 0. figure out the stripe that contains this block
+    StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
+    string stripename = stripemeta->getStripeName();
+    long long blkbytes = stripemeta->getBlockBytes();
+    int pktbytes = stripemeta->getPacketBytes();
+
+    // 1. figure out substripe info
+    int substripe_offset = offset / pktbytes * pktbytes;
+    int substripe_blockbytes;
+    if (length % pktbytes == 0)
+        substripe_blockbytes = length / pktbytes;
+    else
+        substripe_blockbytes = (length / pktbytes + 1) * pktbytes;
+    cout << "stripename: " << stripename << ", substripe_offset: " << substripe_offset << ", substripe_blockbytes: " << substripe_blockbytes << ", pktybtes: " << pktbytes << endl;
+
+    // 1. the index of the failed block
+    int repairBlockIdx = stripemeta->getBlockIndex(blockName);
+    cout << "Coor::repairBlockConv.repairBlockIdx: " << repairBlockIdx << endl;
+
+    // 2. prepare blocklist and loclist
+    int ecn = stripemeta->getECN();
+    int eck = stripemeta->getECK();
+    int ecw = stripemeta->getECW();
+
+    vector<string> blocklist = stripemeta->getBlockList();
+    vector<unsigned int> loclist = stripemeta->getLocList();
+
+    //cout << "Coor::repairBlock.blocklist: " << endl;
+    //for (int i=0; i<ecn; i++) {
+    //    cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
+    //}
+
+    // 3. figure out repairloc
+    if (enforceip) {
+        loclist[repairBlockIdx] = clientip;
+    }
+    unsigned int repairLoc = loclist[repairBlockIdx];
+
+    // 4. prepare availidx
+    vector<int> availIndex;
+    vector<int> toRepairIndex;
+    for (int i=0; i<ecn; i++) {
+        for (int j=0; j<ecw; j++) {
+            int pktidx = i*ecw+j;
+            if (i == repairBlockIdx)
+                toRepairIndex.push_back(pktidx);
+            else
+                availIndex.push_back(pktidx);
+        }
+    }
+    //cout << "avail: ";
+    //for (auto item: availIndex)
+    //    cout << item << " ";
+    //cout << endl;
+
+    // 5. construct ECDAG
+    ECBase* ec = stripemeta->createECClass();
+    ecw = ec->_w;
+    _stripeStore->lock();
+    ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    _stripeStore->unlock();
+    ecdag->Concact(toRepairIndex);
+
+    // 6. divide ecdag into ecunits
+    ecdag->genECUnits();
+
+    // 7. get data structures from ecdag
+    unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+    vector<int> ecHeaders = ecdag->getECHeaders();
+    vector<int> ecLeaves = ecdag->getECLeaves();
+    unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+    vector<int> ecUnitList = ecdag->getUnitList();
+
+    cout << "Total nodes: " << ecNodeMap.size() << endl;
+    cout << "Header nodes: " << ecHeaders.size() << endl;
+    cout << "Leaf nodes: " << ecLeaves.size() << endl;
+
+    int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+    cout << "Intermediate nodes: " << intermediate_num << endl;
+
+    vector<ECTask*> tasklist;
+    ecdag->genConvECTasksWithOffset(tasklist, ecn, eck, ecw, substripe_blockbytes, pktbytes, stripename, blocklist, loclist, repairBlockIdx, substripe_offset);
+
+    gettimeofday(&time2, NULL);
+
+    // 8. send out tasks
+    //cout << "ECTasks: " << endl;
+    for (int i=0; i<tasklist.size(); i++) {
+
+        //if (i > 4)
+        //    break;
+
+        ECTask* task = tasklist[i];
+        //cout << "  " << tasklist[i]->dumpStr() << endl;
+        task->sendTask(i);
+    }
+
+    // delete
+    delete ec;
+    delete ecdag;
+    for (int i=0; i<tasklist.size(); i++) {
+        delete tasklist[i];
+    }
 }

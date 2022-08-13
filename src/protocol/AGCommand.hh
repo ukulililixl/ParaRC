@@ -73,6 +73,10 @@ class AGCommand {
 
     // type 5: repair by transfer
     //
+
+    // type 6: read with offset
+    int _offset;
+
   public:
     AGCommand();
     ~AGCommand();
@@ -102,6 +106,7 @@ class AGCommand {
     int getNFetchStream();
     int getNCompute();
     int getNOutCids();
+    int getOffset();
 
     void sendTo(unsigned int ip);
 
@@ -163,6 +168,27 @@ class AGCommand {
             vector<ComputeTask*> ctlist,
             unordered_map<int, int> cid2refs,
             int taskid);
+    void buildType6(int type, 
+            unsigned int sendip, 
+            string blockname, 
+            int blkbytes,
+            int pktbytes,
+            int ecw, 
+            unordered_map<int, int> cid2ref,
+            string stripename,
+            int offset);
+    void buildType7(int type,
+            unsigned int sendip,
+            string blockname, 
+            int blkbytes,
+            int pktbytes,
+            vector<int> cidlist,
+            int ecw, 
+            string stripename,
+            vector<ComputeTask*> ctlist,
+            unordered_map<int, int> cid2refs,
+            int taskid,
+            int offset);
 
     // resolve AGCommand
     void resolveType0();
@@ -171,6 +197,8 @@ class AGCommand {
     void resolveType3();
     void resolveType4();
     void resolveType5();
+    void resolveType6();
+    void resolveType7();
 
     string dumpStr();
 };

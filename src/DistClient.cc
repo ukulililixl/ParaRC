@@ -11,6 +11,7 @@ using namespace std;
 void usage() {
   cout << "usage: ./DistClient repairBlock blockname method" << endl;
   cout << "       ./DistClient repairNode ip code method" << endl;
+  cout << "       ./DistClient readBlock blockname offset length method" << endl;
 }
 
 void repairBlock(string blockname, string method) {
@@ -54,6 +55,31 @@ void repairNode(string nodeipstr, string code, string method) {
   delete conf;
 }
 
+void readBlock(string blockname, int offset, int length, string method) {
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    string confpath("./conf/sysSetting.xml");
+    Config* conf = new Config(confpath);
+    
+    CoorCommand* cmd = new CoorCommand();
+    cmd->buildType2(2, conf->_localIp, blockname, offset, length, method);
+    cmd->sendTo(conf->_coorIp);
+    
+    delete cmd;
+    delete conf;
+    
+    // wait for finish flag?
+    redisContext* waitCtx = RedisUtil::createContext(conf->_localIp);
+    string wkey = "writefinish:"+blockname;
+    redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+    freeReplyObject(fReply);
+    redisFree(waitCtx);
+
+    gettimeofday(&time2, NULL);
+    cout << "repairBlock::repair time: " << DistUtil::duration(time1, time2) << endl;
+}
+
 int main(int argc, char** argv) {
     
     if (argc < 2) {
@@ -81,6 +107,17 @@ int main(int argc, char** argv) {
         string code(argv[3]);
         string method(argv[4]);
         repairNode(nodeip, code, method);
+    } else if (reqType == "readBlock") {
+        if (argc != 6) {
+            usage();
+            return -1;
+        }
+
+        string blockname(argv[2]);
+        int offset = atoi(argv[3]);
+        int length = atoi(argv[4]);
+        string method(argv[5]);
+        readBlock(blockname, offset, length, method);
     }
 //  if (reqType == "write") {
 //    if (argc != 7) {

@@ -944,6 +944,13 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
             // cidx is a leaf
             // figure out corresponding blockidx
             int tmpblkidx = cidx / ecw;
+
+            if (tmpblkidx >= ecn) {
+                // This is a shortening index
+                transfer = false;
+                break;
+            }
+
             if (blkidx == -1)
                 blkidx = tmpblkidx;
 
@@ -996,7 +1003,7 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
 
             int bid = cid/ecw;
             
-            if (bid < ecn) {
+            if (bid <= ecn-1) {
                 // final unit needs data read from disk
                 if (readbid2cids.find(bid) == readbid2cids.end()) {
                     vector<int> tmplist = {cid};
@@ -1015,6 +1022,7 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
 
         for (auto item: ip2transferunits) {
             unsigned int ip = item.first;
+            //cout << "ip: " << RedisUtil::ip2Str(ip) << endl;
             vector<int> units = item.second;
             string blockname;
 
@@ -1030,11 +1038,17 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
                 ECUnit* cunit = _ecUnitMap[unitidx];
                 vector<int> srclist = cunit->getChilds();
 
+                //cout << "srclist: ";
+                //for (auto tmpid: srclist)
+                //    cout << tmpid << " ";
+                //cout << endl;
+
                 if (blockidx == -1) {
                     blockidx = srclist[0]/ecw;
                     for (auto cid: srclist)
                         readIdxList.push_back(cid);
                     blockname = blocklist[blockidx];
+                    //cout << "blockidx: " << blockidx << ", blockname: " << blockname << endl;
                 } else {
                     assert(blockidx == srclist[0]/ecw);
                     for (auto cid: srclist) {

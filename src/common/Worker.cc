@@ -646,7 +646,7 @@ void Worker::concatenate2(AGCommand* agcmd) {
 
 void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes) {
   string fullpath = _conf->_blkDir + "/" + blockname;
-  cout << "Worker::readWorker:fullpath = " << fullpath << endl;
+  //cout << "Worker::readWorker:fullpath = " << fullpath << endl;
   
   int fd = open(fullpath.c_str(), O_RDONLY);
   int subpktbytes = pktbytes / ecw;
@@ -842,10 +842,11 @@ void Worker::cacheWorker(BlockingQueue<DataPacket*>* cachequeue, vector<int> idx
   
   gettimeofday(&time2, NULL);
   cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << keybase << ":";
-  for (int i=0; i<idxlist.size(); i++) {
-      cout << idxlist[i] << " ";
-  }
+  //for (int i=0; i<idxlist.size(); i++) {
+  //    cout << idxlist[i] << " ";
+  //}
   cout << endl;
+  redisFree(writeCtx);
 }
 
 void Worker::cacheWorker2(
@@ -897,6 +898,7 @@ void Worker::cacheWorker2(
       cout << item.first << " ";
   }
   cout << endl;
+  redisFree(writeCtx);
 }
 
 void Worker::fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
@@ -1276,10 +1278,10 @@ void Worker::readAndCompute(AGCommand* agcmd) {
         pattern[j] = 1;
         patternidx[j] = cid;
     }
-    cout << "Worker::readDisk.pattern: ";
-    for (int i=0; i<ecw; i++)
-      cout << pattern[i] << " ";
-    cout << endl;
+    // cout << "Worker::readDisk.pattern: ";
+    // for (int i=0; i<ecw; i++)
+    //   cout << pattern[i] << " ";
+    // cout << endl;
 
     unordered_map<int, BlockingQueue<DataPacket*>*> readmap;
     for (int i=0; i<patternidx.size(); i++) {

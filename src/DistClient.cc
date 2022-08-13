@@ -27,8 +27,7 @@ void repairBlock(string blockname, string method) {
     cmd->sendTo(conf->_coorIp);
     
     delete cmd;
-    delete conf;
-    
+
     // wait for finish flag?
     redisContext* waitCtx = RedisUtil::createContext(conf->_localIp);
     string wkey = "writefinish:"+blockname;
@@ -38,6 +37,8 @@ void repairBlock(string blockname, string method) {
 
     gettimeofday(&time2, NULL);
     cout << "repairBlock::repair time: " << DistUtil::duration(time1, time2) << endl;
+
+    delete conf;
 }
 
 void repairNode(string nodeipstr, string code, string method) {

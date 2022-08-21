@@ -4,13 +4,18 @@ import subprocess
 import os
 import argparse
 import re
+import xml.etree.ElementTree as ET
 
 def parse_args(cmd_args):
     arg_parser = argparse.ArgumentParser(description="Generate block metadata files from HDFS by OpenEC online write in XML format")
+    arg_parser.add_argument("-code", type=str, required=True, help="EC code name")
     arg_parser.add_argument("-n", type=int, required=True, help="ECN")
     arg_parser.add_argument("-k", type=int, required=True, help="ECK")
+    arg_parser.add_argument("-w", type=int, required=True, help="ECW")
     arg_parser.add_argument("-bs", type=int, required=True, help="EC block size (in Bytes)")
+    arg_parser.add_argument("-ps", type=int, required=True, help="EC packet size (in Bytes)")
     arg_parser.add_argument("-filename", type=str, required=True, help="file name (prefix) from OpenEC")
+    arg_parser.add_argument("-meta_filename", type=str, required=True, help="metadata file name (prefix) for ParaRC")
 
     args = arg_parser.parse_args(cmd_args)
     return args
@@ -35,14 +40,16 @@ def get_hadoop_home_dir():
 def get_blk_records(filename, hadoop_home_dir):
     # list all blocks
     block_map = {}
-    block_names = []
+    block_hdfs_filenames = []
     cmd = "hdfs fsck / -files -blocks -locations | grep {}".format(filename)
     block_records = os.popen(cmd).readlines()
     for block_record in block_records:
         match_results = re.match(r"^(\S+) .*$", block_record)
-        block_name = match_results.groups()[0]
-        block_names.append(block_name)
+        block_hdfs_filename = match_results.groups()[0]
+        block_hdfs_filenames.append(block_hdfs_filename)
 
+    block_names = []
+    block_ips = []
     block_paths = []
     cmd = "hdfs fsck / -files -blocks -locations | grep Datanode"
     block_records = os.popen(cmd).readlines()
@@ -51,23 +58,51 @@ def get_blk_records(filename, hadoop_home_dir):
         folder_name_suffix = match_results.groups()[0]
         block_name_suffix = match_results.groups()[1]
 
+        match_results = re.match(r"^.*\[DatanodeInfoWithStorage\[([0-9.]+):.*$", block_record)
+        block_ip = match_results.groups()[0]
+        block_name = "blk_" + block_name_suffix
+
         block_path = hadoop_home_dir + "/dfs/data/current/BP-" + folder_name_suffix + "/current/finalized/subdir0/subdir0/blk_" + block_name_suffix
 
+        block_names.append(block_name)
+        block_ips.append(block_ip)
         block_paths.append(block_path)
 
+    print(block_hdfs_filenames)
     print(block_names)
     print(block_paths)
+    print(block_ips)
 
     match_string = "^{}_oecobj_([\d+])$".format(filename)
-    print(match_string)
-    for i in range(len(block_names)):
-        match_results = re.match(match_string, block_names[i])
+    for i in range(len(block_hdfs_filenames)):
+        match_results = re.match(match_string, block_hdfs_filenames[i])
         if not match_results:
             continue
         block_id = int(match_results.groups()[0])
-        block_map[block_id] = [block_names[i], block_paths[i]]
+        block_map[block_id] = [block_names[i], block_ips[i], block_paths[i]]
 
     return block_map
+
+def add_xml_element(root, attr_name, attr_val):
+    if root is None:
+        print("error: invalid root")
+        return None
+
+    attr = ET.SubElement(root, "attribute")
+    attr.tail = "\n"
+    name = ET.SubElement(attr, "name")
+    name.text = attr_name
+
+    # special handling for blocklist
+    if attr_name != "blocklist":
+        value = ET.SubElement(attr, "value")
+        value.text = str(attr_val)
+    else:
+        name.tail = "\n"
+        for key, val in attr_val.items():
+            value = ET.SubElement(attr, "value")
+            value.text = str(val[0]) + ":" + str(val[1])
+            value.tail = "\n"
 
 
 def main():
@@ -75,10 +110,14 @@ def main():
     if not args:
         exit()
     
+    code = args.code
     ecn = args.n
     eck = args.k
+    ecw = args.w
     bs_Bytes = args.bs
+    ps_Bytes = args.ps
     filename = args.filename
+    meta_filename = args.meta_filename
 
     home_dir = get_home_dir()
 
@@ -97,6 +136,27 @@ def main():
     block_map = get_blk_records(filename, hadoop_home_dir)
 
     # generate xml file to block records (check filename)
+    # Note: in HDFS, files are named starting with "/", remove this
+    meta_file_path = stripeStore_dir + "/" + code + "-" + filename[1:] + ".xml"
+    
+    # build XML file
+    _stripe = ET.Element("stripe")
+    _stripe.text = "\n"
+    add_xml_element(_stripe, "code", code)
+    add_xml_element(_stripe, "ecn", ecn)
+    add_xml_element(_stripe, "eck", eck)
+    add_xml_element(_stripe, "ecw", ecw)
+    add_xml_element(_stripe, "stripename", filename)
+    add_xml_element(_stripe, "blocklist", block_map)
+    add_xml_element(_stripe, "blockbytes", str(bs_Bytes))
+    add_xml_element(_stripe, "pktbytes", str(ps_Bytes))
+
+    tree = ET.ElementTree(_stripe)
+
+    tree.write(meta_file_path)
+
+    print("generate meta for file {} at {}".format(filename, meta_file_path))
+
 
 
 

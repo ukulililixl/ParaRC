@@ -68,12 +68,13 @@ def get_blk_records(filename, hadoop_home_dir):
         block_ips.append(block_ip)
         block_paths.append(block_path)
 
-    print(block_hdfs_filenames)
-    print(block_names)
-    print(block_paths)
-    print(block_ips)
+    # print(block_hdfs_filenames)
+    # print(block_names)
+    # print(block_paths)
+    # print(block_ips)
 
-    match_string = "^{}_oecobj_([\d+])$".format(filename)
+    match_string = "^{}_oecobj_(\d+)$".format(filename)
+    # match_string = "^{}_([\d+])_oecobj_0$".format(filename)
     for i in range(len(block_hdfs_filenames)):
         match_results = re.match(match_string, block_hdfs_filenames[i])
         if not match_results:
@@ -135,9 +136,11 @@ def main():
     # get block map <block_id, [block_name, block_path]>
     block_map = get_blk_records(filename, hadoop_home_dir)
 
+    # print(block_map)
+
     # generate xml file to block records (check filename)
     # Note: in HDFS, files are named starting with "/", remove this
-    meta_file_path = stripeStore_dir + "/" + code + "-" + filename[1:] + ".xml"
+    meta_file_path = stripeStore_dir + "/" + filename[1:] + ".xml"
     
     # build XML file
     _stripe = ET.Element("stripe")
@@ -146,7 +149,7 @@ def main():
     add_xml_element(_stripe, "ecn", ecn)
     add_xml_element(_stripe, "eck", eck)
     add_xml_element(_stripe, "ecw", ecw)
-    add_xml_element(_stripe, "stripename", filename)
+    add_xml_element(_stripe, "stripename", filename[1:])
     add_xml_element(_stripe, "blocklist", block_map)
     add_xml_element(_stripe, "blockbytes", str(bs_Bytes))
     add_xml_element(_stripe, "pktbytes", str(ps_Bytes))

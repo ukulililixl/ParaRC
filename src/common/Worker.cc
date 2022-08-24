@@ -478,7 +478,8 @@ void Worker::concatenate(AGCommand* agcmd) {
   int blkbytes = agcmd->getBlkBytes();
   int pktbytes = agcmd->getPktBytes();
 
-  string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+  // string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+  string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
 
   // create blockingqueue for fetching
   BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
@@ -544,7 +545,8 @@ void Worker::concatenate2(AGCommand* agcmd) {
     int pktbytes = agcmd->getPktBytes();
     int taskid = agcmd->getTaskid();
 
-    string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+    // string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+    string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
 
     //cout << "Worker::concatenate2:nFetchStream = " << nFetchStream << endl;
     //cout << "Worker::concatenate2:stripename = " << stripename << endl;
@@ -645,8 +647,9 @@ void Worker::concatenate2(AGCommand* agcmd) {
 }
 
 void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes) {
-  string fullpath = _conf->_blkDir + "/" + blockname;
-  //cout << "Worker::readWorker:fullpath = " << fullpath << endl;
+  // string fullpath = _conf->_blkDir + "/" + blockname;
+  string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname);
+  cout << "Worker::readWorker:fullpath = " << fullpath << endl;
   
   int fd = open(fullpath.c_str(), O_RDONLY);
   int subpktbytes = pktbytes / ecw;
@@ -682,7 +685,8 @@ void Worker::readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname,
 }
 
 void Worker::readWorkerWithOffset(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw, vector<int> pattern, int blkbytes, int pktbytes, int offset) {
-  string fullpath = _conf->_blkDir + "/" + blockname;
+  // string fullpath = _conf->_blkDir + "/" + blockname;
+  string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname);
   cout << "Worker::readWorker:fullpath = " << fullpath << endl;
   
   int fd = open(fullpath.c_str(), O_RDONLY);
@@ -721,7 +725,8 @@ void Worker::readWorkerWithOffset(BlockingQueue<DataPacket*>* readqueue, string 
 void Worker::readWorker(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
         string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
         int blkbytes, int pktbytes) {
-    string fullpath = _conf->_blkDir + "/" + blockname;
+    // string fullpath = _conf->_blkDir + "/" + blockname;
+    string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname);
     cout << "Worker::readWorker:fullpath = " << fullpath << endl;
     
     int fd = open(fullpath.c_str(), O_RDONLY);
@@ -761,7 +766,8 @@ void Worker::readWorker(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
 void Worker::readWorkerWithOffset(unordered_map<int, BlockingQueue<DataPacket*>*> readmap,
         string blockname, int ecw, vector<int> pattern, vector<int> patternidx,
         int blkbytes, int pktbytes, int offset) {
-    string fullpath = _conf->_blkDir + "/" + blockname;
+    // string fullpath = _conf->_blkDir + "/" + blockname;
+    string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname);
     cout << "Worker::readWorker:fullpath = " << fullpath << endl;
     
     int fd = open(fullpath.c_str(), O_RDONLY);

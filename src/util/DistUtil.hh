@@ -17,6 +17,8 @@ class DistUtil {
     static int ndigits(int m);
     static string num2str(int num, int digits);
     static string vec2str(vector<int> v, int digits);
+    static string execShellCmd(string command);
+    static string getFullPathForBlock(string blockDir, string blockName);
 };
 
 

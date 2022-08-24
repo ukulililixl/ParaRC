@@ -7,7 +7,7 @@
 
 #include "ec/Clay.hh"
 #include "ec/MISER.hh"
-#include "ec/BUTTERFLY64.hh"
+#include "ec/BUTTERFLY.hh"
 
 #include "dist/Solution.hh"
 
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
     ec = new MISER(n, k, w, param);
     dec = new MISER(n, k, w, param);
   } else if (code == "Butterfly") {
-    ec = new BUTTERFLY64(n, k, w, param);
-    dec = new BUTTERFLY64(n, k, w, param);
+    ec = new BUTTERFLY(n, k, w, param);
+    dec = new BUTTERFLY(n, k, w, param);
   } else {
     cout << "wrong ec id!" << endl;
     return -1;

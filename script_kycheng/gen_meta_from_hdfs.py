@@ -62,11 +62,17 @@ def get_blk_records(filename, hadoop_home_dir):
         block_ip = match_results.groups()[0]
         block_name = "blk_" + block_name_suffix
 
-        block_path = hadoop_home_dir + "/dfs/data/current/BP-" + folder_name_suffix + "/current/finalized/subdir0/subdir0/blk_" + block_name_suffix
+        # # find block path
+        # block_root_dir = hadoop_home_dir + "/dfs/data/current"
+        # cmd = 'ssh {} \'cd {}; find \"$(pwd -P)\" -name \"{}\"\''.format(block_ip, block_root_dir, block_name)
+        # block_path_str, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()
+        # block_path = block_path_str.decode().strip()
+
+        # block_path = hadoop_home_dir + "/dfs/data/current/BP-" + folder_name_suffix + "/current/finalized/subdir0/subdir0/blk_" + block_name_suffix
 
         block_names.append(block_name)
         block_ips.append(block_ip)
-        block_paths.append(block_path)
+        # block_paths.append(block_path)
 
     # print(block_hdfs_filenames)
     # print(block_names)
@@ -80,7 +86,8 @@ def get_blk_records(filename, hadoop_home_dir):
         if not match_results:
             continue
         block_id = int(match_results.groups()[0])
-        block_map[block_id] = [block_names[i], block_ips[i], block_paths[i]]
+        block_map[block_id] = [block_names[i], block_ips[i]]
+        # block_map[block_id] = [block_names[i], block_ips[i], block_paths[i]]
 
     return block_map
 

@@ -39,6 +39,7 @@ class Worker {
 
     void readAndCacheWithOffset(AGCommand* agCmd);
     void readAndComputeWithOffset(AGCommand* agCmd);
+    void fetchAndCompute3(AGCommand* agCmd); // for large w
 
     // basic routines
     void readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw,
@@ -58,6 +59,11 @@ class Worker {
                      unordered_map<int, int> cacheRefs,
                      int ecw, string stripename,
                      int blkbytes, int pktbytes);
+    void cacheWorker3(BlockingQueue<DataPacket*>* cachequeue,
+                     vector<int> cachelist,
+                     unordered_map<int, int> cacheRefs,
+                     int ecw, string stripename,
+                     int blkbytes, int pktbytes);
     void fetchWorker(BlockingQueue<DataPacket*>* fetchQueue,
                      string keybase,
                      unsigned int loc,
@@ -70,6 +76,13 @@ class Worker {
                      int ecw,
                      int blkbytes, 
                      int pktbytes);
+    void fetchWorker3(BlockingQueue<DataPacket*>* fetchqueue,
+                    string stripename,
+                    vector<int> cidlist,
+                    unsigned int loc,
+                    int ecw,
+                    int blkbytes,
+                    int pktbytes);
     void computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
                        vector<int> fetchIndices,
                        BlockingQueue<DataPacket*>** writeQueue,
@@ -78,6 +91,11 @@ class Worker {
                        int blkbytes, int pktbytes);
     void computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchMap,
             unordered_map<int, BlockingQueue<DataPacket*>*> cacheMap,
+            vector<ComputeTask*> ctlist, int ecw, int blkbytes, int pktbytes);
+    void computeWorker3(unordered_map<unsigned int, BlockingQueue<DataPacket*>*> fetchMap,
+            unordered_map<unsigned int, vector<int>> cidmap,
+            BlockingQueue<DataPacket*>* cachequeue, 
+            vector<int> cachelist,
             vector<ComputeTask*> ctlist, int ecw, int blkbytes, int pktbytes);
 };
 

@@ -326,13 +326,13 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         ComputeTask* ct = new ComputeTask(srclist, dstlist, coefs);
         computeTaskList.push_back(ct);
 
-        cout << "Compute: ( ";
-        for (auto tmpid: srclist)
-            cout << tmpid << " ";
-        cout << ")->( ";
-        for (auto tmpid: dstlist)
-            cout << tmpid << " ";
-        cout << ")" << endl;
+        // cout << "Compute: ( ";
+        // for (auto tmpid: srclist)
+        //     cout << tmpid << " ";
+        // cout << ")->( ";
+        // for (auto tmpid: dstlist)
+        //     cout << tmpid << " ";
+        // cout << ")" << endl;
 
         freeReplyObject(rReply);
         computeCmd->setCmd(NULL, 0);
@@ -349,10 +349,10 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
     freeReplyObject(rReply);
     delete cacheCmd;
 
-    cout << "cache: ";
-    for (auto tmpitem: cacheRefs)
-        cout << "(" << tmpitem.first << "," << tmpitem.second << ") ";
-    cout << endl;
+    // cout << "cache: ";
+    // for (auto tmpitem: cacheRefs)
+    //     cout << "(" << tmpitem.first << "," << tmpitem.second << ") ";
+    // cout << endl;
 
     unordered_map<int, BlockingQueue<DataPacket*>*> cachemap;
     for (auto item: cacheRefs) {
@@ -478,8 +478,8 @@ void Worker::concatenate(AGCommand* agcmd) {
   int blkbytes = agcmd->getBlkBytes();
   int pktbytes = agcmd->getPktBytes();
 
-  // string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
-  string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
+  string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+  // string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
 
   // create blockingqueue for fetching
   BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
@@ -545,8 +545,8 @@ void Worker::concatenate2(AGCommand* agcmd) {
     int pktbytes = agcmd->getPktBytes();
     int taskid = agcmd->getTaskid();
 
-    // string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
-    string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
+    string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+    // string fullpath = DistUtil::getFullPathForBlock(_conf->_blkDir, blockname) + ".repair";
 
     //cout << "Worker::concatenate2:nFetchStream = " << nFetchStream << endl;
     //cout << "Worker::concatenate2:stripename = " << stripename << endl;
@@ -1012,9 +1012,9 @@ void Worker::fetchWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetchM
     }
     gettimeofday(&time2, NULL);
     cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for ";
-    for (auto item: fetchMap) {
-        cout << item.first << " ";
-    }
+    // for (auto item: fetchMap) {
+    //     cout << item.first << " ";
+    // }
     cout << endl;
     redisFree(fetchCtx);
   }

@@ -1275,10 +1275,12 @@ void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
 
   int subpktbytes = pktbytes / ecw;
   int pktnum = blkbytes / pktbytes;
+
+  unordered_map<int, char*> bufMap;
+  unordered_map<int, DataPacket*> pktMap;
+  unordered_map<int, int> ignore;
    
   for (int i=0; i<pktnum; i++) {
-    unordered_map<int, char*> bufMap;
-    unordered_map<int, DataPacket*> pktMap;
     
     // read from fetchQueue
     for (int j=0; j<fetchIndices.size(); j++) {
@@ -1342,29 +1344,42 @@ void Worker::computeWorker(BlockingQueue<DataPacket*>** fetchQueue,
     }
     // now the computation is finished
     // we write pkts into writeQueue
-    unordered_map<int, int> ignore;
     for (int wi=0; wi<writeIndices.size(); wi++) {
       int curidx = writeIndices[wi];
       DataPacket* curpkt = pktMap[curidx];
       writeQueue[wi]->push(curpkt);
-      ignore.insert(make_pair(curidx, 1));
+      if (i == 0)
+          ignore.insert(make_pair(curidx, 1));
+      pktMap.erase(curidx);
+      bufMap.erase(curidx);
     }
     // free data packet
     for (auto di=0; di<fetchIndices.size(); di++) {
       int curidx = fetchIndices[di];
       DataPacket* curpkt = pktMap[curidx];
       delete curpkt;
-      ignore.insert(make_pair(curidx, 1));
+      pktMap.erase(curidx);
+      bufMap.erase(curidx);
+      if (i == 0)
+          ignore.insert(make_pair(curidx, 1));
     }
-    // free bufMap
-    for (auto item: bufMap) {
-      int curidx = item.first;
-      if(ignore.find(curidx) == ignore.end() && item.second)
-        free(item.second);
-    }
-    bufMap.clear();
     pktMap.clear();
+    //// free bufMap
+    //for (auto item: bufMap) {
+    //  int curidx = item.first;
+    //  if(ignore.find(curidx) == ignore.end() && item.second)
+    //    free(item.second);
+    //}
+    //bufMap.clear();
+    //pktMap.clear();
   }
+  for (auto item: bufMap) {
+      int curidx = item.first;
+      if(ignore.find(curidx) == ignore.end() && item.second) 
+          free(item.second);
+  }
+  bufMap.clear();
+  pktMap.clear();
   gettimeofday(&time2, NULL);
   cout << "Worker::computeWorker.compute duration: " << DistUtil::duration(time1, time2) << endl;
 }
@@ -1383,9 +1398,11 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
   //cout << "subpktbytes: " << subpktbytes << " , pktnum: " << pktnum << endl;
   //cout << "fetchmap.size: " << fetchMap.size() << ", cacheMap.size: " << cacheMap.size() << endl;
    
+  unordered_map<int, char*> bufMap;
+  unordered_map<int, DataPacket*> pktMap;
+  unordered_map<int, int> ignore;
+
   for (int i=0; i<pktnum; i++) {
-    unordered_map<int, char*> bufMap;
-    unordered_map<int, DataPacket*> pktMap;
 
     // read from fetchmap
     for (auto item: fetchMap) {
@@ -1457,29 +1474,42 @@ void Worker::computeWorker2(unordered_map<int, BlockingQueue<DataPacket*>*> fetc
     }
     // now the computation is finished
     // we write pkts into writeQueue
-    unordered_map<int, int> ignore;
     for (auto item: cacheMap) {
         int curidx = item.first;
         DataPacket* curpkt = pktMap[curidx];
         cacheMap[curidx]->push(curpkt);
-        ignore.insert(make_pair(curidx, 1));
+        pktMap.erase(curidx);
+        bufMap.erase(curidx);
+        if (i == 0)
+            ignore.insert(make_pair(curidx, 1));
     }
     // free data packet
     for (auto item: fetchMap) {
         int curidx = item.first;
         DataPacket* curpkt = pktMap[curidx]; 
         delete curpkt;
-        ignore.insert(make_pair(curidx, 1));
+        pktMap.erase(curidx);
+        bufMap.erase(curidx);
+        if (i == 0)
+            ignore.insert(make_pair(curidx, 1));
     }
-    // free bufMap
-    for (auto item: bufMap) {
-      int curidx = item.first;
-      if(ignore.find(curidx) == ignore.end() && item.second)
-        free(item.second);
-    }
-    bufMap.clear();
+    //// free bufMap
+    //for (auto item: bufMap) {
+    //  int curidx = item.first;
+    //  if(ignore.find(curidx) == ignore.end() && item.second)
+    //    free(item.second);
+    //}
+    //bufMap.clear();
     pktMap.clear();
   }
+  // free bufMap
+  for (auto item: bufMap) {
+    int curidx = item.first;
+    if(ignore.find(curidx) == ignore.end() && item.second)
+      free(item.second);
+  }
+  pktMap.clear();
+  bufMap.clear();
   gettimeofday(&time2, NULL);
   cout << "Worker::computeWorker2.compute duration: " << DistUtil::duration(time1, time2) << endl;
 }
@@ -1599,6 +1629,7 @@ void Worker::computeWorker3(unordered_map<unsigned int, BlockingQueue<DataPacket
                 ignore.insert(make_pair(curidx, 1));
         }
     }
+    pktMap.clear();
 
     ////// free bufMap
     ////for (auto item: bufMap) {

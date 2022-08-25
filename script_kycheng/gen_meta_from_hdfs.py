@@ -41,26 +41,33 @@ def get_blk_records(filename, hadoop_home_dir):
     # list all blocks
     block_map = {}
     block_hdfs_filenames = []
-    cmd = "hdfs fsck / -files -blocks -locations | grep {}".format(filename)
-    block_records = os.popen(cmd).readlines()
-    for block_record in block_records:
-        match_results = re.match(r"^(\S+) .*$", block_record)
-        block_hdfs_filename = match_results.groups()[0]
-        block_hdfs_filenames.append(block_hdfs_filename)
-
     block_names = []
     block_ips = []
     block_paths = []
-    cmd = "hdfs fsck / -files -blocks -locations | grep Datanode"
+    cmd = "hdfs fsck / -files -blocks -locations | sed -n \'/{}/,/{}/p\'".format(filename[1:], "Datanode")
     block_records = os.popen(cmd).readlines()
-    for block_record in block_records:
-        match_results = re.match(r"^.*BP-([0-9.-]+):blk_(\d+)_.*$", block_record)
+    num_records = int(len(block_records) / 2)
+    for i in range(num_records):
+        block_record_filename = block_records[i*2]
+        block_record_blockname = block_records[i*2+1]
+
+        # block name
+        match_results = re.match(r"^(\S+) .*$", block_record_filename)
+        block_hdfs_filename = match_results.groups()[0]
+        block_hdfs_filenames.append(block_hdfs_filename)
+
+        # block location and path
+        match_results = re.match(r"^.*BP-([0-9.-]+):blk_(\d+)_.*$", block_record_blockname)
         folder_name_suffix = match_results.groups()[0]
         block_name_suffix = match_results.groups()[1]
 
-        match_results = re.match(r"^.*\[DatanodeInfoWithStorage\[([0-9.]+):.*$", block_record)
+        match_results = re.match(r"^.*\[DatanodeInfoWithStorage\[([0-9.]+):.*$", block_record_blockname)
         block_ip = match_results.groups()[0]
         block_name = "blk_" + block_name_suffix
+
+        block_names.append(block_name)
+        block_ips.append(block_ip)
+
 
         # # find block path
         # block_root_dir = hadoop_home_dir + "/dfs/data/current"
@@ -70,8 +77,8 @@ def get_blk_records(filename, hadoop_home_dir):
 
         # block_path = hadoop_home_dir + "/dfs/data/current/BP-" + folder_name_suffix + "/current/finalized/subdir0/subdir0/blk_" + block_name_suffix
 
-        block_names.append(block_name)
-        block_ips.append(block_ip)
+        # block_names.append(block_name)
+        # block_ips.append(block_ip)
         # block_paths.append(block_path)
 
     # print(block_hdfs_filenames)

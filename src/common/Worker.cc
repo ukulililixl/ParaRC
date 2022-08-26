@@ -511,10 +511,10 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
         fetchThreads[i].join();
     }
     gettimeofday(&time3, NULL);
-    cout << "Worker::fetchAndCompute2.fetch data duration: " << DistUtil::duration(time2, time3) << endl;
+    cout << "Worker::fetchAndCompute3.fetch data duration: " << DistUtil::duration(time2, time3) << endl;
     computeThread.join();
     gettimeofday(&time3, NULL);
-    cout << "Worker::fetchAndCompute2.compute duration: " << DistUtil::duration(time2, time3) << endl;
+    cout << "Worker::fetchAndCompute3.compute duration: " << DistUtil::duration(time2, time3) << endl;
     cacheThread.join();
 
 //    // free

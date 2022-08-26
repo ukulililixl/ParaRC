@@ -302,20 +302,6 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         delete fetchCmd;
     }
 
-    // create fetchthreads
-    gettimeofday(&time2, NULL);
-    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
-    int fetchThreadsIdx = 0;
-    for (auto item: ip2cidlist) {
-        unsigned int ip = item.first;
-        vector<int> cidlist = item.second;
-        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
-        for (auto cid: cidlist) {
-            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
-        }
-        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
-    }
-
     // read compute commands
     vector<ComputeTask*> computeTaskList;
     rkey = stripename + ":task" + to_string(taskid) + ":compute";
@@ -363,6 +349,20 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         int cid = item.first;
         BlockingQueue<DataPacket*>* queue = new BlockingQueue<DataPacket*>();
         cachemap.insert(make_pair(cid, queue));
+    }
+
+    // create fetchthreads
+    gettimeofday(&time2, NULL);
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
+        for (auto cid: cidlist) {
+            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
+        }
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
     }
 
     // create compute thread

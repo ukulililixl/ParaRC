@@ -487,6 +487,8 @@ Solution* genSol(vector<int> itm_idx, vector<int> candidates,
 
     }
 
+    cout << "i = " << i-1 << endl;
+
     return sol;
 }
 

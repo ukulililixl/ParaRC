@@ -11,6 +11,9 @@ Solution::Solution(bool ishead) {
         _type = 0;
     else
         _type = 1;
+
+    _load = 0;
+    _bdwt = 0;
 }
 
 Solution::Solution(int v, int m) {
@@ -18,7 +21,7 @@ Solution::Solution(int v, int m) {
     _m = m;
     _expanded = false;
 
-    srand((unsigned)time(NULL));
+    srand(time(NULL));
     //srand(1);
     for (int i=0; i<v; i++) {
         int r = rand() % _m;

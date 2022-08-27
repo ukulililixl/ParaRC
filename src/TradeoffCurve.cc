@@ -393,6 +393,105 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     return head;
 }
 
+int getLength(Solution* head) {
+    int size=0;
+    Solution* cur = head;
+    while (cur != NULL) {
+        cout << "load: " << cur->getLoad() << ", bdwt: " << cur->getBdwt() << endl;
+        size++;
+        cur = cur->getNext();
+    }
+
+    return size;
+}
+
+Solution* genSol(vector<int> itm_idx, vector<int> candidates,
+        unordered_map<int, int> sidx2ip, ECDAG* ecdag,
+        int rounds, int target_load, int target_bdwt, int conv) {
+
+    Solution* sol = NULL;
+    Solution* head;
+    Solution* s;
+    Solution* cur;
+    Solution* next;
+    bool init = false;
+
+    int i=0;
+    while (true) {
+        head = genTradeoffCurve(itm_idx, candidates, sidx2ip, ecdag);
+        bool find = false;
+        s == NULL;
+
+        // iterate the tradeoff line
+        cur = head->getNext();
+        while (cur) {
+            int load = cur->getLoad();
+            int bdwt = cur->getBdwt();
+            //cout << "load: " << load << ", bdwt: " << bdwt << endl;
+
+            if (load == 0 && bdwt == 0) {
+                // reach the tail
+                delete cur;
+                break;
+            } 
+
+            // check whether current solution is good enough
+            if (load >= target_load && bdwt < target_bdwt && load < conv && bdwt >= conv) {
+                //cout << "  yes" << endl;
+                find = true;
+                s = cur;
+
+                // now we delete the remainings
+                cur = cur->getNext();
+                while (cur) {
+                    next = cur->getNext();
+                    delete cur;
+                    cur = next;
+                }
+
+            } else {
+                //cout << "  no" << endl;
+                // the current solution is worse than ecpipe
+                next = cur->getNext();
+                delete cur;
+                cur = next;
+            }
+
+        }
+
+        //  now we find a solution, compare it with sol
+        if (find) {
+            if (sol == NULL)
+                sol = s;
+            else {
+                if (s->getLoad() < sol->getLoad()) {
+                    delete sol;
+                    sol = s;
+                } else {
+                    delete s;
+                }
+            }
+        }
+
+        if (sol == NULL) {
+            //cout <<  "-----" << endl;
+        } else {
+            cout << "  sol: load =  " << sol->getLoad() << ", bdwt: " << sol->getBdwt() << endl;
+        }
+
+        i++;
+
+        if (find && i>rounds) {
+            break;
+        }
+
+    }
+
+    cout << "i = " << i-1 << endl;
+
+    return sol;
+}
+
 Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
         unordered_map<int, int> sidx2ip, ECDAG* ecdag, int rounds, int target_load, int target_bdwt, string terminatestr) {
     
@@ -585,11 +684,13 @@ int main(int argc, char** argv) {
   // idx from 0, 1, ..., n
   // we first color the leave nodes and header nodes
   unordered_map<int, int> sidx2ip;
+  int realLeaves=0;
   for (auto sidx: ecLeaves) {
     int bidx = sidx / w;
-    if (bidx < n )
+    if (bidx < n ) {
         sidx2ip.insert(make_pair(sidx, bidx));
-    else
+        realLeaves++;
+    } else
         sidx2ip.insert(make_pair(sidx, -1));
   }
 
@@ -662,7 +763,8 @@ int main(int argc, char** argv) {
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
+  //Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
+  Solution* mlp = genSol(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, realLeaves);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);
   cout << "Runtime: " << latency << endl;

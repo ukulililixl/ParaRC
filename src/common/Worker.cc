@@ -302,20 +302,6 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         delete fetchCmd;
     }
 
-    // create fetchthreads
-    gettimeofday(&time2, NULL);
-    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
-    int fetchThreadsIdx = 0;
-    for (auto item: ip2cidlist) {
-        unsigned int ip = item.first;
-        vector<int> cidlist = item.second;
-        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
-        for (auto cid: cidlist) {
-            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
-        }
-        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
-    }
-
     // read compute commands
     vector<ComputeTask*> computeTaskList;
     rkey = stripename + ":task" + to_string(taskid) + ":compute";
@@ -363,6 +349,20 @@ void Worker::fetchAndCompute2(AGCommand* agcmd) {
         int cid = item.first;
         BlockingQueue<DataPacket*>* queue = new BlockingQueue<DataPacket*>();
         cachemap.insert(make_pair(cid, queue));
+    }
+
+    // create fetchthreads
+    gettimeofday(&time2, NULL);
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
+        for (auto cid: cidlist) {
+            curfetchmap.insert(make_pair(cid, fetchmap[cid]));
+        }
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
     }
 
     // create compute thread
@@ -440,17 +440,6 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
         delete fetchCmd;
     }
 
-    // create fetchthreads
-    gettimeofday(&time2, NULL);
-    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
-    int fetchThreadsIdx = 0;
-    for (auto item: ip2cidlist) {
-        unsigned int ip = item.first;
-        vector<int> cidlist = item.second;
-        BlockingQueue<DataPacket*>* queue = fetchmap[ip];
-        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker3(queue, stripename, cidlist, ip, ecw, blkbytes, pktbytes);});
-    }
-
     // read compute commands
     vector<ComputeTask*> computeTaskList;
     rkey = stripename + ":task" + to_string(taskid) + ":compute";
@@ -488,16 +477,22 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
     freeReplyObject(rReply);
     delete cacheCmd;
 
-    // cout << "cache: ";
-    // for (auto tmpitem: cacheRefs)
-    //     cout << "(" << tmpitem.first << "," << tmpitem.second << ") ";
-    // cout << endl;
-
     BlockingQueue<DataPacket*>* cachequeue = new BlockingQueue<DataPacket*>();
     vector<int> cachecidlist;
     for (auto item: cacheRefs) {
         int cid = item.first;
         cachecidlist.push_back(cid);
+    }
+
+    // create fetchthreads
+    gettimeofday(&time2, NULL);
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        BlockingQueue<DataPacket*>* queue = fetchmap[ip];
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker3(queue, stripename, cidlist, ip, ecw, blkbytes, pktbytes);});
     }
 
     // create compute thread
@@ -512,16 +507,17 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
     }
     gettimeofday(&time3, NULL);
     cout << "Worker::fetchAndCompute3.fetch data duration: " << DistUtil::duration(time2, time3) << endl;
+
     computeThread.join();
     gettimeofday(&time3, NULL);
     cout << "Worker::fetchAndCompute3.compute duration: " << DistUtil::duration(time2, time3) << endl;
     cacheThread.join();
 
-//    // free
-//    free(redisCtx);
-//    for (auto item: fetchmap) {
-//        delete item.second;
-//    }
+    // free
+    free(redisCtx);
+    for (auto item: fetchmap) {
+        delete item.second;
+    }
 //    delete cachequeue;
 }
 

@@ -63,15 +63,15 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
     cout << "Coor::repairBlock.blockname: " << blockName << ", method: " << method << endl;
 
     if (method == "dist") {
-        repairBlockDist1(blockName, clientIp, true);
+        repairBlockDist1(blockName, clientIp, true, false);
     } else if (method == "conv") {
-        repairBlockConv(blockName, clientIp, true);
+        repairBlockConv(blockName, clientIp, true, false);
     } else {
         cout << "ERROR::wrong method!" << endl;
     }
 }
 
-void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool enforceip) {
+void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool enforceip, bool wait) {
     cout << "Coor::repairBlockConv:blockName: " << blockName << endl;
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
@@ -165,6 +165,17 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool 
         task->sendTask(i);
     }
 
+    // wait for finish flag?
+    if (wait) {
+        redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+        string wkey = "writefinish:"+blockName;
+        redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+        freeReplyObject(fReply);
+        redisFree(waitCtx);
+        gettimeofday(&time3, NULL);
+        //cout << "repairBlockConv:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    }
+
     // delete
     delete ec;
     delete ecdag;
@@ -176,7 +187,7 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool 
 void Coordinator::repairBlockListConv(vector<string> blocklist) {
     cout << "Coordinator::repairBlockListConv" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        repairBlockConv(blocklist[i], 0, false);
+        repairBlockConv(blocklist[i], 0, false, true);
     }
 }
 
@@ -602,7 +613,7 @@ void Coordinator::repairBlockDist(string blockName) {
     }
 }
 
-void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool enforceip) {
+void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool enforceip, bool wait) {
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
 
@@ -825,14 +836,16 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool
     freeReplyObject(distReply);
     redisFree(distCtx);
  
-    //// wait for finish flag?
-    //redisContext* waitCtx = RedisUtil::createContext(repairLoc);
-    //string wkey = "writefinish:"+blockName;
-    //redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
-    //freeReplyObject(fReply);
-    //redisFree(waitCtx);
-    //gettimeofday(&time3, NULL);
-    //cout << "repairBlockDist1:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    // wait for finish flag?
+    if (wait) {
+        redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+        string wkey = "writefinish:"+blockName;
+        redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+        freeReplyObject(fReply);
+        redisFree(waitCtx);
+        gettimeofday(&time3, NULL);
+        //cout << "repairBlockDist1:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    }
  
     // delete
     delete ec;
@@ -844,7 +857,7 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool
 void Coordinator::repairBlockListDist1(vector<string> blocklist) {
     cout << "Coordinator::repairBlockListDist1" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        repairBlockDist1(blocklist[i], 0, false);
+        repairBlockDist1(blocklist[i], 0, false, true);
     }
 }
 

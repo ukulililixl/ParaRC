@@ -25,7 +25,6 @@ void usage() {
   cout << "    6. terminate str [100|110|101|111]" << endl;
 }  
 
-//void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload, int clustersize) {
 void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload) {
 
     unordered_map<int, int> coloring_res;
@@ -655,124 +654,124 @@ int main(int argc, char** argv) {
   }
 
   ECDAG* ecdag = ec->Decode(avail, torepair);
-//  ecdag->Concact(torepair);
-//  //ecdag->dump();
-//
-//  // divide ecdag into ecunits
-//  ecdag->genECUnits();
-//
-//  // get data structures from ecdag
-//  unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
-//  vector<int> ecHeaders = ecdag->getECHeaders(); 
-//  vector<int> ecLeaves = ecdag->getECLeaves();
-//  unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
-//  vector<int> ecUnitList = ecdag->getUnitList();
-//
-//  cout << "Total nodes: " << ecNodeMap.size() << endl;
-//  cout << "Header nodes: " << ecHeaders.size() << endl;
-//  cout << "Leaf nodes: " << ecLeaves.size() << endl;
-//
-//  // for (auto item: ecLeaves) {
-//  //     cout << item << ", ";
-//  // }
-//  // cout << endl;
-//
-//  int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
-//  cout << "Intermediate nodes: " << intermediate_num << endl;
-//
-//  // suppose the number of available nodes equals to n
-//  // idx from 0, 1, ..., n
-//  // we first color the leave nodes and header nodes
-//  unordered_map<int, int> sidx2ip;
-//  int realLeaves=0;
-//  for (auto sidx: ecLeaves) {
-//    int bidx = sidx / w;
-//    if (bidx < n ) {
-//        sidx2ip.insert(make_pair(sidx, bidx));
-//        realLeaves++;
-//    } else
-//        sidx2ip.insert(make_pair(sidx, -1));
-//  }
-//
-//  cout << "realLeaves: " << realLeaves << endl;
-//
-//  // // debug
-//  // for (auto item: sidx2ip) {
-//  //     cout << item.first << ": " << item.second << endl;
-//  // }
-//
-//  // figure out header color
-//  int bidx = torepair[0]/w;
-//  for (auto sidx: ecHeaders) {
-//    sidx2ip.insert(make_pair(sidx, bidx));
-//  }
-//
-//  // now we try to color the intermediate node
-//  vector<int> itm_idx;
-//  vector<int> candidates;
-//  for (auto item: ecNodeMap) {
-//    int sidx = item.first;
-//    if (find(ecHeaders.begin(), ecHeaders.end(), sidx) != ecHeaders.end())
-//      continue;
-//    if (find(ecLeaves.begin(), ecLeaves.end(), sidx) != ecLeaves.end())
-//      continue;
-//    itm_idx.push_back(sidx);
-//    sidx2ip.insert(make_pair(sidx, -1));
-//  }
-//
-//  for (int i=0; i<n; i++)
-//    candidates.push_back(i);
-//  sort(itm_idx.begin(), itm_idx.end());
-//
-//  //cout << "itm_idx: ";
-//  //for (int i=0; i<itm_idx.size(); i++)
-//  //  cout << itm_idx[i] << " ";
-//  //cout << endl;
-//
-//  // cout << "before coloring the intermediate vertex: " << endl;
-//  // for (auto item: sidx2ip) {
-//  //   cout << "  " << item.first << ": " << item.second << endl;
-//  // }
-//
-//  // cout << "intermediate vertex: ";
-//  // for (auto idx: itm_idx)
-//  //   cout << idx <<  " ";
-//  // cout << endl;
-//
-//  // cout << "candidates: ";
-//  // for (auto color: candidates) {
-//  //   cout << color << " ";
-//  // }
-//  // cout << endl;
-//  
-//  // The size of the solution space
-//  double spacesize = pow(candidates.size(), itm_idx.size());
-//  cout << "Spacesize: " << spacesize << endl;
-//
-//  // simple search
-//  
-//  vector<int> curres;
-//  for (int i=0; i<itm_idx.size(); i++)
-//    curres.push_back(-1);
-//
-//  double found=0;
-//  unordered_map<int, vector<int>> max2bwlist;
-//  unordered_map<int, double> process;
-//
-//  int round = n*w;
-//  if (code == "Clay" && n==14)
-//      round = 1;
-//
-//  struct timeval time1, time2;
-//  gettimeofday(&time1, NULL);
-//  //Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
-//  Solution* mlp = genSol(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, realLeaves);
-//  gettimeofday(&time2, NULL);
-//  double latency = DistUtil::duration(time1, time2);
-//  cout << "Runtime: " << latency << endl;
-//
-//  // print the mlp
-//  cout << "Digits: " << mlp->getDigits() << ", string: " << mlp->getString() << endl;
+  ecdag->Concact(torepair);
+  //ecdag->dump();
+
+  // divide ecdag into ecunits
+  ecdag->genECUnits();
+
+  // get data structures from ecdag
+  unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+  vector<int> ecHeaders = ecdag->getECHeaders(); 
+  vector<int> ecLeaves = ecdag->getECLeaves();
+  unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+  vector<int> ecUnitList = ecdag->getUnitList();
+
+  cout << "Total nodes: " << ecNodeMap.size() << endl;
+  cout << "Header nodes: " << ecHeaders.size() << endl;
+  cout << "Leaf nodes: " << ecLeaves.size() << endl;
+
+  // for (auto item: ecLeaves) {
+  //     cout << item << ", ";
+  // }
+  // cout << endl;
+
+  int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+  cout << "Intermediate nodes: " << intermediate_num << endl;
+
+  // suppose the number of available nodes equals to n
+  // idx from 0, 1, ..., n
+  // we first color the leave nodes and header nodes
+  unordered_map<int, int> sidx2ip;
+  int realLeaves=0;
+  for (auto sidx: ecLeaves) {
+    int bidx = sidx / w;
+    if (bidx < n ) {
+        sidx2ip.insert(make_pair(sidx, bidx));
+        realLeaves++;
+    } else
+        sidx2ip.insert(make_pair(sidx, -1));
+  }
+
+  cout << "realLeaves: " << realLeaves << endl;
+
+  // // debug
+  // for (auto item: sidx2ip) {
+  //     cout << item.first << ": " << item.second << endl;
+  // }
+
+  // figure out header color
+  int bidx = torepair[0]/w;
+  for (auto sidx: ecHeaders) {
+    sidx2ip.insert(make_pair(sidx, bidx));
+  }
+
+  // now we try to color the intermediate node
+  vector<int> itm_idx;
+  vector<int> candidates;
+  for (auto item: ecNodeMap) {
+    int sidx = item.first;
+    if (find(ecHeaders.begin(), ecHeaders.end(), sidx) != ecHeaders.end())
+      continue;
+    if (find(ecLeaves.begin(), ecLeaves.end(), sidx) != ecLeaves.end())
+      continue;
+    itm_idx.push_back(sidx);
+    sidx2ip.insert(make_pair(sidx, -1));
+  }
+
+  for (int i=0; i<n; i++)
+    candidates.push_back(i);
+  sort(itm_idx.begin(), itm_idx.end());
+
+  //cout << "itm_idx: ";
+  //for (int i=0; i<itm_idx.size(); i++)
+  //  cout << itm_idx[i] << " ";
+  //cout << endl;
+
+  // cout << "before coloring the intermediate vertex: " << endl;
+  // for (auto item: sidx2ip) {
+  //   cout << "  " << item.first << ": " << item.second << endl;
+  // }
+
+  // cout << "intermediate vertex: ";
+  // for (auto idx: itm_idx)
+  //   cout << idx <<  " ";
+  // cout << endl;
+
+  // cout << "candidates: ";
+  // for (auto color: candidates) {
+  //   cout << color << " ";
+  // }
+  // cout << endl;
+  
+  // The size of the solution space
+  double spacesize = pow(candidates.size(), itm_idx.size());
+  cout << "Spacesize: " << spacesize << endl;
+
+  // simple search
+  
+  vector<int> curres;
+  for (int i=0; i<itm_idx.size(); i++)
+    curres.push_back(-1);
+
+  double found=0;
+  unordered_map<int, vector<int>> max2bwlist;
+  unordered_map<int, double> process;
+
+  int round = n*w;
+  if (code == "Clay" && n==14)
+      round = 1;
+
+  struct timeval time1, time2;
+  gettimeofday(&time1, NULL);
+  //Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
+  Solution* mlp = genSol(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, realLeaves);
+  gettimeofday(&time2, NULL);
+  double latency = DistUtil::duration(time1, time2);
+  cout << "Runtime: " << latency << endl;
+
+  // print the mlp
+  cout << "Digits: " << mlp->getDigits() << ", string: " << mlp->getString() << endl;
 
   return 0;
 }

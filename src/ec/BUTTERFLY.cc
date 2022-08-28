@@ -453,183 +453,183 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
 
       generate_butterfly_parity_decoding_matrix_1(matrix, rBlkIdx, off);
 
-      // Debug
-      // for (int i = 0; i < _w * (_n - 1) * _w / 2; i++){
-      //   cout << matrix[i] << ",";
-      //   if (i % ((_n - 1) * _w / 2) == ((_n - 1) * _w / 2 - 1)){
-      //     cout << endl;
-      //   }
-      // }
-    
+//      // Debug
+//      // for (int i = 0; i < _w * (_n - 1) * _w / 2; i++){
+//      //   cout << matrix[i] << ",";
+//      //   if (i % ((_n - 1) * _w / 2) == ((_n - 1) * _w / 2 - 1)){
+//      //     cout << endl;
+//      //   }
+//      // }
+//    
     }
 
-    // situation (3): parity column 0
-    if (rBlkIdx == _k) {
-      cout << "situation (3)" << endl;
-      for (int i = _w / 2; i < _w; i ++){
-        off.push_back(i);
-      }
-
-      generate_butterfly_parity_decoding_matrix_3(matrix, rBlkIdx, off);
-    }
-
-    for (int i = 0; i < _n; i ++) {
-      if (i == rBlkIdx) continue;
-      for (int j = 0; j < off.size(); j ++) {
-        int cid = i * _chunk_num_per_node + off[j];
-        data.push_back(cid);
-      }
-    }
-    for (int i = 0; i < to.size(); i++) {
-      vector<int> coef;
-      for (int j = 0; j< (_n - 1) * _w / 2; j++) {
-        int c = matrix[i * (_n - 1) * _w / 2 + j];
-        coef.push_back(c);
-      }
-      //ecdag->Join(to[i], data, coef);
- 
-      vector<int> new_data;
-      vector<int> new_coef;
-      for (int ii = 0; ii < coef.size(); ii++) {
-        if (coef[ii] == 0)
-          continue;
-        new_data.push_back(data[ii]);
-        new_coef.push_back(coef[ii]);
-      }
-      ecdag->Join(to[i], new_data, new_coef);
-    }  
-//    ecdag->BindX(to);
-
-  // situation (2): data column dk-1
-  } else if (rBlkIdx == _k - 1) {
-    cout << "situation (2)" << endl;
-    vector<int> off1; // for nodeid == _n - 1;
-    vector<int> off2; // for other nodes
-    int *matrix;
-    matrix = new int[_w * (_n - 1) * _w / 2];
-
-    for (int i = 0; i < _w; i ++){
-      if (i % 2 == 1){
-        off1.push_back(i);
-      } else {
-        off2.push_back(i);
-      }
-    }
-
-    vector<int> data;
-    for (int i = 0; i < _n; i++) {
-      if (i == rBlkIdx) continue;
-      else if (i == _n - 1) {
-        for (int j = 0; j < off1.size(); j++) {
-          int cid = i * _chunk_num_per_node + off1[j];
-          data.push_back(cid);
-        }
-      } else {
-        for (int j = 0; j < off2.size(); j++) {
-          int cid = i * _chunk_num_per_node + off2[j];
-          data.push_back(cid);
-        }
-      }
-    }
-
-    generate_butterfly_parity_decoding_matrix_2(matrix, rBlkIdx, off1, off2);
-
-    for (int i = 0; i < to.size(); i++) {
-      vector<int> coef;
-      for (int j = 0; j < (_n - 1) * _w / 2; j ++) {
-        int c = matrix[i * (_n - 1) * _w / 2 + j];
-        coef.push_back(c);
-      }
-      //ecdag->Join(to[i], data, coef);
-
-      vector<int> new_data;
-      vector<int> new_coef;
-      for (int ii = 0; ii < coef.size(); ii++) {
-        if (coef[ii] == 0)
-          continue;
-        new_data.push_back(data[ii]);
-        new_coef.push_back(coef[ii]);
-      }
-      ecdag->Join(to[i], new_data, new_coef);
-    }
-//    ecdag->BindX(to);
-
-  // situation (4): parity column B
-  } else if (rBlkIdx == _k + 1) {
-    cout << "situation (4)" << endl;
-    vector<int> data;
-    vector<int> off0; // for nodeid=0
-    for (int i = 0; i < _w / 2; i ++){
-      off0.push_back(i);
-    }
-    for (int i = 0; i < off0.size(); i++) data.push_back(off0[i]);
-
-    // for nodeid=1 2 3
-    for (int sid = 1; sid <= _k - 1; sid++) {
-      int *a;
-      a = new int[_w / 2 * _w];
-
-      vector<int> curdata;
-      for (int i=0; i<_chunk_num_per_node; i++) {
-        int cid = sid * _chunk_num_per_node + i;
-        curdata.push_back(cid);
-      }
-
-      generate_xor_data_matrix(a, sid);
-
-      vector<int> curres;
-      for (int i=0; i < _w / 2; i++) {
-        vector<int> curcoef;
-        for (int j=0; j < _w; j++) curcoef.push_back(a[i * _w + j]);
-        //ecdag->Join(_tmp, curdata, curcoef);
-
-        vector<int> new_data;
-        vector<int> new_coef;
-        for (int ii=0; ii<curcoef.size(); ii++) {
-          if (curcoef[ii] == 0)
-            continue;
-          new_data.push_back(curdata[ii]);
-          new_coef.push_back(curcoef[ii]);
-        }
-        ecdag->Join(_tmp, new_data, new_coef);
-
-        curres.push_back(_tmp);
-        data.push_back(_tmp);
-        _tmp++;
-      }
-//      ecdag->BindX(curres);
-    }
-
-    int *matrix;
-    matrix = new int[_w * (_n - 1) * _w / 2];
-
-    vector<int> off4; // for nodeid=4
-    for (int i = _w / 2; i < _w; i ++){
-      off4.push_back(i);
-    }
-    for (int i = 0; i < off4.size(); i++) data.push_back(_k * _chunk_num_per_node + off4[i]);
-    
-    // for (int i = 0; i < data.size(); i++) cout << data[i] << " ";
-    // cout << endl;
-
-    generate_butterfly_parity_decoding_matrix_4(matrix);
-
-    for (int i = 0; i < to.size(); i ++) {
-      vector<int> coef;
-      for (int j = 0; j < (_n - 1) * _w / 2; j++) coef.push_back(matrix[i * (_n - 1) * _w / 2 + j]);
-      //ecdag->Join(to[i], data, coef);
-
-      vector<int> new_data;
-      vector<int> new_coef;
-      for (int ii = 0; ii < coef.size(); ii ++) {
-        if (coef[ii] == 0)
-          continue;
-        new_data.push_back(data[ii]);
-        new_coef.push_back(coef[ii]);
-      }
-      ecdag->Join(to[i], new_data, new_coef);
-    }
-//    ecdag->BindX(to);
+//    // situation (3): parity column 0
+//    if (rBlkIdx == _k) {
+//      cout << "situation (3)" << endl;
+//      for (int i = _w / 2; i < _w; i ++){
+//        off.push_back(i);
+//      }
+//
+//      generate_butterfly_parity_decoding_matrix_3(matrix, rBlkIdx, off);
+//    }
+//
+//    for (int i = 0; i < _n; i ++) {
+//      if (i == rBlkIdx) continue;
+//      for (int j = 0; j < off.size(); j ++) {
+//        int cid = i * _chunk_num_per_node + off[j];
+//        data.push_back(cid);
+//      }
+//    }
+//    for (int i = 0; i < to.size(); i++) {
+//      vector<int> coef;
+//      for (int j = 0; j< (_n - 1) * _w / 2; j++) {
+//        int c = matrix[i * (_n - 1) * _w / 2 + j];
+//        coef.push_back(c);
+//      }
+//      //ecdag->Join(to[i], data, coef);
+// 
+//      vector<int> new_data;
+//      vector<int> new_coef;
+//      for (int ii = 0; ii < coef.size(); ii++) {
+//        if (coef[ii] == 0)
+//          continue;
+//        new_data.push_back(data[ii]);
+//        new_coef.push_back(coef[ii]);
+//      }
+//      ecdag->Join(to[i], new_data, new_coef);
+//    }  
+////    ecdag->BindX(to);
+//
+//  // situation (2): data column dk-1
+//  } else if (rBlkIdx == _k - 1) {
+//    cout << "situation (2)" << endl;
+//    vector<int> off1; // for nodeid == _n - 1;
+//    vector<int> off2; // for other nodes
+//    int *matrix;
+//    matrix = new int[_w * (_n - 1) * _w / 2];
+//
+//    for (int i = 0; i < _w; i ++){
+//      if (i % 2 == 1){
+//        off1.push_back(i);
+//      } else {
+//        off2.push_back(i);
+//      }
+//    }
+//
+//    vector<int> data;
+//    for (int i = 0; i < _n; i++) {
+//      if (i == rBlkIdx) continue;
+//      else if (i == _n - 1) {
+//        for (int j = 0; j < off1.size(); j++) {
+//          int cid = i * _chunk_num_per_node + off1[j];
+//          data.push_back(cid);
+//        }
+//      } else {
+//        for (int j = 0; j < off2.size(); j++) {
+//          int cid = i * _chunk_num_per_node + off2[j];
+//          data.push_back(cid);
+//        }
+//      }
+//    }
+//
+//    generate_butterfly_parity_decoding_matrix_2(matrix, rBlkIdx, off1, off2);
+//
+//    for (int i = 0; i < to.size(); i++) {
+//      vector<int> coef;
+//      for (int j = 0; j < (_n - 1) * _w / 2; j ++) {
+//        int c = matrix[i * (_n - 1) * _w / 2 + j];
+//        coef.push_back(c);
+//      }
+//      //ecdag->Join(to[i], data, coef);
+//
+//      vector<int> new_data;
+//      vector<int> new_coef;
+//      for (int ii = 0; ii < coef.size(); ii++) {
+//        if (coef[ii] == 0)
+//          continue;
+//        new_data.push_back(data[ii]);
+//        new_coef.push_back(coef[ii]);
+//      }
+//      ecdag->Join(to[i], new_data, new_coef);
+//    }
+////    ecdag->BindX(to);
+//
+//  // situation (4): parity column B
+//  } else if (rBlkIdx == _k + 1) {
+//    cout << "situation (4)" << endl;
+//    vector<int> data;
+//    vector<int> off0; // for nodeid=0
+//    for (int i = 0; i < _w / 2; i ++){
+//      off0.push_back(i);
+//    }
+//    for (int i = 0; i < off0.size(); i++) data.push_back(off0[i]);
+//
+//    // for nodeid=1 2 3
+//    for (int sid = 1; sid <= _k - 1; sid++) {
+//      int *a;
+//      a = new int[_w / 2 * _w];
+//
+//      vector<int> curdata;
+//      for (int i=0; i<_chunk_num_per_node; i++) {
+//        int cid = sid * _chunk_num_per_node + i;
+//        curdata.push_back(cid);
+//      }
+//
+//      generate_xor_data_matrix(a, sid);
+//
+//      vector<int> curres;
+//      for (int i=0; i < _w / 2; i++) {
+//        vector<int> curcoef;
+//        for (int j=0; j < _w; j++) curcoef.push_back(a[i * _w + j]);
+//        //ecdag->Join(_tmp, curdata, curcoef);
+//
+//        vector<int> new_data;
+//        vector<int> new_coef;
+//        for (int ii=0; ii<curcoef.size(); ii++) {
+//          if (curcoef[ii] == 0)
+//            continue;
+//          new_data.push_back(curdata[ii]);
+//          new_coef.push_back(curcoef[ii]);
+//        }
+//        ecdag->Join(_tmp, new_data, new_coef);
+//
+//        curres.push_back(_tmp);
+//        data.push_back(_tmp);
+//        _tmp++;
+//      }
+////      ecdag->BindX(curres);
+//    }
+//
+//    int *matrix;
+//    matrix = new int[_w * (_n - 1) * _w / 2];
+//
+//    vector<int> off4; // for nodeid=4
+//    for (int i = _w / 2; i < _w; i ++){
+//      off4.push_back(i);
+//    }
+//    for (int i = 0; i < off4.size(); i++) data.push_back(_k * _chunk_num_per_node + off4[i]);
+//    
+//    // for (int i = 0; i < data.size(); i++) cout << data[i] << " ";
+//    // cout << endl;
+//
+//    generate_butterfly_parity_decoding_matrix_4(matrix);
+//
+//    for (int i = 0; i < to.size(); i ++) {
+//      vector<int> coef;
+//      for (int j = 0; j < (_n - 1) * _w / 2; j++) coef.push_back(matrix[i * (_n - 1) * _w / 2 + j]);
+//      //ecdag->Join(to[i], data, coef);
+//
+//      vector<int> new_data;
+//      vector<int> new_coef;
+//      for (int ii = 0; ii < coef.size(); ii ++) {
+//        if (coef[ii] == 0)
+//          continue;
+//        new_data.push_back(data[ii]);
+//        new_coef.push_back(coef[ii]);
+//      }
+//      ecdag->Join(to[i], new_data, new_coef);
+//    }
+////    ecdag->BindX(to);
   }
   return ecdag;
 }
@@ -735,6 +735,8 @@ vector<vector<int>> BUTTERFLY::butterfly_func(vector<vector<int>> mat, int m_row
 
     ret.push_back(top);
     ret.push_back(lower);
+
+    return ret;
   } else {
     // get a, b, A, B
     int half_row = m_row / 2;

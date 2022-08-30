@@ -759,7 +759,7 @@ int main(int argc, char** argv) {
   unordered_map<int, double> process;
 
   int round = n*w;
-  if (code == "Clay" && n==14)
+  if (k >= 8)
       round = 1;
 
   struct timeval time1, time2;

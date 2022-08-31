@@ -936,7 +936,8 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         // we do not consider repair by transfer here
         bool transfer = false;
         //bool transfer = true;
-        //int blkidx = -1;
+        
+        int blkidx = -1;
         //for (auto cidx: srclist) {
         //    if (find(_ecLeaves.begin(), _ecLeaves.end(), cidx) == _ecLeaves.end()) {
         //        transfer = false;

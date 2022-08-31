@@ -933,32 +933,34 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
             continue;
         // check whether all the childs are leaf and in the same block
 
-        bool transfer = true;
-        int blkidx = -1;
-        for (auto cidx: srclist) {
-            if (find(_ecLeaves.begin(), _ecLeaves.end(), cidx) == _ecLeaves.end()) {
-                transfer = false;
-                break;
-            }
+        // we do not consider repair by transfer here
+        bool transfer = false;
+        //bool transfer = true;
+        //int blkidx = -1;
+        //for (auto cidx: srclist) {
+        //    if (find(_ecLeaves.begin(), _ecLeaves.end(), cidx) == _ecLeaves.end()) {
+        //        transfer = false;
+        //        break;
+        //    }
 
-            // cidx is a leaf
-            // figure out corresponding blockidx
-            int tmpblkidx = cidx / ecw;
+        //    // cidx is a leaf
+        //    // figure out corresponding blockidx
+        //    int tmpblkidx = cidx / ecw;
 
-            if (tmpblkidx >= ecn) {
-                // This is a shortening index
-                transfer = false;
-                break;
-            }
+        //    if (tmpblkidx >= ecn) {
+        //        // This is a shortening index
+        //        transfer = false;
+        //        break;
+        //    }
 
-            if (blkidx == -1)
-                blkidx = tmpblkidx;
+        //    if (blkidx == -1)
+        //        blkidx = tmpblkidx;
 
-            if (tmpblkidx != blkidx) {
-                transfer = false;
-                break;
-            }
-        }
+        //    if (tmpblkidx != blkidx) {
+        //        transfer = false;
+        //        break;
+        //    }
+        //}
 
         if (transfer) {
             // the current unit is for repair by transfer

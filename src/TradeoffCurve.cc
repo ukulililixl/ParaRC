@@ -340,7 +340,7 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     stat(sidx2ip, init_sol->getSolution(), itm_idx, ecdag, &init_bdwt, &init_load);
     init_sol->setBdwt(init_bdwt);
     init_sol->setLoad(init_load);
-    //cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
+    cout << "genTradeoffCurve: init_sol: " << init_sol->getString() << ", load: " << init_sol->getLoad() << ", bdwt: " << init_sol->getBdwt() << endl;
 
     // 2. generate a map that records the solution that we visited.
     unordered_map<string, bool> visited;
@@ -357,6 +357,8 @@ Solution* genTradeoffCurve(vector<int> itm_idx, vector<int> candidates,
     Solution* current;
     while (true) {
         current = head->getNext();
+
+        cout << "head: load = " << current->getLoad() << ", bdwt = " << current->getBdwt() << ", string = " << current->getString() << endl;
 
         // find the first solution that not expanded
         while (current != tail) {
@@ -759,8 +761,12 @@ int main(int argc, char** argv) {
   unordered_map<int, double> process;
 
   int round = n*w;
+  if (k>=6 && k < 8)
+      round = 10;
   if (k >= 8)
       round = 1;
+
+  cout << "round = " << round << endl;
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);

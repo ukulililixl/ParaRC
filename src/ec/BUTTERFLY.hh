@@ -1,5 +1,5 @@
 #ifndef _BUTTERFLY_HH_
-#define _BUTTERFLY_HH
+#define _BUTTERFLY_HH_
 
 #include "Computation.hh"
 #include "ECBase.hh"

@@ -28,7 +28,8 @@
 #include <dirent.h>
 #include <unistd.h>
 
-#define MAX_COMMAND_LEN 4096
+// #define MAX_COMMAND_LEN 4096
+#define MAX_COMMAND_LEN 65536
 
 #endif
 

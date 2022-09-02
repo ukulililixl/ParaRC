@@ -161,7 +161,8 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_1(int *parity_dec, int
   }
 
   // step 4: generate butterfly parity decoding matrix
-  int *parity_all = new int[_w * _w * _n];
+  //int *parity_all = new int[_w * _w * _n];
+  int *parity_all = (int*)malloc(sizeof(int) * _w * _w * _n);
   for (int i = 0; i < _w * _w * _n; i++){
     parity_all[i] = 0;
   }
@@ -184,6 +185,8 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_1(int *parity_dec, int
       }
     }
   }
+
+  free(parity_all);
 }
 
 // situation (2): data column dk-1
@@ -263,7 +266,8 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_2(int *parity_dec, int
   }
 
   // step 4: generate butterfly parity decoding matrix
-  int *parity_all = new int[_w * _w * _n];
+  //int *parity_all = new int[_w * _w * _n];
+  int *parity_all = (int*)malloc(sizeof(int) * _w * _w * _n);
   for (int i = 0; i < _w * _w * _n; i++){
     parity_all[i] = 0;
   }
@@ -286,6 +290,7 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_2(int *parity_dec, int
       }
     }
   }
+  free(parity_all);
 }
 
 // situation (3): parity column H
@@ -347,7 +352,8 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_3(int *parity_dec, int
   }
 
   // step 4: generate butterfly parity decoding matrix
-  int *parity_all = new int[_w * _w * _n];
+  //int *parity_all = new int[_w * _w * _n];
+  int *parity_all = (int*)malloc(sizeof(int) * _w * _w * _n);
   for (int i = 0; i < _w * _w * _n; i++){
     parity_all[i] = 0;
   }
@@ -370,6 +376,7 @@ void BUTTERFLY::generate_butterfly_parity_decoding_matrix_3(int *parity_dec, int
       }
     }
   }
+  free(parity_all);
 }
 
 // situation (4): parity column B
@@ -432,8 +439,9 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
     vector<int> data;
     vector<int> off;
     //int matrix[160];
-    int *matrix;
-    matrix = new int[_w * (_n - 1) * _w / 2];
+    // int *matrix;
+    // matrix = new int[_w * (_n - 1) * _w / 2];
+    int *matrix = (int*)malloc(sizeof(int) * _w * (_n - 1) * _w / 2);
 
     // situation (1): data column d0 - dk-2
     if (rBlkIdx  < _k - 1 ) {
@@ -499,14 +507,15 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
       ecdag->Join(to[i], new_data, new_coef);
     }  
 //    ecdag->BindX(to);
-
+    free(matrix);
   // situation (2): data column dk-1
   } else if (rBlkIdx == _k - 1) {
     cout << "situation (2)" << endl;
     vector<int> off1; // for nodeid == _n - 1;
     vector<int> off2; // for other nodes
-    int *matrix;
-    matrix = new int[_w * (_n - 1) * _w / 2];
+    // int *matrix;
+    // matrix = new int[_w * (_n - 1) * _w / 2];
+    int *matrix = (int*)malloc(sizeof(int) * _w * (_n - 1) * _w / 2);
 
     for (int i = 0; i < _w; i ++){
       if (i % 2 == 1){
@@ -552,6 +561,7 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
       }
       ecdag->Join(to[i], new_data, new_coef);
     }
+    free(matrix);
 //    ecdag->BindX(to);
 
   // situation (4): parity column B
@@ -566,8 +576,9 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
 
     // for nodeid=1 2 3
     for (int sid = 1; sid <= _k - 1; sid++) {
-      int *a;
-      a = new int[_w / 2 * _w];
+      // int *a;
+      // a = new int[_w / 2 * _w];
+      int *a = (int*)malloc(sizeof(int) * _w / 2 * _w);
 
       vector<int> curdata;
       for (int i=0; i<_chunk_num_per_node; i++) {
@@ -597,11 +608,13 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
         data.push_back(_tmp);
         _tmp++;
       }
+      free(a);
 //      ecdag->BindX(curres);
     }
 
-    int *matrix;
-    matrix = new int[_w * (_n - 1) * _w / 2];
+    // int *matrix;
+    // matrix = new int[_w * (_n - 1) * _w / 2];
+    int *matrix = (int*)malloc(sizeof(int) * _w * (_n - 1) * _w / 2);
 
     vector<int> off4; // for nodeid=4
     for (int i = _w / 2; i < _w; i ++){
@@ -629,6 +642,7 @@ ECDAG* BUTTERFLY::Decode(vector<int> from, vector<int> to) {
       }
       ecdag->Join(to[i], new_data, new_coef);
     }
+    free(matrix);
 //    ecdag->BindX(to);
   }
   return ecdag;
@@ -652,7 +666,9 @@ void BUTTERFLY::generate_encoding_matrix() {
     temp++;
   }
 
-  int *butterfly_parity_enc = new int[_w * _w * _k];
+  //int *butterfly_parity_enc = new int[_w * _w * _k];
+  int *butterfly_parity_enc = (int*)malloc(sizeof(int) * _w * _w * _k);
+  
   generate_butterfly_parity_encoding_matrix(butterfly_parity_enc);
 
   // Debug
@@ -663,6 +679,7 @@ void BUTTERFLY::generate_encoding_matrix() {
   //   }
   // }
   memcpy(_enc_matrix + (_k + 1) * _w * _w * _k, butterfly_parity_enc, _w * _w * _k * sizeof(int));
+  free(butterfly_parity_enc);
 }
 
 

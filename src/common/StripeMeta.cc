@@ -93,6 +93,9 @@ ECBase* StripeMeta::createECClass() {
   } else if (_codeName == "MISER") {
       cout << "StripeMeta::createECClass MISER" << endl;
       toret = new MISER(_ecN, _ecK, _ecW, {});
+  } else if (_codeName == "BUTTERFLY") {
+      cout << "StripeMeta::createECClass BUTTERFLY" << endl;
+      toret = new BUTTERFLY(_ecN, _ecK, _ecW, {});
   }
   return toret;
 }

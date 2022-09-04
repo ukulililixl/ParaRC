@@ -11,6 +11,9 @@ ClayTest
 GenData
 RepairTest
 TradeoffAnalysis
+CodeTest
+SimpleSearch
+TradeoffCurve
 
 src/CMakeFiles/*
 src/common/CMakeFiles/*
@@ -19,6 +22,7 @@ src/util/CMakeFiles/*
 src/util/*.a
 src/ec/CMakeFiles/*
 src/*/*.a
+src/dist/CMakeFiles/*
 
 src/*.swp
 src/*/*.swp

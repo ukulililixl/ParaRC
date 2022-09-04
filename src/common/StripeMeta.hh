@@ -11,6 +11,8 @@
 #include "../ec/RSPIPE.hh"
 #include "../ec/MISER.hh"
 #include "../ec/BUTTERFLY.hh"
+#include "../ec/RDPRDOR.hh"
+#include "../ec/HHXORPlus.hh"
 
 using namespace tinyxml2;
 

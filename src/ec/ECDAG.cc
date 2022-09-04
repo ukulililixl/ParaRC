@@ -449,12 +449,12 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         int ecn, int eck, int ecw, int blkbytes, int pktbytes, 
         string stripename, vector<string> blocklist,
         unordered_map<int, unsigned int> coloring_res) {
-    // cout << "ECUnits: " << endl;
-    // for (int i=0; i<_ecUnitList.size(); i++) {
-    //     int unitId = _ecUnitList[i];
-    //     ECUnit* cunit = _ecUnitMap[unitId];
-    //     cout << "  " << cunit->dump() << endl;
-    // }
+    //cout << "ECUnits: " << endl;
+    //for (int i=0; i<_ecUnitList.size(); i++) {
+    //    int unitId = _ecUnitList[i];
+    //    ECUnit* cunit = _ecUnitMap[unitId];
+    //    cout << "  " << cunit->dump() << endl;
+    //}
 
     // for each vertex, figure out the number of referenced ECClusters for it
     unordered_map<int, int> cidRefs;
@@ -603,6 +603,7 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         tasklist.push_back(readDiskTask);
     }
     // build fetchCompute and Concact
+    unordered_map<unsigned int, int> cmdstat;
     for (int i=0; i<_ecClusterList.size(); i++) {
         int clusterId = _ecClusterList[i];
         ECCluster* ccluster = _ecClusterMap[clusterId];
@@ -612,6 +613,11 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
         unordered_map<int, vector<int>> coefmap = ccluster->getCoefMap();
 
         unsigned int loc = coloring_res[parentlist[0]];
+
+        if (cmdstat.find(loc) == cmdstat.end()) 
+            cmdstat[loc] = 1;
+        else 
+            cmdstat[loc] += 1;
 
         vector<unsigned int> prevlocs;
         for (int tmpi=0; tmpi<childlist.size(); tmpi++) {
@@ -662,6 +668,10 @@ void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,
             tasklist.push_back(fetchComputeTask);
         }
     }
+
+    // for (auto item: cmdstat) {
+    //     cout << "ip: " << RedisUtil::ip2Str(item.first) << ", cmdnum: " << item.second << endl;
+    // }
 }
 
 void ECDAG::genDistECTasks(vector<ECTask*>& tasklist,                                                                                                                         
@@ -934,34 +944,34 @@ void ECDAG::genConvECTasks(vector<ECTask*>& tasklist,
         // check whether all the childs are leaf and in the same block
 
         // we do not consider repair by transfer here
-        bool transfer = false;
-        //bool transfer = true;
+        //bool transfer = false;
+        bool transfer = true;
         
         int blkidx = -1;
-        //for (auto cidx: srclist) {
-        //    if (find(_ecLeaves.begin(), _ecLeaves.end(), cidx) == _ecLeaves.end()) {
-        //        transfer = false;
-        //        break;
-        //    }
+        for (auto cidx: srclist) {
+            if (find(_ecLeaves.begin(), _ecLeaves.end(), cidx) == _ecLeaves.end()) {
+                transfer = false;
+                break;
+            }
 
-        //    // cidx is a leaf
-        //    // figure out corresponding blockidx
-        //    int tmpblkidx = cidx / ecw;
+            // cidx is a leaf
+            // figure out corresponding blockidx
+            int tmpblkidx = cidx / ecw;
 
-        //    if (tmpblkidx >= ecn) {
-        //        // This is a shortening index
-        //        transfer = false;
-        //        break;
-        //    }
+            if (tmpblkidx >= ecn) {
+                // This is a shortening index
+                transfer = false;
+                break;
+            }
 
-        //    if (blkidx == -1)
-        //        blkidx = tmpblkidx;
+            if (blkidx == -1)
+                blkidx = tmpblkidx;
 
-        //    if (tmpblkidx != blkidx) {
-        //        transfer = false;
-        //        break;
-        //    }
-        //}
+            if (tmpblkidx != blkidx) {
+                transfer = false;
+                break;
+            }
+        }
 
         if (transfer) {
             // the current unit is for repair by transfer

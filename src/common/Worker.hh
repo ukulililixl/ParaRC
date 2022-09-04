@@ -23,6 +23,8 @@ class Worker {
     redisContext* _localCtx;
     redisContext* _coorCtx;
 
+    int _tasknum;
+
   public:
     Worker(Config* conf, int id);
     ~Worker();

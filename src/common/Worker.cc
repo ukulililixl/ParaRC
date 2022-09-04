@@ -7,6 +7,7 @@ Worker::Worker(Config* conf, int id) : _conf(conf) {
     _processCtx = RedisUtil::createContext(_conf -> _localIp);
     _localCtx = RedisUtil::createContext(_conf -> _localIp);
     _coorCtx = RedisUtil::createContext(_conf -> _coorIp);
+    _tasknum = 0;
   } catch (int e) {
     // TODO: error handling
     cerr << "initializing redis context error" << endl;
@@ -53,6 +54,8 @@ void Worker::doProcess() {
 //      cout << "OECWorker::doProcess().duration = " << RedisUtil::duration(time1, time2) << endl;
       // delete agCmd
       delete agCmd;
+      _tasknum++;
+      //cout << "DistWorker::workerid: " << _id << ", tasknum: " << _tasknum << endl;
     }
     // free reply object
     freeReplyObject(rReply); 

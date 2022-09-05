@@ -115,7 +115,7 @@ void simple_search(vector<int>& curres, int curidx, vector<int> itm_idx, vector<
 
 int main(int argc, char** argv) {
 
-  if (argc != 6) {
+  if (argc != 7) {
     usage();
     return 0;
   }

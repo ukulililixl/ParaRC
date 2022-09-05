@@ -8,6 +8,7 @@
 #include "ec/Clay.hh"
 #include "ec/MISER.hh"
 #include "ec/BUTTERFLY.hh"
+#include "ec/RDPRDOR.hh"
 
 #include "dist/Solution.hh"
 
@@ -59,6 +60,9 @@ int main(int argc, char** argv) {
   } else if (code == "Butterfly") {
     ec = new BUTTERFLY(n, k, w, param);
     dec = new BUTTERFLY(n, k, w, param);
+  } else if (code == "RDP") {
+    ec = new RDPRDOR(n,k,w,param);
+    dec = new RDPRDOR(n,k,w,param);
   } else {
     cout << "wrong ec id!" << endl;
     return -1;
@@ -168,20 +172,20 @@ int main(int argc, char** argv) {
         memset(buffers[i], 0, pktbytes);
     }
     
-    // initialize databuffers
-    for (int i=0; i<k; i++) {
-        for (int j=0; j<pktbytes; j++) {
-            buffers[i][j] = rand();
-        }
-    }
-    
-    //// debug
+    //// initialize databuffers
     //for (int i=0; i<k; i++) {
-    //    for (int j=0; j<w; j++) {
-    //        char c = i*w+j;
-    //        memset(buffers[i]+j*slicebytes, c, slicebytes);
+    //    for (int j=0; j<pktbytes; j++) {
+    //        buffers[i][j] = rand();
     //    }
     //}
+    
+    // debug
+    for (int i=0; i<k; i++) {
+        for (int j=0; j<w; j++) {
+            char c = i*w+j;
+            memset(buffers[i]+j*slicebytes, c, slicebytes);
+        }
+    }
 
     // encode test
     encodeTime -= getCurrentTime();
@@ -241,22 +245,22 @@ int main(int argc, char** argv) {
         // perform computation
         Computation::Multi(code, data, matrix, row, col, slicebytes, "Isal");
 
-        // cout << "srclist: ";
-        // for (int j=0; j<srclist.size(); j++)
-        //   cout << srclist[j] << " ";
-        // cout << endl;
-        // for (int j=0; j<dstlist.size(); j++) {
-        //   int target = dstlist[j];
-        //   vector<int> coef = coefs[j];
-        //   cout << "target: " << target << ", value: " << (int)code[j][0] << "; coef: ";
-        //   for (int ci=0; ci<coef.size(); ci++) {
-        //     cout << coef[ci] << " ";
-        //   }
-        //   cout << endl;
-        // }
-        // free(matrix);
-        // free(data);
-        // free(code);
+        //cout << "srclist: ";
+        //for (int j=0; j<srclist.size(); j++)
+        //  cout << srclist[j] << " ";
+        //cout << endl;
+        //for (int j=0; j<dstlist.size(); j++) {
+        //  int target = dstlist[j];
+        //  vector<int> coef = coefs[j];
+        //  cout << "target: " << target << ", value: " << (int)code[j][0] << "; coef: ";
+        //  for (int ci=0; ci<coef.size(); ci++) {
+        //    cout << coef[ci] << " ";
+        //  }
+        //  cout << endl;
+        //}
+        free(matrix);
+        free(data);
+        free(code);
     }
 
     encodeTime += getCurrentTime();
@@ -281,6 +285,12 @@ int main(int argc, char** argv) {
     //         char* buf = decodeBufMap[idx];
     //         char c = buf[0];
     //         cout << (int)c << " ";
+
+    //         for (int l=1; l<slicebytes; l++) {
+    //             if (buf[l] != buf[l-1]) {
+    //                 cout << " error at offset " << l << " ";
+    //             }
+    //         }
     //     }
     //     cout << endl;
     // }
@@ -329,19 +339,19 @@ int main(int argc, char** argv) {
         // perform computation
         Computation::Multi(code, data, matrix, row, col, slicebytes, "Isal");
 
-        // cout << "srclist: ";
-        // for (int j=0; j<srclist.size(); j++)
-        //   cout << srclist[j] << " ";
-        // cout << endl;
-        // for (int j=0; j<dstlist.size(); j++) {
-        //   int target = dstlist[j];
-        //   vector<int> coef = coefs[j];
-        //   cout << "target: " << target << ", value: " << (int)code[j][0] << "; coef: ";
-        //   for (int ci=0; ci<coef.size(); ci++) {
-        //     cout << coef[ci] << " ";
-        //   }
-        //   cout << endl;
-        // }
+        //cout << "srclist: ";
+        //for (int j=0; j<srclist.size(); j++)
+        //  cout << srclist[j] << " ";
+        //cout << endl;
+        //for (int j=0; j<dstlist.size(); j++) {
+        //  int target = dstlist[j];
+        //  vector<int> coef = coefs[j];
+        //  cout << "target: " << target << ", value: " << (int)code[j][0] << "; coef: ";
+        //  for (int ci=0; ci<coef.size(); ci++) {
+        //    cout << coef[ci] << " ";
+        //  }
+        //  cout << endl;
+        //}
 
         free(matrix);
         free(data);

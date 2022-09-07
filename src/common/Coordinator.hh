@@ -41,6 +41,8 @@ class Coordinator {
 
     void readBlock(CoorCommand* coorCmd);
     void readBlockConv(string blockname, unsigned int clientip, bool enforceip, int offset, int length); 
+
+    unsigned int selectRepairIp(vector<unsigned int> ips);
 };
 
 #endif

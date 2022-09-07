@@ -101,10 +101,15 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool 
     //}
 
     // 3. figure out repairloc
+    unsigned int repairLoc;
     if (enforceip) {
         loclist[repairBlockIdx] = clientip;
+        repairLoc = clientip;
+    } else {
+        repairLoc = selectRepairIp(loclist);                                                                                                                                                            
+        loclist[repairBlockIdx] = repairLoc;
     }
-    unsigned int repairLoc = loclist[repairBlockIdx];
+    cout << "repair location: " << RedisUtil::ip2Str(repairLoc) << endl;
 
     // 4. prepare availidx
     vector<int> availIndex;
@@ -118,16 +123,23 @@ void Coordinator::repairBlockConv(string blockName, unsigned int clientip, bool 
                 availIndex.push_back(pktidx);
         }
     }
-    //cout << "avail: ";
-    //for (auto item: availIndex)
-    //    cout << item << " ";
-    //cout << endl;
+    cout << "avail: ";
+    for (auto item: availIndex)
+        cout << item << " ";
+    cout << endl;
+
+    cout << "torepair: ";
+    for (auto item: toRepairIndex) {
+        cout << item << " ";
+    }
+    cout << endl;
 
     // 5. construct ECDAG
     ECBase* ec = stripemeta->createECClass();
     ecw = ec->_w;
     _stripeStore->lock();
     ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    printf("finished decode!!!\n\n\n");
     _stripeStore->unlock();
     ecdag->Concact(toRepairIndex);
 
@@ -652,8 +664,12 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool
         repairLoc = clientip;
         loclist[repairBlockIdx] = clientip;
     } else {
-        repairLoc = loclist[repairBlockIdx];
+        //repairLoc = loclist[repairBlockIdx];
+        repairLoc = selectRepairIp(loclist);
+        loclist[repairBlockIdx] = repairLoc;
     }
+
+    cout << "repair location: " << RedisUtil::ip2Str(repairLoc) << endl;
 
     // 4. prepare availidx
     vector<int> availIndex;
@@ -1173,4 +1189,16 @@ void Coordinator::readBlockConv(string blockName, unsigned int clientip, bool en
     for (int i=0; i<tasklist.size(); i++) {
         delete tasklist[i];
     }
+}
+
+unsigned int Coordinator::selectRepairIp(vector<unsigned int> ips) {
+    vector<unsigned int> candidates;
+    for (auto item: _conf->_agentsIPs) {
+        if (find(ips.begin(), ips.end(), item) == ips.end())
+            candidates.push_back(item);
+    }
+
+    std::random_shuffle(candidates.begin(), candidates.end());
+
+    return candidates[0];
 }

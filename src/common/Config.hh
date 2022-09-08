@@ -39,6 +39,9 @@ class Config {
     // repair threads
     int _rpThreads;
 
+    // network bandwidth
+    int _netbdwt;
+
 //    // fstype
 //    std::string _fsType;
 //    std::vector<std::string> _fsParam;

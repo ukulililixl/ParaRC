@@ -203,6 +203,18 @@ void Coordinator::repairBlockListConv(vector<string> blocklist) {
     }
 }
 
+void Coordinator::repairBlockListParaRC(vector<string> blocklist, unordered_map<string, string> blk2solution) {
+    cout << "Coordinator::repairBlockListConv" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        string blk = blocklist[i];
+        string sol = blk2solution[blk];
+        if (sol == "conv")
+            repairBlockConv(blk, 0, false, true);
+        else if (sol == "dist")
+            repairBlockDist1(blk, 0, false, true);
+    }
+}
+
 void Coordinator::repairBlockConv1(string blockName) {
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
@@ -664,9 +676,9 @@ void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool
         repairLoc = clientip;
         loclist[repairBlockIdx] = clientip;
     } else {
-        //repairLoc = loclist[repairBlockIdx];
-        repairLoc = selectRepairIp(loclist);
-        loclist[repairBlockIdx] = repairLoc;
+        repairLoc = loclist[repairBlockIdx];
+        //repairLoc = selectRepairIp(loclist);
+        //loclist[repairBlockIdx] = repairLoc;
     }
 
     cout << "repair location: " << RedisUtil::ip2Str(repairLoc) << endl;
@@ -939,6 +951,8 @@ void Coordinator::repairNode(CoorCommand* coorCmd) {
         repairNodeDist(nodeip, code, blk2meta);
     } else if (method == "conv") {
         repairNodeConv(nodeip, code, blk2meta);
+    } else if (method == "pararc"){
+        repairNodeParaRC(nodeip, code, blk2meta);
     } else {
         cout << "ERROR::wrong method!" << endl;
     }
@@ -947,28 +961,119 @@ void Coordinator::repairNode(CoorCommand* coorCmd) {
 void Coordinator::repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta) {
     cout << "Coordinator::repairNodeDist!" << endl;
 
-    int rpthreads = _conf->_rpThreads;
+    //int rpthreads = _conf->_rpThreads;
+
+    // 0. devide all the blocks into batch
+    unordered_map<int, vector<string>> batchmap;
+    unordered_map<unsigned int, int> inmap;
+    unordered_map<unsigned int, int> outmap;
+    int centnum=0;
+    int debug=0;
+    int batchid=0;
+    vector<string> curbatch;
+    int maxbatchsize = 0;
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        StripeMeta* stripemeta = item.second;
+
+        // get tmpin and tmpout
+        unordered_map<unsigned int, int> tmpin;
+        unordered_map<unsigned int, int> tmpout;
+        centnum = generateLoadTableDist(tmpin, tmpout, blk, stripemeta);
+        cout << "centnum: " << centnum << endl;
+
+        //cout << "tmp table:";
+        //for (auto ip: _conf->_agentsIPs) {
+        //    cout << "  " << RedisUtil::ip2Str(ip) << ": in = ";
+        //    if (tmpin.find(ip) == tmpin.end())
+        //        cout << "0, ";
+        //    else
+        //        cout << tmpin[ip] << " ";
+        //    cout << "; out = ";
+        //    if (tmpout.find(ip) == tmpout.end())
+        //        cout << "0, ";
+        //    else
+        //        cout << tmpout[ip] << " ";
+        //    cout << endl;
+        //}
+
+        // add to table
+        for (auto item: tmpin) {
+            unsigned int ip = item.first;
+            if (inmap.find(ip) == inmap.end())
+                inmap[ip] = tmpin[ip];
+            else
+                inmap[ip] += tmpin[ip];
+        }
+
+        for (auto item: tmpout) {
+            unsigned int ip = item.first;
+            if (outmap.find(ip) == outmap.end())
+                outmap[ip] = tmpout[ip];
+            else
+                outmap[ip] += tmpout[ip];
+        }
+
+        // cout << "load table:";
+        // for (auto ip: _conf->_agentsIPs) {
+        //     cout << "  " << RedisUtil::ip2Str(ip) << ": in = ";
+        //     if (inmap.find(ip) == inmap.end())
+        //         cout << "0, ";
+        //     else
+        //         cout << inmap[ip] << " ";
+        //     cout << "; out = ";
+        //     if (outmap.find(ip) == outmap.end())
+        //         cout << "0, ";
+        //     else
+        //         cout << outmap[ip] << " ";
+        //     cout << endl;
+        // }
+        
+        // check the repair load
+        int load = 0;
+        for (auto item: inmap) {
+            if (item.second > load)
+                load = item.second;
+        }
+
+        if (load <= centnum) {
+            // add to current batch
+            curbatch.push_back(blk);
+        } else {
+            // add curbatch to batchmap
+            batchmap.insert(make_pair(batchid, curbatch));
+            batchid++;
+            if (curbatch.size() > maxbatchsize)
+                maxbatchsize = curbatch.size();
+
+            // clear map
+            inmap.clear();
+            outmap.clear();
+
+            // new a batch
+            curbatch.clear();
+            curbatch.push_back(blk);
+        }
+    }
+
+    cout << "max batch size: " << maxbatchsize << endl;
+    cout << "batch num: " << batchid << endl;
     
     // 0. devide all the blocks into groups
     vector<vector<string>> rpgroups;
-    for (int i=0; i<rpthreads; i++) {
+    for (int i=0; i<maxbatchsize; i++) {
         vector<string> tmplist;
         rpgroups.push_back(tmplist);
     }
 
-    // xiaolu add 0905
-    vector<string> blklist;
-    for (auto item: blk2meta) {
-        blklist.push_back(item.first);
+    // 1. we add blocks each each batch to corresponding group
+    for (auto item: batchmap) {
+        int batchid = item.first;
+        vector<string> blklist = item.second;
+        for (int i=0; i<blklist.size(); i++) {
+            rpgroups[i].push_back(blklist[i]);
+        }
     }
-    srand(unsigned(time(NULL)));
-    std::random_shuffle(blklist.begin(), blklist.end());
-
-    for (int i=0; i<blklist.size(); i++) {
-        int idx = i%rpthreads;
-        rpgroups[idx].push_back(blklist[i]);
-    }
-    // xiaolu add ends
 
     // // xiaolu comment start
     // int idx=0;
@@ -982,13 +1087,13 @@ void Coordinator::repairNodeDist(unsigned int nodeip, string code, unordered_map
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
     // 1. create threads
-    vector<thread> repairThreads = vector<thread>(rpthreads);
-    for (int i=0; i<rpthreads; i++) {
+    vector<thread> repairThreads = vector<thread>(maxbatchsize);
+    for (int i=0; i<maxbatchsize; i++) {
         repairThreads[i] = thread([=]{repairBlockListDist1(rpgroups[i]);});
     }
 
     // 2. join
-    for (int i=0; i<rpthreads; i++) {
+    for (int i=0; i<maxbatchsize; i++) {
         repairThreads[i].join();
     }
     gettimeofday(&time2, NULL);
@@ -1051,6 +1156,195 @@ void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map
     }
     gettimeofday(&time2, NULL);
     cout << "Coordinator::repairNodeConv.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
+}
+
+void Coordinator::repairNodeParaRC(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta) {
+    cout << "Coordinator::repairNodeParaRC!" << endl;
+
+    // 0. devide all the blocks into batch
+    unordered_map<int, vector<string>> batchmap;
+    unordered_map<unsigned int, int> inmap;
+    unordered_map<unsigned int, int> outmap;
+    int centnum=0;
+    int debug=0;
+    int batchid=0;
+    vector<string> curbatch;
+    int maxbatchsize = 0;
+    int curmax = 0;
+    unordered_map<string, string> blk2solution;
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        StripeMeta* stripemeta = item.second;
+
+        // get tmpin and tmpout
+        unordered_map<unsigned int, int> tmpin;
+        unordered_map<unsigned int, int> tmpout;
+        centnum = generateLoadTableDist(tmpin, tmpout, blk, stripemeta);
+        cout << "centnum: " << centnum << endl;
+
+        cout << "dist table:";
+        for (auto ip: _conf->_agentsIPs) {
+            cout << "  " << RedisUtil::ip2Str(ip) << ": in = ";
+            if (tmpin.find(ip) == tmpin.end())
+                cout << "0, ";
+            else
+                cout << tmpin[ip] << " ";
+            cout << "; out = ";
+            if (tmpout.find(ip) == tmpout.end())
+                cout << "0, ";
+            else
+                cout << tmpout[ip] << " ";
+            cout << endl;
+        }
+
+        // try to add the parallal to the table
+        int load1 = testAndTrial(inmap, outmap, tmpin, tmpout);
+        cout << "load1: " << load1 << endl;
+
+        // get convin and convout
+        unordered_map<unsigned int, int> convin;
+        unordered_map<unsigned int, int> convout;
+        generateLoadTableConv(convin, convout, blk, stripemeta);
+
+        cout << "conv table:";
+        for (auto ip: _conf->_agentsIPs) {
+            cout << "  " << RedisUtil::ip2Str(ip) << ": in = ";
+            if (convin.find(ip) == convin.end())
+                cout << "0, ";
+            else
+                cout << convin[ip] << " ";
+            cout << "; out = ";
+            if (convout.find(ip) == convout.end())
+                cout << "0, ";
+            else
+                cout << convout[ip] << " ";
+            cout << endl;
+        }
+
+        // try to add the conv to the table
+        int load2 = testAndTrial(inmap, outmap, convin, convout);
+        cout << "load2: " << load2 << endl;
+
+        if (load1 < load2) {
+            cout << "add load1" << endl;
+            blk2solution.insert(make_pair(blk, "dist"));
+            // we add tmpin and tmpout to inmap and outmap
+            for (auto item: tmpin) {
+                unsigned int ip = item.first;
+                if (inmap.find(ip) == inmap.end())
+                    inmap[ip] = tmpin[ip];
+                else
+                    inmap[ip] += tmpin[ip];
+            }
+
+            for (auto item: tmpout) {
+                unsigned int ip = item.first;
+                if (outmap.find(ip) == outmap.end())
+                    outmap[ip] = tmpout[ip];
+                else
+                    outmap[ip] += tmpout[ip];
+            }
+        } else {
+            cout << "add load2" << endl;
+            blk2solution.insert(make_pair(blk, "conv"));
+            // we add convin and convout to inmap and outmap
+            for (auto item: convin) {
+                unsigned int ip = item.first;
+                if (inmap.find(ip) == inmap.end())
+                    inmap[ip] = convin[ip];
+                else
+                    inmap[ip] += convin[ip];
+            }
+
+            for (auto item: convout) {
+                unsigned int ip = item.first;
+                if (outmap.find(ip) == outmap.end())
+                    outmap[ip] = convout[ip];
+                else
+                    outmap[ip] += convout[ip];
+            }
+        }
+
+
+        cout << "load table:";
+        for (auto ip: _conf->_agentsIPs) {
+            cout << "  " << RedisUtil::ip2Str(ip) << ": in = ";
+            if (inmap.find(ip) == inmap.end())
+                cout << "0, ";
+            else
+                cout << inmap[ip] << " ";
+            cout << "; out = ";
+            if (outmap.find(ip) == outmap.end())
+                cout << "0, ";
+            else
+                cout << outmap[ip] << " ";
+            cout << endl;
+        }
+        
+        // check the repair load
+        int load = 0;
+        for (auto item: inmap) {
+            if (item.second > load)
+                load = item.second;
+        }
+
+        if (load <= centnum) {
+            // add to current batch
+            curbatch.push_back(blk);
+        } else {
+            // add curbatch to batchmap
+            batchmap.insert(make_pair(batchid, curbatch));
+            batchid++;
+            if (curbatch.size() > maxbatchsize)
+                maxbatchsize = curbatch.size();
+
+            // clear map
+            inmap.clear();
+            outmap.clear();
+
+            // new a batch
+            curbatch.clear();
+            curbatch.push_back(blk);
+        }
+
+        //debug++;
+        //if (debug == 19)
+        //    break;
+    }
+
+    cout << "max batch size: " << maxbatchsize << endl;
+    cout << "batch num: " << batchid << endl;
+    
+    // 0. devide all the blocks into groups
+    vector<vector<string>> rpgroups;
+    for (int i=0; i<maxbatchsize; i++) {
+        vector<string> tmplist;
+        rpgroups.push_back(tmplist);
+    }
+
+    // 1. we add blocks each each batch to corresponding group
+    for (auto item: batchmap) {
+        int batchid = item.first;
+        vector<string> blklist = item.second;
+        for (int i=0; i<blklist.size(); i++) {
+            rpgroups[i].push_back(blklist[i]);
+        }
+    }
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+    // 1. create threads
+    vector<thread> repairThreads = vector<thread>(maxbatchsize);
+    for (int i=0; i<maxbatchsize; i++) {
+        repairThreads[i] = thread([=]{repairBlockListParaRC(rpgroups[i], blk2solution);});
+    }
+
+    // 2. join
+    for (int i=0; i<maxbatchsize; i++) {
+        repairThreads[i].join();
+    }
+    gettimeofday(&time2, NULL);
+    cout << "Coordinator::repairNodeDist.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Coordinator::readBlock(CoorCommand* coorCmd) {
@@ -1201,4 +1495,253 @@ unsigned int Coordinator::selectRepairIp(vector<unsigned int> ips) {
     std::random_shuffle(candidates.begin(), candidates.end());
 
     return candidates[0];
+}
+
+int Coordinator::generateLoadTableConv(unordered_map<unsigned int, int>& tablein, unordered_map<unsigned int, int>& tableout, string block, StripeMeta* stripemeta) {
+    // return the number of real vertices
+
+    int repairBlockIdx = stripemeta->getBlockIndex(block);
+    int ecn = stripemeta->getECN();
+    int eck = stripemeta->getECK();
+    int ecw = stripemeta->getECW();
+
+    vector<string> blocklist = stripemeta->getBlockList();
+    vector<unsigned int> loclist = stripemeta->getLocList();
+
+    vector<int> availIndex;
+    vector<int> toRepairIndex;
+    for (int i=0; i<ecn; i++) {
+        for (int j=0; j<ecw; j++) {
+            int pktidx = i*ecw+j;
+            if (i == repairBlockIdx)
+                toRepairIndex.push_back(pktidx);
+            else
+                availIndex.push_back(pktidx);
+        }
+    }
+
+    ECBase* ec = stripemeta->createECClass();
+    ecw = ec->_w;
+    ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    ecdag->Concact(toRepairIndex);
+    ecdag->genECUnits();
+
+    // prepare for stat
+    unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+    vector<int> ecHeaders = ecdag->getECHeaders();
+    vector<int> ecLeaves = ecdag->getECLeaves();
+    unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+    vector<int> ecUnitList = ecdag->getUnitList();
+    int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+
+    unordered_map<int, int> sidx2bidx;
+    unordered_map<int, int> bidx2num;
+    int shortnum = 0;
+    int toret=0;
+    for (auto sidx: ecLeaves) {
+        int bidx = sidx / ecw;
+        if (bidx < ecn ) {
+            sidx2bidx.insert(make_pair(sidx, bidx));
+            toret++;
+            if (bidx2num.find(bidx) == bidx2num.end())
+                bidx2num.insert(make_pair(bidx, 1));
+            else
+                bidx2num[bidx]++;
+        } else {
+            shortnum++;
+            sidx2bidx.insert(make_pair(sidx, -1));  // virtual blocks
+        }
+    }
+    for (auto sidx: ecHeaders) {
+        sidx2bidx.insert(make_pair(sidx, repairBlockIdx));
+    }
+
+
+    // translate in and out
+    unsigned int inip = loclist[repairBlockIdx];
+    tablein[inip] = toret; 
+
+    for (auto item: bidx2num) {
+        int idx = item.first;
+        int num = item.second;
+        unsigned int loc = loclist[idx];
+        if (tableout.find(loc) == tableout.end())
+            tableout[loc] = num;
+        else
+            tableout[loc] += num;
+    }
+    return toret;
+}
+
+int Coordinator::generateLoadTableDist(unordered_map<unsigned int, int>& tablein, unordered_map<unsigned int, int>& tableout, string block, StripeMeta* stripemeta) {
+    // return the number of real vertices
+
+    int repairBlockIdx = stripemeta->getBlockIndex(block);
+    int ecn = stripemeta->getECN();
+    int eck = stripemeta->getECK();
+    int ecw = stripemeta->getECW();
+
+    vector<string> blocklist = stripemeta->getBlockList();
+    vector<unsigned int> loclist = stripemeta->getLocList();
+
+    vector<int> availIndex;
+    vector<int> toRepairIndex;
+    for (int i=0; i<ecn; i++) {
+        for (int j=0; j<ecw; j++) {
+            int pktidx = i*ecw+j;
+            if (i == repairBlockIdx)
+                toRepairIndex.push_back(pktidx);
+            else
+                availIndex.push_back(pktidx);
+        }
+    }
+
+    ECBase* ec = stripemeta->createECClass();
+    ecw = ec->_w;
+    ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    ecdag->Concact(toRepairIndex);
+    ecdag->genECUnits();
+
+    // prepare for stat
+    unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+    vector<int> ecHeaders = ecdag->getECHeaders();
+    vector<int> ecLeaves = ecdag->getECLeaves();
+    unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+    vector<int> ecUnitList = ecdag->getUnitList();
+    int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+
+    unordered_map<int, int> sidx2bidx;
+    int shortnum = 0;
+    int toret=0;
+    for (auto sidx: ecLeaves) {
+        int bidx = sidx / ecw;
+        if (bidx < ecn ) {
+            sidx2bidx.insert(make_pair(sidx, bidx));
+            toret++;
+        } else {
+            shortnum++;
+            sidx2bidx.insert(make_pair(sidx, -1));  // virtual blocks
+        }
+    }
+    for (auto sidx: ecHeaders) {
+        sidx2bidx.insert(make_pair(sidx, repairBlockIdx));
+    }
+
+    vector<int> itm_idx;
+    vector<int> candidates;
+    for (auto item: ecNodeMap) {
+        int sidx = item.first;
+        if (find(ecHeaders.begin(), ecHeaders.end(), sidx) != ecHeaders.end())
+            continue;
+        if (find(ecLeaves.begin(), ecLeaves.end(), sidx) != ecLeaves.end())
+            continue;
+        itm_idx.push_back(sidx);
+        //sidx2bidx.insert(make_pair(sidx, -1));
+    }
+
+    for (int i=0; i<ecn; i++)
+        candidates.push_back(i);
+    sort(itm_idx.begin(), itm_idx.end());
+
+    string tpentry = stripemeta->getCodeName() + "_" + to_string(ecn) + "_" + to_string(eck) + "_" + to_string(ecw);
+    cout << "tpentry: " << tpentry << endl;
+    TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
+    vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
+
+
+    unordered_map<int, int> in;
+    unordered_map<int, int> out;
+    stat(sidx2bidx, itm_coloring, itm_idx, ecdag, in, out);
+
+    // translate in and out
+    for (auto item: in) {
+        int idx = item.first;
+        int num = item.second;
+        unsigned int loc = loclist[idx];
+        if (tablein.find(loc) == tablein.end())
+            tablein[loc] = num;
+        else
+            tablein[loc] += num;
+    }
+
+    for (auto item: out) {
+        int idx = item.first;
+        int num = item.second;
+        unsigned int loc = loclist[idx];
+        if (tableout.find(loc) == tableout.end())
+            tableout[loc] = num;
+        else
+            tableout[loc] += num;
+    }
+    return toret;
+}
+
+void Coordinator::stat(unordered_map<int, int> sidx2ip,
+        vector<int> curres, vector<int> itm_idx,
+        ECDAG* ecdag, unordered_map<int, int>& inmap, unordered_map<int, int>& outmap) {
+
+    unordered_map<int, int> coloring_res;
+    for (auto item: sidx2ip) {
+        coloring_res.insert(make_pair(item.first, item.second));
+    }
+    for (int ii=0; ii<curres.size(); ii++) {
+        int idx = itm_idx[ii];
+        int color = curres[ii];
+        coloring_res[idx] = color;
+    }
+    // gen ECClusters
+    ecdag->clearECCluster();
+    ecdag->genECCluster(coloring_res, _conf->_clusterSize);
+
+    // gen stat
+    ecdag->genStat(coloring_res, inmap, outmap);
+}
+
+int Coordinator::testAndTrial(unordered_map<unsigned int, int> inmap,
+        unordered_map<unsigned int, int> outmap,
+        unordered_map<unsigned int, int> tmpin,
+        unordered_map<unsigned int, int> tmpout) {
+
+    unordered_map<unsigned int, int> in;
+    unordered_map<unsigned int, int> out;
+    for (auto item: inmap) {
+        unsigned int ip = item.first;
+        int num = item.second;
+        in.insert(make_pair(ip, num));
+    }
+    for (auto item: outmap) {
+        unsigned int ip = item.second;
+        int num = item.second;
+        out.insert(make_pair(ip, num));
+    }
+
+    for (auto item: tmpin) {
+        unsigned int ip = item.first;
+        if (in.find(ip) == in.end()) {
+            in.insert(make_pair(ip, item.second));
+        } else {
+            in[ip] += item.second;
+        }
+    }
+
+    for (auto item: tmpout) {
+        unsigned int ip = item.first;
+        if (out.find(ip) == out.end()) {
+            out.insert(make_pair(ip, item.second));
+        } else {
+            out[ip] += item.second;
+        }
+    }
+
+    int maxload=0;
+    for (auto item: in) {
+        if (item.second > maxload)
+            maxload = item.second;
+    }
+    for (auto item: out) {
+        if (item.second > maxload)
+            maxload = item.second;
+    }
+
+    return maxload;
 }

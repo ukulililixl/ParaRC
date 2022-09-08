@@ -34,15 +34,28 @@ class Coordinator {
 
     void repairBlockListConv(vector<string> blocklist);
     void repairBlockListDist1(vector<string> blocklist);
+    void repairBlockListParaRC(vector<string> blocklist, unordered_map<string, string> blk2solution);
 
     void repairNode(CoorCommand* coorCmd);
     void repairNodeConv(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
     void repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
+    void repairNodeParaRC(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta);
 
     void readBlock(CoorCommand* coorCmd);
     void readBlockConv(string blockname, unsigned int clientip, bool enforceip, int offset, int length); 
 
     unsigned int selectRepairIp(vector<unsigned int> ips);
+    int generateLoadTableDist(unordered_map<unsigned int, int>& in, unordered_map<unsigned int, int>& out, string block, StripeMeta* meta);
+    int generateLoadTableConv(unordered_map<unsigned int, int>& in, unordered_map<unsigned int, int>& out, string block, StripeMeta* meta);
+    void stat(unordered_map<int, int> sidx2ip,
+            vector<int> curres, vector<int> itm_idx,
+            ECDAG* ecdag, 
+            unordered_map<int, int>& in, 
+            unordered_map<int, int>& out);
+    int testAndTrial(unordered_map<unsigned int, int> inmap,
+            unordered_map<unsigned int, int> outmap,
+            unordered_map<unsigned int, int> tmpin,
+            unordered_map<unsigned int, int> tmpout);
 };
 
 #endif

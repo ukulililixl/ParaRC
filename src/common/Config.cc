@@ -73,6 +73,8 @@ Config::Config(std::string& filepath) {
             _clusterSize = std::stoi(ele -> NextSiblingElement("value") -> GetText());  
         } else if (attName == "repair.thread.num") {
             _rpThreads = std::stoi(ele -> NextSiblingElement("value") -> GetText());
+        } else if (attName == "network.bandwidth") {
+            _netbdwt = std::stoi(ele -> NextSiblingElement("value") -> GetText());
         }
     }
 

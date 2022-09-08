@@ -204,6 +204,13 @@ void Coordinator::repairBlockListConv(vector<string> blocklist) {
     }
 }
 
+void Coordinator::repairBlockListConvStandby(vector<string> blocklist) {
+    cout << "Coordinator::repairBlockListConvStandby" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockConv(blocklist[i], 0, true, true);
+    }
+}
+
 void Coordinator::repairBlockListParaRC(vector<string> blocklist, unordered_map<string, string> blk2solution) {
     cout << "Coordinator::repairBlockListConv" << endl;
     for (int i=0; i<blocklist.size(); i++) {
@@ -887,6 +894,13 @@ void Coordinator::repairBlockListDist1(vector<string> blocklist) {
     cout << "Coordinator::repairBlockListDist1" << endl;
     for (int i=0; i<blocklist.size(); i++) {
         repairBlockDist1(blocklist[i], 0, false, true);
+    }
+}
+
+void Coordinator::repairBlockListDist1Standby(vector<string> blocklist) {
+    cout << "Coordinator::repairBlockListDist1Standby" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockDist1(blocklist[i], 0, true, true);
     }
 }
 

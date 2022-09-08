@@ -204,10 +204,10 @@ void Coordinator::repairBlockListConv(vector<string> blocklist) {
     }
 }
 
-void Coordinator::repairBlockListConvStandby(vector<string> blocklist) {
+void Coordinator::repairBlockListConvStandby(vector<string> blocklist, unsigned int clientIp) {
     cout << "Coordinator::repairBlockListConvStandby" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        repairBlockConv(blocklist[i], 0, true, true);
+        repairBlockConv(blocklist[i], clientIp, true, true);
     }
 }
 
@@ -897,10 +897,10 @@ void Coordinator::repairBlockListDist1(vector<string> blocklist) {
     }
 }
 
-void Coordinator::repairBlockListDist1Standby(vector<string> blocklist) {
+void Coordinator::repairBlockListDist1Standby(vector<string> blocklist, unsigned int clientIp) {
     cout << "Coordinator::repairBlockListDist1Standby" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        repairBlockDist1(blocklist[i], 0, true, true);
+        repairBlockDist1(blocklist[i], clientIp, true, true);
     }
 }
 
@@ -981,6 +981,10 @@ void Coordinator::standbyRepair(CoorCommand* coorCmd) {
 
     cout << "Coor::standbyRepair.node: " << RedisUtil::ip2Str(nodeip) << ", code: " << code << ", method: " << method << endl;
 
+    if (find(_conf->_clientIPs.begin(), _conf->_clientIPs.end(), clientIp) == _conf->_clientIPs.end()) {
+        clientIp = _conf->_clientIPs[0];
+    }
+
     // 0. figure out blocks of code in nodeip
     unordered_map<string, StripeMeta*> blk2meta = _stripeStore->getBlock2StripeMeta(nodeip, code);
 
@@ -994,18 +998,32 @@ void Coordinator::standbyRepair(CoorCommand* coorCmd) {
         meta->updateLocForBlock(blk, _conf->_agentsIPs);
     }
 
+    int rpthreads = _conf->_rpThreads;
+    vector<vector<string>> rpgroups;
+    for (int i=0; i<rpthreads; i++) {
+        vector<string> tmplist;
+        rpgroups.push_back(tmplist);
+    }
+    for (int i=0; i<blocklist.size(); i++) {
+        int idx = i%rpthreads;
+        rpgroups[idx].push_back(blocklist[i]);
+    }
 
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
+
     // 1. create threads
-    thread repairThread;
-    if (method == "conv")
-        repairThread = thread([=]{repairBlockListConv(blocklist);});
-    else if (method == "dist")
-        repairThread = thread([=]{repairBlockListDist1(blocklist);});
+    vector<thread> repairThreads = vector<thread>(rpthreads);
+    for (int i=0; i<rpthreads; i++) {
+        if (method == "conv")
+            repairThreads[i] = thread([=]{repairBlockListConvStandby(rpgroups[i], clientIp);});
+        else if (method == "dist")
+            repairThreads[i] = thread([=]{repairBlockListDist1Standby(rpgroups[i], clientIp);});
+    }
 
     // 2. join
-    repairThread.join();
+    for (int i=0; i<rpthreads; i++)
+        repairThreads[i].join();
     gettimeofday(&time2, NULL);
     cout << "Coordinator::repairNodeDist.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
 }

@@ -33,9 +33,9 @@ class Coordinator {
     void repairBlockDist1(string blockname, unsigned int clientip, bool enforceip, bool wait); // old protocol
 
     void repairBlockListConv(vector<string> blocklist);
-    void repairBlockListConvStandby(vector<string> blocklist);
+    void repairBlockListConvStandby(vector<string> blocklist, unsigned int clientIp);
     void repairBlockListDist1(vector<string> blocklist);
-    void repairBlockListDist1Standby(vector<string> blocklist);
+    void repairBlockListDist1Standby(vector<string> blocklist, unsigned int clientIp);
     void repairBlockListParaRC(vector<string> blocklist, unordered_map<string, string> blk2solution);
 
     void repairNode(CoorCommand* coorCmd);

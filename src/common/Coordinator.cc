@@ -35,6 +35,7 @@ void Coordinator::doProcess() {
         case 0: repairBlock(coorCmd); break;
         case 1: repairNode(coorCmd); break;
         case 2: readBlock(coorCmd); break;
+        case 3: standbyRepair(coorCmd); break;
         default: break;
       }
       delete coorCmd;
@@ -956,6 +957,43 @@ void Coordinator::repairNode(CoorCommand* coorCmd) {
     } else {
         cout << "ERROR::wrong method!" << endl;
     }
+}
+
+void Coordinator::standbyRepair(CoorCommand* coorCmd) {
+    unsigned int clientIp = coorCmd->getClientIp();
+    unsigned int nodeip = coorCmd->getNodeIp();
+    string code = coorCmd->getCode();
+    string method = coorCmd->getMethod();
+
+    cout << "Coor::standbyRepair.node: " << RedisUtil::ip2Str(nodeip) << ", code: " << code << ", method: " << method << endl;
+
+    // 0. figure out blocks of code in nodeip
+    unordered_map<string, StripeMeta*> blk2meta = _stripeStore->getBlock2StripeMeta(nodeip, code);
+
+    // 1. allocate a random ip for each block to repair
+    vector<string> blocklist;
+    for (auto item: blk2meta) {
+        string blk = item.first;
+        blocklist.push_back(blk);
+        StripeMeta* meta = item.second;
+        // whether directly update in meta
+        meta->updateLocForBlock(blk, _conf->_agentsIPs);
+    }
+
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+    // 1. create threads
+    thread repairThread;
+    if (method == "conv")
+        repairThread = thread([=]{repairBlockListConv(blocklist);});
+    else if (method == "dist")
+        repairThread = thread([=]{repairBlockListDist1(blocklist);});
+
+    // 2. join
+    repairThread.join();
+    gettimeofday(&time2, NULL);
+    cout << "Coordinator::repairNodeDist.fullnode recovery duration = " << DistUtil::duration(time1, time2) << endl;
 }
 
 void Coordinator::repairNodeDist(unsigned int nodeip, string code, unordered_map<string, StripeMeta*> blk2meta) {

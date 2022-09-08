@@ -44,6 +44,8 @@ class Coordinator {
     void readBlock(CoorCommand* coorCmd);
     void readBlockConv(string blockname, unsigned int clientip, bool enforceip, int offset, int length); 
 
+    void standbyRepair(CoorCommand* coorCmd);
+
     unsigned int selectRepairIp(vector<unsigned int> ips);
     int generateLoadTableDist(unordered_map<unsigned int, int>& in, unordered_map<unsigned int, int>& out, string block, StripeMeta* meta);
     int generateLoadTableConv(unordered_map<unsigned int, int>& in, unordered_map<unsigned int, int>& out, string block, StripeMeta* meta);

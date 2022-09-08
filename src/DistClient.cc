@@ -11,6 +11,7 @@ using namespace std;
 void usage() {
   cout << "usage: ./DistClient repairBlock blockname method" << endl;
   cout << "       ./DistClient repairNode ip code method" << endl;
+  cout << "       ./DistClient standbyRepair ip code method" << endl;
   cout << "       ./DistClient readBlock blockname offset length method" << endl;
 }
 
@@ -81,6 +82,21 @@ void readBlock(string blockname, int offset, int length, string method) {
     cout << "repairBlock::repair time: " << DistUtil::duration(time1, time2) << endl;
 }
 
+void standbyRepair(string nodeipstr, string code, string method) {
+
+  string confpath("./conf/sysSetting.xml");
+  Config* conf = new Config(confpath);
+
+  unsigned int ip = inet_addr(nodeipstr.c_str());
+
+  CoorCommand* cmd = new CoorCommand();
+  cmd->buildType3(3, conf->_localIp, ip, code, method);
+  cmd->sendTo(conf->_coorIp);
+
+  delete cmd;
+  delete conf;
+}
+
 int main(int argc, char** argv) {
     
     if (argc < 2) {
@@ -119,6 +135,16 @@ int main(int argc, char** argv) {
         int length = atoi(argv[4]);
         string method(argv[5]);
         readBlock(blockname, offset, length, method);
+    } else if (reqType == "standbyRepair") {
+        if (argc != 5) {
+            usage();
+            return -1;
+        }
+
+        string nodeip(argv[2]);
+        string code(argv[3]);
+        string method(argv[4]);
+        standbyRepair(nodeip, code, method);
     }
 //  if (reqType == "write") {
 //    if (argc != 7) {

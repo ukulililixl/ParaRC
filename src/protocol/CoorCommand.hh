@@ -11,7 +11,7 @@ using namespace std;
  * coor_request: type
  *   type = 0: clientip | blockname | method |
  *   type = 1: clientip | nodeip | code | method |
- *   type = 3: clientip | blockname | offset | length | method |
+ *   type = 2: clientip | blockname | offset | length | method |
  */
 
 
@@ -66,11 +66,13 @@ class CoorCommand {
     void buildType0(int type, unsigned int ip, string blockname, string method); 
     void buildType1(int type, unsigned int ip, unsigned int nodeip, string code, string method);
     void buildType2(int type, unsigned int ip, string blockname, int offset, int length, string method);
+    void buildType3(int type, unsigned int ip, unsigned int nodeip, string code, string method);
 
     // resolve CoorCommand
     void resolveType0();
     void resolveType1();
     void resolveType2();
+    void resolveType3();
 //
     // for debug
     void dump();

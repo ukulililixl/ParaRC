@@ -192,64 +192,114 @@ void Worker::fetchAndCompute(AGCommand* agcmd) {
       int cid = item.first;
       cacheIndices.push_back(cid);
   }
-  
-  //if (find(prevIndices.begin(), prevIndices.end(), 65) != prevIndices.end()) {
-  //  debugFetchAndCompute(agcmd);
-  //} else {
 
-    // // debug
-    // cout << "Worker::fetchAndCompute prev: ";
+  // Xiaolu modify at 0915
+  // sort prevIndices by the prevLocs and create fetchmap
+  unordered_map<unsigned int, vector<int>> ip2cidlist;
+  unordered_map<int, BlockingQueue<DataPacket*>*> fetchmap;
+  for (int i=0; i<prevIndices.size(); i++) {
+      int cid = prevIndices[i];
+      unsigned int loc = prevLocs[i];
+      BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+      fetchmap.insert(make_pair(cid, readqueue));
+      if (ip2cidlist.find(loc) == ip2cidlist.end()) {
+          vector<int> list = {cid};
+          ip2cidlist.insert(make_pair(loc, list));
+      } else {
+          ip2cidlist[loc].push_back(cid);
+      }
+  }
+
+  // create cachemap
+  unordered_map<int, BlockingQueue<DataPacket*>*> cachemap;
+  for (int i=0; i<cacheIndices.size(); i++) {
+      int cid = cacheIndices[i];
+      BlockingQueue<DataPacket*>* queue = new BlockingQueue<DataPacket*>();
+      cachemap.insert(make_pair(cid, queue));
+  }
+
+  // create fetchthreads
+  vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+  int fetchThreadsIdx = 0;
+  for (auto item: ip2cidlist) {
+      unsigned int ip = item.first;
+      vector<int> cidlist = item.second;
+      unordered_map<int, BlockingQueue<DataPacket*>*> curfetchmap;
+      for (auto cid: cidlist) {
+          curfetchmap.insert(make_pair(cid, fetchmap[cid]));
+      }
+      fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker2(curfetchmap, stripename, ip, ecw, blkbytes, pktbytes);});
+  }
+
+  // create compute thread
+  thread computeThread = thread([=]{computeWorker2(fetchmap, cachemap, computeTaskList, ecw, blkbytes, pktbytes);});
+
+  // create cache thread
+  thread cacheThread = thread([=]{cacheWorker2(cachemap, cid2refs, ecw, stripename, blkbytes, pktbytes);});
+
+  // join
+  for (int i=0; i<fetchThreads.size(); i++) {
+      fetchThreads[i].join();               
+  }
+  computeThread.join();
+  cacheThread.join();
+
+  // free
+  for (auto item: fetchmap) {
+      delete item.second;            
+  }
+  for (auto item: cachemap) {
+      delete item.second;            
+  }
+
+    // Xiaolu comment 0915
+    // // create blockingqueue for fetching
+    // BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
+    // for (int i=0; i<prevIndices.size(); i++) 
+    //   fetchQueue[i] = new BlockingQueue<DataPacket*>();
+    // // create blockingqueue for writing
+    // BlockingQueue<DataPacket*>** writeQueue = (BlockingQueue<DataPacket*>**)calloc(cacheIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
+    // for (int i=0; i<cacheIndices.size(); i++)
+    //   writeQueue[i] = new BlockingQueue<DataPacket*>();
+
+    // // create fetch thread
+    // vector<thread> fetchThreads = vector<thread>(prevIndices.size());
+    // gettimeofday(&time2, NULL); 
+    // for (int i=0; i<prevIndices.size(); i++) {
+    //   string keybase = stripename+":"+to_string(prevIndices[i]);
+    //   fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
+    // } 
+
+    // // create compute thread
+    // thread computeThread = thread([=]{computeWorker(fetchQueue, prevIndices, writeQueue, cacheIndices, computeTaskList, ecw, blkbytes, pktbytes);});
+
+    // // create cache thread
+    // vector<thread> cacheThreads = vector<thread>(cacheIndices.size());
+    // for (int i=0; i<cacheIndices.size(); i++) {
+    //   vector<int> tmplist = {cacheIndices[i]};
+    //   cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes, cid2refs);});
+    // }
+
+    // // join
+    // for (int i=0; i<prevIndices.size(); i++) {
+    //   fetchThreads[i].join();
+    // }
+    // gettimeofday(&time3, NULL); 
+    // cout << "Worker::fetchAndCompute.overall fetch time: " << DistUtil::duration(time2, time3) << endl;
+    // computeThread.join();
+    // for (int i=0; i<cacheIndices.size(); i++) {
+    //   cacheThreads[i].join();
+    // }
+
+    // // free
     // for (int i=0; i<prevIndices.size(); i++)
-    //     cout << "(" << prevIndices[i] << ", " << RedisUtil::ip2Str(prevLocs[i]) << ") ";
-
-    // create blockingqueue for fetching
-    BlockingQueue<DataPacket*>** fetchQueue = (BlockingQueue<DataPacket*>**)calloc(prevIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
-    for (int i=0; i<prevIndices.size(); i++) 
-      fetchQueue[i] = new BlockingQueue<DataPacket*>();
-    // create blockingqueue for writing
-    BlockingQueue<DataPacket*>** writeQueue = (BlockingQueue<DataPacket*>**)calloc(cacheIndices.size(), sizeof(BlockingQueue<DataPacket*>*));
-    for (int i=0; i<cacheIndices.size(); i++)
-      writeQueue[i] = new BlockingQueue<DataPacket*>();
-
-    // create fetch thread
-    vector<thread> fetchThreads = vector<thread>(prevIndices.size());
-    gettimeofday(&time2, NULL); 
-    for (int i=0; i<prevIndices.size(); i++) {
-      string keybase = stripename+":"+to_string(prevIndices[i]);
-      fetchThreads[i] = thread([=]{fetchWorker(fetchQueue[i], keybase, prevLocs[i], ecw, blkbytes, pktbytes);});
-    } 
-
-    // create compute thread
-    thread computeThread = thread([=]{computeWorker(fetchQueue, prevIndices, writeQueue, cacheIndices, computeTaskList, ecw, blkbytes, pktbytes);});
-
-    // create cache thread
-    vector<thread> cacheThreads = vector<thread>(cacheIndices.size());
-    for (int i=0; i<cacheIndices.size(); i++) {
-      vector<int> tmplist = {cacheIndices[i]};
-      cacheThreads[i] = thread([=]{cacheWorker(writeQueue[i], tmplist, ecw, stripename, blkbytes, pktbytes, cid2refs);});
-    }
-
-    // join
-    for (int i=0; i<prevIndices.size(); i++) {
-      fetchThreads[i].join();
-    }
-    gettimeofday(&time3, NULL); 
-    cout << "Worker::fetchAndCompute.overall fetch time: " << DistUtil::duration(time2, time3) << endl;
-    computeThread.join();
-    for (int i=0; i<cacheIndices.size(); i++) {
-      cacheThreads[i].join();
-    }
-
-    // free
-    for (int i=0; i<prevIndices.size(); i++)
-      delete fetchQueue[i];
-    free(fetchQueue);
-    for (int i=0; i<cacheIndices.size(); i++)
-      delete writeQueue[i];
-    free(writeQueue);
-    cout << "Worker::fetchAndCompute end!" << endl;
+    //   delete fetchQueue[i];
+    // free(fetchQueue);
+    // for (int i=0; i<cacheIndices.size(); i++)
+    //   delete writeQueue[i];
+    // free(writeQueue);
+    // cout << "Worker::fetchAndCompute end!" << endl;
   
-  //}
 }
 
 void Worker::fetchAndCompute2(AGCommand* agcmd) {

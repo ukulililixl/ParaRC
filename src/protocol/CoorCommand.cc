@@ -26,7 +26,7 @@ CoorCommand::CoorCommand(char* reqStr) {
     case 1: resolveType1(); break;
     case 2: resolveType2(); break;
     case 3: resolveType3(); break;
-//    case 4: resolveType4(); break;
+    case 4: resolveType4(); break;
 //    case 5: resolveType5(); break;
 //    case 6: resolveType6(); break;
 //    case 7: resolveType7(); break;
@@ -241,6 +241,32 @@ void CoorCommand::resolveType3() {
   _nodeIp = readInt();
   // 4. code
   _code = readString();
+  // 4. method
+  _method = readString();
+}
+
+void CoorCommand::buildType4(int type, unsigned int ip, string blockname, string method) {
+  // set up corresponding parameters
+  _type = type;
+  _clientIp = ip;
+  _blockName = blockname;
+  _method = method;
+
+  // 1. type
+  writeInt(_type);
+  // 2. ipo
+  writeInt(_clientIp);
+  // 3. blockname
+  writeString(_blockName);
+  // 4. method
+  writeString(_method);
+}
+
+void CoorCommand::resolveType4() {
+  // 2. ip
+  _clientIp = readInt();
+  // 3. filename
+  _blockName = readString();
   // 4. method
   _method = readString();
 }

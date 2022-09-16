@@ -74,6 +74,10 @@ class ECDAG {
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,
             string stripename, vector<string> blocklist,
             unordered_map<int, unsigned int> coloring_res);
+    void genECTasksTopo(vector<ECTask*>& tasklist,
+            int ecn, int eck, int ecw, int blkbytes, int pktbytes,
+            string stripename, vector<string> blocklist, vector<unsigned int> loclist,
+            unordered_map<int, unsigned int> coloring_res);
     void genComputeTaskByECUnits(vector<ComputeTask*>& tasklist);
     void genConvECTasks(vector<ECTask*>& tasklist,
             int ecn, int eck, int ecw, int blkbytes, int pktbytes,

@@ -195,10 +195,10 @@ void ECDAG::genECUnits() {
     //  break;
   }
 
-  //// debug
-  //for (int i=0; i<_ecUnitList.size(); i++)  {
-  //  cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
-  //}
+  // debug
+  for (int i=0; i<_ecUnitList.size(); i++)  {
+    cout << _ecUnitMap[_ecUnitList[i]]->dump() << endl;
+  }
 }
 
 void ECDAG::clearECCluster() {
@@ -443,6 +443,255 @@ void ECDAG::genStat(unordered_map<int, int> coloring,
   //for (auto item: opmap) {
   //    cout << "  " << item.first << ": " << item.second << endl;
   //}
+}
+
+void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,                                                                                                                         
+        int ecn, int eck, int ecw, int blkbytes, int pktbytes, 
+        string stripename, vector<string> blocklist, vector<unsigned int> loclist,
+        unordered_map<int, unsigned int> coloring_res) {
+    cout << "genECTasksTopo" << endl;
+
+    // we first divide vertices into topological groups
+    unordered_map<int, vector<int>> topomap;
+    unordered_map<int, int> cid2topoid;
+    int topoidx=0;
+
+    unordered_map<int, bool> unsortedcid;
+    for (auto item: _ecNodeMap) {
+        int cid = item.first;
+        unsortedcid.insert(make_pair(cid, false));
+    }
+    cout << "unsortedcid.size = " << unsortedcid.size() << endl;
+
+    int debug=0;
+    while (unsortedcid.size()) {
+        cout << "unsortedcid.size = " << unsortedcid.size() << endl;
+        vector<int> unsortedlist;
+        for (auto item: unsortedcid) {
+            unsortedlist.push_back(item.first);
+        }
+
+        for (int i=0; i<unsortedlist.size(); i++) {
+
+            int cid = unsortedlist[i];
+            ECNode* node = _ecNodeMap[cid];
+
+            int topoid = -1;
+            if (node->getChildNodes().size() == 0) {
+                topoid = 0;
+            } else {
+                // figure out whether all the child has been sorted
+                for (auto ccid: node->getChildIndices()) {
+                    if  (cid2topoid.find(ccid) == cid2topoid.end()) {
+                        // this vertex has some child that are not sorted yet
+                        topoid = -1;
+                        break;
+                    } else {
+                        if (cid2topoid[ccid] + 1 > topoid)  {
+                            topoid = cid2topoid[ccid] + 1;
+                        }
+                    }
+                }
+            }
+            cout << "cid: " << cid << " topoid: " << topoid << endl;
+
+            if (topoid != -1) {
+                if (topomap.find(topoid) == topomap.end()) {
+                    vector<int> curlist = {cid};
+                    topomap.insert(make_pair(topoid, curlist));
+                } else {
+                    topomap[topoid].push_back(cid);
+                }
+                unsortedcid.erase(unsortedcid.find(cid));
+                cout << "unsortedcid: " << unsortedcid.size() << endl;
+
+                cid2topoid.insert(make_pair(cid, topoid));
+            }
+        }
+        cout << "unsortedcid: " << unsortedcid.size() << endl;
+
+    }
+
+    //debug
+    for (int i=0; i<topomap.size(); i++) {
+        cout << "topoid: " << i << endl;
+        cout << "  ";
+        for (auto item: topomap[i]) 
+            cout << item << " ";
+        cout << endl;
+    }
+
+    // divide vertices in the same topoid by ips
+    vector<vector<int>> clusters;
+    for (int i=1; i<topomap.size(); i++) {
+        vector<int> topolayer = topomap[i];
+
+        unordered_map<int, vector<int>> layergroups; // ip -> idxlist
+        for (auto cid: topolayer) {
+            unsigned int color = coloring_res[cid];
+            if (layergroups.find(color) == layergroups.end()) {
+                vector<int> tmplist = {cid};
+                layergroups.insert(make_pair(color, tmplist));
+            } else {
+                layergroups[color].push_back(cid);
+            }
+        }
+
+        // add the groups of current layer into clusters
+        for (auto item: layergroups) {
+            clusters.push_back(item.second);
+        }
+    }
+
+    unordered_map<int, int> cid2refs;
+    for (int i=0; i<clusters.size(); i++) {
+        vector<int> clustercidlist = clusters[i];
+        unordered_map<int, int> clusterchildmap;
+        for (auto cid: clustercidlist) {
+            ECNode* node = _ecNodeMap[cid];
+            vector<int> childs = node->getChildIndices();
+            for (auto tmpcid: childs) {
+                if (clusterchildmap.find(tmpcid) == clusterchildmap.end())
+                    clusterchildmap.insert(make_pair(tmpcid, 1));
+            }
+        }
+
+        // for each child we increase cidref
+        for (auto item: clusterchildmap) {
+            int cid = item.first;
+            if (cid2refs.find(cid) == cid2refs.end())
+                cid2refs.insert(make_pair(cid, 1));
+            else
+                cid2refs[cid]++;
+        }
+    }
+
+    int total = 0;
+    for (auto item: cid2refs) {
+        int cid = item.first;
+        int bid = cid/ecw;
+
+        if (bid < eck)
+            total += cid2refs[cid];
+    }
+    cout << "total: " << total << endl;
+
+
+    // now we generate commands to readdisk
+    unordered_map<int, vector<int>> bid2cids;
+    unordered_map<int, int> shorteningmap;
+    for (int i=0; i<_ecLeaves.size(); i++) {
+        int cid = _ecLeaves[i];
+        int bid = cid/ecw;
+        if (bid < ecn) {
+            // a real leaf vertex
+            if (bid2cids.find(bid) == bid2cids.end()) {
+                vector<int> list = {cid};
+                bid2cids.insert(make_pair(bid, list));
+            } else {
+                bid2cids[bid].push_back(cid);
+            }
+        } else {
+            shorteningmap.insert(make_pair(cid, 1));
+        }
+    }
+
+    for (auto item: bid2cids) {
+        int bid = item.first;
+        unsigned int ip = loclist[bid];
+
+        vector<int> cidlist = item.second;
+        sort(cidlist.begin(), cidlist.end());
+
+        unordered_map<int, int> tmpcid2refs;
+        for (auto cid: cidlist) {
+            tmpcid2refs.insert(make_pair(cid, cid2refs[cid]));
+        }
+
+        ECTask* readtask = new ECTask();
+        readtask->buildReadDisk(0, ip, blocklist[bid],
+                blkbytes, pktbytes, ecw, tmpcid2refs, stripename);
+        tasklist.push_back(readtask);
+    }
+
+    // compute task for each cluster
+    for (int i=0; i<clusters.size(); i++) {
+        vector<int> clustercidlist = clusters[i];
+        vector<ComputeTask*> ctlist;
+        unordered_map<int, int> tmpcid2refs;
+        unordered_map<unsigned int, vector<int>> tmpip2cidlist;
+        vector<int> shortlist;
+
+        unsigned int sendto = coloring_res[clustercidlist[0]];
+
+        for (auto cid: clustercidlist) {
+            if (cid ==  REQUESTOR)
+                continue;
+            ECNode* node = _ecNodeMap[cid];
+
+            vector<int> srclist = node->getChildIndices();
+            for (auto ccid: srclist) {
+                if (shorteningmap.find(ccid) != shorteningmap.end())
+                    shortlist.push_back(ccid);
+                else {
+                    unsigned int ip;
+                    if (coloring_res.find(ccid) != coloring_res.end()) {
+                        ip = coloring_res[ccid];
+                    } else {
+                        assert(ccid/ecw < ecn);
+                        ip = loclist[ccid/ecw];
+                    }
+
+                    if (tmpip2cidlist.find(ip) == tmpip2cidlist.end()) {
+                        vector<int> tmplist = {ccid};
+                        tmpip2cidlist.insert(make_pair(ip, tmplist));
+                    } else {
+                        tmpip2cidlist[ip].push_back(ccid);
+                    }
+                }
+            }
+
+            vector<int> coef = node->getCoefs() ;
+
+            vector<int> dstlist = {cid};
+            vector<vector<int>> coeflist;
+            coeflist.push_back(coef);
+
+            ComputeTask* ct = new ComputeTask(srclist, dstlist, coeflist);
+            ctlist.push_back(ct);
+
+            if (tmpcid2refs.find(cid) == tmpcid2refs.end())
+                tmpcid2refs.insert(make_pair(cid, 1));
+            else
+                tmpcid2refs[cid]++;
+        }
+
+
+        ECTask* fetchComputeTask = new ECTask();
+        fetchComputeTask->buildFetchCompute2(3, sendto, tmpip2cidlist, ctlist,
+            stripename, tmpcid2refs, ecw, blkbytes, pktbytes);
+        tasklist.push_back(fetchComputeTask);
+    }
+
+    // create concatenate task
+    ECNode* requestornode = _ecNodeMap[REQUESTOR];
+    vector<int> concatenatelist = requestornode->getChildIndices();
+    unordered_map<unsigned int, vector<int>> ip2conlist;
+    for (auto cid: concatenatelist) {
+        unsigned int ip = coloring_res[cid];
+        if (ip2conlist.find(ip) == ip2conlist.end()) {
+            vector<int> tmplist={cid};
+            ip2conlist.insert(make_pair(ip, tmplist));
+        } else {
+            ip2conlist[ip].push_back(cid);
+        }
+    }
+    int repairIdx = concatenatelist[0]/ecw;
+    ECTask* concatenateTask = new ECTask();
+    concatenateTask->buildConcatenate2(4, loclist[repairIdx],ip2conlist,stripename,
+            blocklist[repairIdx], ecw, blkbytes, pktbytes);
+    tasklist.push_back(concatenateTask);
+
 }
 
 void ECDAG::genECTasksByECClusters(vector<ECTask*>& tasklist,                                                                                                                         

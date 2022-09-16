@@ -36,6 +36,7 @@ void Coordinator::doProcess() {
         case 1: repairNode(coorCmd); break;
         case 2: readBlock(coorCmd); break;
         case 3: standbyRepair(coorCmd); break;
+        case 4: degradeRead(coorCmd); break;
         default: break;
       }
       delete coorCmd;
@@ -69,6 +70,24 @@ void Coordinator::repairBlock(CoorCommand* coorCmd) {
         repairBlockConv(blockName, clientIp, true, false);
     } else {
         cout << "ERROR::wrong method!" << endl;
+    }
+}
+
+void Coordinator::degradeRead(CoorCommand* coorCmd) {
+    struct timeval time1, time2, time3;
+
+    unsigned int clientIp = coorCmd->getClientIp();
+    string blockName = coorCmd->getBlockName();
+    string method = coorCmd->getMethod();
+
+    if (find(_conf->_clientIPs.begin(), _conf->_clientIPs.end(), clientIp) == _conf->_clientIPs.end()) {
+        clientIp = _conf->_clientIPs[0];       
+    }
+
+    if (method == "dist") {
+        repairBlockDist2(blockName, clientIp, true, false);
+    } else if (method == "conv") {
+        repairBlockConv(blockName, clientIp, true, false);
     }
 }
 
@@ -643,6 +662,182 @@ void Coordinator::repairBlockDist(string blockName) {
     for (int i=0; i<tasklist.size(); i++) {
         delete tasklist[i];
     }
+}
+
+void Coordinator::repairBlockDist2(string blockName, unsigned int clientip, bool enforceip, bool wait) {
+
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    cout << "Coor::repairBlockDist2.blockName: " << blockName << endl;
+    // 0. figure out the stripe that contains this block
+    StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
+    string stripename = stripemeta->getStripeName();
+    long long blkbytes = stripemeta->getBlockBytes();
+    int pktbytes = stripemeta->getPacketBytes();
+    cout << "stripename: " << stripename << ", blkbytes: " << blkbytes << ", pktybtes: " << pktbytes << endl;
+
+    // 1. the index of the failed block
+    int repairBlockIdx = stripemeta->getBlockIndex(blockName);
+    cout << "Coor::repairBlock.repairBlockIdx: " << repairBlockIdx << endl;
+
+    // 2. prepare avail and to repair
+    int ecn = stripemeta->getECN();
+    int eck = stripemeta->getECK();
+    int ecw = stripemeta->getECW();
+
+    vector<string> blocklist = stripemeta->getBlockList();
+    vector<unsigned int> loclist = stripemeta->getLocList();
+
+    // cout << "Coor::repairBlock.blocklist: " << endl;
+    // for (int i=0; i<ecn; i++) {
+    //     cout << "  " << blocklist[i] << ": " << RedisUtil::ip2Str(loclist[i]) << endl;
+    // }
+
+    // // 3. now we repair at the same location
+    // unsigned int repairLoc = loclist[repairBlockIdx];
+
+    // 3. if enforceip, enforce clientip; otherwise choose the default
+    unsigned int repairLoc;
+    if (enforceip) {
+        repairLoc = clientip;
+        loclist[repairBlockIdx] = clientip;
+    } else {
+        repairLoc = loclist[repairBlockIdx];
+        //repairLoc = selectRepairIp(loclist);
+        //loclist[repairBlockIdx] = repairLoc;
+    }
+
+    cout << "repair location: " << RedisUtil::ip2Str(repairLoc) << endl;
+
+    // 4. prepare availidx
+    vector<int> availIndex;
+    vector<int> toRepairIndex;
+    for (int i=0; i<ecn; i++) {
+        for (int j=0; j<ecw; j++) {
+            int pktidx = i*ecw+j;
+            if (i == repairBlockIdx)
+                toRepairIndex.push_back(pktidx);
+            else
+                availIndex.push_back(pktidx);
+        }
+    }
+
+    // 5. construct ECDAG
+    ECBase* ec = stripemeta->createECClass();
+    ecw = ec->_w;
+    ECDAG* ecdag = ec->Decode(availIndex, toRepairIndex);
+    ecdag->Concact(toRepairIndex);
+
+    // 6. divide ecdag into ecunits
+    ecdag->genECUnits();
+
+    // 7. get data structures from ecdag
+    unordered_map<int, ECNode*> ecNodeMap = ecdag->getECNodeMap();
+    vector<int> ecHeaders = ecdag->getECHeaders();
+    vector<int> ecLeaves = ecdag->getECLeaves();
+    unordered_map<int, ECUnit*> ecunits = ecdag->getUnitMap();
+    vector<int> ecUnitList = ecdag->getUnitList();
+
+    cout << "Total nodes: " << ecNodeMap.size() << endl;
+    cout << "Header nodes: " << ecHeaders.size() << endl;
+    cout << "Leaf nodes: " << ecLeaves.size() << endl;
+
+    int intermediate_num = ecNodeMap.size() - ecHeaders.size() - ecLeaves.size();
+    cout << "Intermediate nodes: " << intermediate_num << endl;
+
+    // 8. initialize colors
+    // we use idx from 0 to n-1 represents the n candidate colors
+    // for leave vertices, if it is stored in block [i], then we initialize the color to i.
+    // for header, we use the repairBlockIdx for its color
+    unordered_map<int, int> sidx2bidx;
+    int shortnum = 0;
+    for (auto sidx: ecLeaves) {
+        int bidx = sidx / ecw;
+        if (bidx < ecn )
+            sidx2bidx.insert(make_pair(sidx, bidx));
+        else {
+            shortnum++;
+            sidx2bidx.insert(make_pair(sidx, -1));  // virtual blocks
+        }
+    }
+    for (auto sidx: ecHeaders) {
+        sidx2bidx.insert(make_pair(sidx, repairBlockIdx));
+    }
+
+//    cout << "sidx2bidx: " << endl;
+//    for (auto item: sidx2bidx) {
+//        int cidx = item.first;
+//        int bidx = item.second;
+//        cout << "  cidx: " << cidx << ", bidx: " << bidx << endl;
+//    }
+//
+//    cout << "num shortening: " << shortnum << endl;
+
+    // 9. for intermediate vertices
+    // note that virtual vertices for shortening are not counted as intermediate vertices
+    vector<int> itm_idx;
+    vector<int> candidates;
+    for (auto item: ecNodeMap) {
+        int sidx = item.first;
+        if (find(ecHeaders.begin(), ecHeaders.end(), sidx) != ecHeaders.end())
+            continue;
+        if (find(ecLeaves.begin(), ecLeaves.end(), sidx) != ecLeaves.end())
+            continue;
+        itm_idx.push_back(sidx);
+        //sidx2bidx.insert(make_pair(sidx, -1));
+    }
+
+    for (int i=0; i<ecn; i++)
+        candidates.push_back(i);
+    sort(itm_idx.begin(), itm_idx.end());
+
+    // 10. read the tradeoff point and calculate maxload and bdwt
+    string tpentry = stripemeta->getCodeName() + "_" + to_string(ecn) + "_" + to_string(eck) + "_" + to_string(ecw);
+    cout << "tpentry: " << tpentry << endl;
+    TradeoffPoints* tp = _stripeStore->getTradeoffPoints(tpentry);
+    vector<int> itm_coloring = tp->getColoringByIdx(repairBlockIdx);
+
+    //cout << "itm coloring: " << endl;
+    //for (int i=0; i<itm_idx.size(); i++) {
+    //    cout << "  idx: " << itm_idx[i] << ", color: " << itm_coloring[i] << endl;
+    //}
+    //cout << endl;
+
+    //cout << "itm.size: " << itm_idx.size() << endl;
+
+    int bdwt, maxload;
+    stat(sidx2bidx, itm_coloring, itm_idx, ecdag, &bdwt, &maxload);
+    cout << "maxload: " << maxload << ", bdwt: " << bdwt << endl;
+
+    // 11. generate coloring results
+    unordered_map<int, unsigned int> coloring_res;
+    for (auto item: sidx2bidx) {
+        int idx = item.first;
+        int color = item.second;
+        unsigned int ip;
+        if (color < 0)
+            ip = 0;
+        else
+            ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+    for (int i=0; i<itm_idx.size(); i++) {
+        int idx = itm_idx[i];
+        int color = itm_coloring[i];
+        unsigned int ip = loclist[color];
+        coloring_res.insert(make_pair(idx, ip));
+    }
+
+    //cout << "coloring res: " << endl;
+    //for (auto item: coloring_res) {
+    //    cout << "  idx: " << item.first << ", ip: " << RedisUtil::ip2Str(item.second) << endl;
+    //}
+
+    // 12. generate ectasks by ECClusters
+    cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
+    vector<ECTask*> tasklist;
+    ecdag->genECTasksTopo(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, loclist, coloring_res);
 }
 
 void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool enforceip, bool wait) {

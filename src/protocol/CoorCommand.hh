@@ -67,12 +67,14 @@ class CoorCommand {
     void buildType1(int type, unsigned int ip, unsigned int nodeip, string code, string method);
     void buildType2(int type, unsigned int ip, string blockname, int offset, int length, string method);
     void buildType3(int type, unsigned int ip, unsigned int nodeip, string code, string method);
+    void buildType4(int type, unsigned int ip, string blockname, string method); 
 
     // resolve CoorCommand
     void resolveType0();
     void resolveType1();
     void resolveType2();
     void resolveType3();
+    void resolveType4();
 //
     // for debug
     void dump();

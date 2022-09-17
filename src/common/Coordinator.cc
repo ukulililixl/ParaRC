@@ -838,6 +838,27 @@ void Coordinator::repairBlockDist2(string blockName, unsigned int clientip, bool
     cout << "blkbytes: " << blkbytes << ", pktbytes: " << pktbytes << endl;
     vector<ECTask*> tasklist;
     ecdag->genECTasksTopo(tasklist, ecn, eck, ecw, blkbytes, pktbytes, stripename, blocklist, loclist, coloring_res);
+
+    for (int i=0; i<tasklist.size(); i++) {
+
+        ECTask* task = tasklist[i];
+        task->sendTask(i);
+    }
+ 
+    // wait for finish flag?
+    if (wait) {
+        redisContext* waitCtx = RedisUtil::createContext(repairLoc);
+        string wkey = "writefinish:"+blockName;
+        redisReply* fReply = (redisReply*)redisCommand(waitCtx, "blpop %s 0", wkey.c_str());
+        freeReplyObject(fReply);
+        redisFree(waitCtx);
+        gettimeofday(&time3, NULL);
+        //cout << "repairBlockDist1:: prepair time: " << DistUtil::duration(time1, time2) << ", repair time: " << DistUtil::duration(time2, time3) << endl;
+    }
+ 
+    // delete
+    delete ec;
+    delete ecdag;
 }
 
 void Coordinator::repairBlockDist1(string blockName, unsigned int clientip, bool enforceip, bool wait) {
@@ -1099,6 +1120,13 @@ void Coordinator::repairBlockListDist1Standby(vector<string> blocklist, unsigned
     }
 }
 
+void Coordinator::repairBlockListDist2Standby(vector<string> blocklist, unsigned int clientIp) {
+    cout << "Coordinator::repairBlockListDist2Standby" << endl;
+    for (int i=0; i<blocklist.size(); i++) {
+        repairBlockDist2(blocklist[i], clientIp, true, true);
+    }
+}
+
 void Coordinator::stat(unordered_map<int, int> sidx2ip,
         vector<int> curres, vector<int> itm_idx,
         ECDAG* ecdag, int* bdwt, int* maxload) {
@@ -1212,8 +1240,13 @@ void Coordinator::standbyRepair(CoorCommand* coorCmd) {
     for (int i=0; i<rpthreads; i++) {
         if (method == "conv")
             repairThreads[i] = thread([=]{repairBlockListConvStandby(rpgroups[i], clientIp);});
-        else if (method == "dist")
-            repairThreads[i] = thread([=]{repairBlockListDist1Standby(rpgroups[i], clientIp);});
+        else if (method == "dist") {
+            if (code == "Clay")
+                repairThreads[i] = thread([=]{repairBlockListDist1Standby(rpgroups[i], clientIp);});
+            else
+                repairThreads[i] = thread([=]{repairBlockListDist2Standby(rpgroups[i], clientIp);});
+            
+        }
     }
 
     // 2. join

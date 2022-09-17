@@ -485,6 +485,11 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
         vector<int> cidlist = fetchCmd->getCidList();
         ip2cidlist.insert(make_pair(ip, cidlist));
 
+        //cout << "fetch from " << RedisUtil::ip2Str(ip) << ": ";
+        //for (auto tmpcid: cidlist)
+        //    cout << tmpcid << " ";
+        //cout << endl;
+
         BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
         fetchmap.insert(make_pair(ip, readqueue));
 
@@ -1134,7 +1139,7 @@ void Worker::cacheWorker3(BlockingQueue<DataPacket*>* cachequeue,
   }
   
   gettimeofday(&time2, NULL);
-  cout << "Worker::cacheWorker.duration: " << DistUtil::duration(time1, time2) << " for " << stripename << ":";
+  cout << "Worker::cacheWorker3.duration: " << DistUtil::duration(time1, time2) << " for " << stripename << ":";
   for (auto item: cacheRefs) {
       cout << item.first << " ";
   }
@@ -1305,9 +1310,9 @@ void Worker::fetchWorker3(BlockingQueue<DataPacket*>* fetchqueue,
     }
     gettimeofday(&time2, NULL);
     cout << "Worker::fetchWorker.duration: " << DistUtil::duration(time1, time2) << " for ";
-    // for (auto item: fetchMap) {
-    //     cout << item.first << " ";
-    // }
+    for (auto item: cidlist) {
+        cout << item << " ";
+    }
     cout << endl;
     redisFree(fetchCtx);
   }
@@ -1614,8 +1619,12 @@ void Worker::computeWorker3(unordered_map<unsigned int, BlockingQueue<DataPacket
       vector<vector<int>> coefs = curtask->_coefs;
 
       // make sure that index in srclits has been in bufmap
-      for(auto srcidx: srclist)
-        assert(bufMap.find(srcidx) != bufMap.end());
+      for(auto srcidx: srclist) {
+          if (bufMap.find(srcidx) == bufMap.end()) {
+              char* tmpbuf = (char*)calloc(subpktbytes, sizeof(char));
+              bufMap.insert(make_pair(srcidx, tmpbuf));
+          }
+      }
       // now we create buf in bufMap
       for (auto dstidx: dstlist) {
         if (bufMap.find(dstidx) == bufMap.end()) {

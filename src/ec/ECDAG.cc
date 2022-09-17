@@ -553,18 +553,24 @@ void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,
             for (auto tmpcid: childs) {
                 if (clusterchildmap.find(tmpcid) == clusterchildmap.end())
                     clusterchildmap.insert(make_pair(tmpcid, 1));
+                if (tmpcid == 7956)
+                    cout << "7956!!!!!!!!!!!!!!!!!" << endl;
             }
         }
 
         // for each child we increase cidref
         for (auto item: clusterchildmap) {
             int cid = item.first;
+            if (cid == 7956)
+                cout << "7956?????" << endl;
             if (cid2refs.find(cid) == cid2refs.end())
                 cid2refs.insert(make_pair(cid, 1));
             else
                 cid2refs[cid]++;
         }
     }
+
+    cout << "cid2ref 7956: " << cid2refs[7956] << endl;
 
     int total = 0;
     for (auto item: cid2refs) {
@@ -620,11 +626,14 @@ void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,
         vector<ComputeTask*> ctlist;
         unordered_map<int, int> tmpcid2refs;
         unordered_map<unsigned int, vector<int>> tmpip2cidlist;
+        unordered_map<int, int> tmpchildmap;
         vector<int> shortlist;
 
         unsigned int sendto = coloring_res[clustercidlist[0]];
+        cout << "cal in " << RedisUtil::ip2Str(sendto) << ", num:  " << clustercidlist.size() << "  ";
 
         for (auto cid: clustercidlist) {
+            cout << cid << " " ;
             if (cid ==  REQUESTOR)
                 continue;
             ECNode* node = _ecNodeMap[cid];
@@ -634,6 +643,10 @@ void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,
                 if (shorteningmap.find(ccid) != shorteningmap.end())
                     shortlist.push_back(ccid);
                 else {
+
+                    if (tmpchildmap.find(ccid) != tmpchildmap.end())
+                        continue;
+
                     unsigned int ip;
                     if (coloring_res.find(ccid) != coloring_res.end()) {
                         ip = coloring_res[ccid];
@@ -648,6 +661,7 @@ void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,
                     } else {
                         tmpip2cidlist[ip].push_back(ccid);
                     }
+                    tmpchildmap.insert(make_pair(ccid, 1));
                 }
             }
 
@@ -660,17 +674,37 @@ void ECDAG::genECTasksTopo(vector<ECTask*>& tasklist,
             ComputeTask* ct = new ComputeTask(srclist, dstlist, coeflist);
             ctlist.push_back(ct);
 
-            if (tmpcid2refs.find(cid) == tmpcid2refs.end())
-                tmpcid2refs.insert(make_pair(cid, 1));
-            else
-                tmpcid2refs[cid]++;
+            tmpcid2refs.insert(make_pair(cid, cid2refs[cid]));
+
+            //if (tmpcid2refs.find(cid) == tmpcid2refs.end())
+            //    tmpcid2refs.insert(make_pair(cid, 1));
+            //else
+            //    tmpcid2refs[cid]++;
         }
 
+        cout << endl;
 
         ECTask* fetchComputeTask = new ECTask();
         fetchComputeTask->buildFetchCompute2(3, sendto, tmpip2cidlist, ctlist,
             stripename, tmpcid2refs, ecw, blkbytes, pktbytes);
         tasklist.push_back(fetchComputeTask);
+
+        for (auto tmpitem: tmpip2cidlist) {
+            unsigned int tmpip = tmpitem.first;
+            vector<int> tmplist = tmpitem.second;
+            cout << "fetch from " << RedisUtil::ip2Str(tmpip) << ": ";
+            for (auto tmpcid: tmplist)
+                cout << tmpcid << " ";
+            cout << endl;
+        } 
+        cout << "ctlist.size: " << ctlist.size() << endl;
+        cout << "tmpcid2refs: " << endl;
+        for (auto tmpitem: tmpcid2refs) {
+            cout << "  " << tmpitem.first << ": " << tmpitem.second << endl;
+        }
+
+        //if (i==20)
+        //    break;
     }
 
     // create concatenate task

@@ -42,6 +42,7 @@ class Worker {
     void readAndCacheWithOffset(AGCommand* agCmd);
     void readAndComputeWithOffset(AGCommand* agCmd);
     void fetchAndCompute3(AGCommand* agCmd); // for large w
+    void fetchAndCompute4(AGCommand* agCmd); // for large w
 
     // basic routines
     void readWorker(BlockingQueue<DataPacket*>* readqueue, string blockname, int ecw,

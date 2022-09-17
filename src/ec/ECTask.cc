@@ -106,6 +106,25 @@ void ECTask::buildFetchCompute2(int type,
     _pktBytes = pktbytes;
 }
 
+void ECTask::buildFetchCompute3(int type,
+        unsigned int loc,
+        unordered_map<unsigned int, vector<int>> ip2cidlist,
+        vector<ComputeTask*> computelist,
+        string stripename,
+        unordered_map<int, int> cid2refs,
+        int ecw, int blkbytes, int pktbytes, string blockname) {
+    _type = type;
+    _loc = loc;
+    _ip2cidlist = ip2cidlist;
+    _computeTaskList = computelist;
+    _stripeName = stripename;
+    _cid2refs = cid2refs;
+    _ecw = ecw;
+    _blkBytes = blkbytes;
+    _pktBytes = pktbytes;
+    _blockName = blockname;
+}
+
 void ECTask::buildConcatenate2(int type,                                                                                                                                                  
         unsigned int loc,                                                                                                                                                                              
         unordered_map<unsigned int, vector<int>> ip2cidlist,                                                                                                                                           
@@ -257,6 +276,41 @@ void ECTask::sendTask(int taskid) {
             ccmd->sendTo(_loc);
             delete ccmd;
         }
+    } else if (_type == 8) {
+
+        // fetchAndCompute2
+        AGCommand* agcmd = new AGCommand();
+        agcmd->buildType8(8, _loc, _ip2cidlist, _computeTaskList, _stripeName, _cid2refs, _ecw, _blkBytes, _pktBytes, taskid, _blockName);
+        agcmd->sendTo(_loc);
+        delete agcmd;
+
+        // fetch commands
+        for (auto item: _ip2cidlist) {
+            unsigned int fetchip = item.first;
+            vector<int> cidlist = item.second;
+            FetchCommand* fcmd = new FetchCommand(_stripeName, fetchip, cidlist, taskid);
+            fcmd->buildCommand();
+            fcmd->sendTo(_loc);
+            delete fcmd;
+        }
+        
+        // compute commands
+        for (int i=0; i<_computeTaskList.size(); i++) {
+            ComputeTask* ct = _computeTaskList[i];
+            vector<int> srclist = ct->_srclist;
+            vector<int> dstlist = ct->_dstlist;
+            vector<vector<int>> coefs = ct->_coefs;
+            ComputeCommand* ccmd = new ComputeCommand(_stripeName, srclist, dstlist, coefs, taskid);
+            ccmd->buildCommand();
+            ccmd->sendTo(_loc);
+            delete ccmd;
+        }
+        
+        // cache commands
+        CacheCommand* cacmd = new CacheCommand(_stripeName, _cid2refs, taskid);
+        cacmd->buildCommand();
+        cacmd->sendTo(_loc);
+        delete cacmd;
     }
 }
 

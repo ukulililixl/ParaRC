@@ -30,6 +30,7 @@ class Coordinator {
     void degradeRead(CoorCommand* coorCmd);
     void repairBlockConv(string blockname, unsigned int clientip, bool enforceip, bool wait); // new protocol
     void repairBlockConv1(string blockname); // old protocol
+    void repairBlockConv2(string blockname, unsigned int clientip, bool enforceip, bool wait); // new protocol
     void repairBlockDist(string blockname); // new protocol
     void repairBlockDist1(string blockname, unsigned int clientip, bool enforceip, bool wait); // old protocol
     void repairBlockDist2(string blockname, unsigned int clientip, bool enforceip, bool wait); // old protocol

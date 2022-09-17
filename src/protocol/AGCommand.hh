@@ -189,6 +189,16 @@ class AGCommand {
             unordered_map<int, int> cid2refs,
             int taskid,
             int offset);
+    void buildType8(int type,
+            unsigned int sendip,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            vector<ComputeTask*> ctlist,
+            string stripename,
+            unordered_map<int, int> cid2refs,
+            int ecw,
+            int blkbytes,
+            int pktbytes,
+            int taskid, string blockname);
 
     // resolve AGCommand
     void resolveType0();
@@ -199,6 +209,7 @@ class AGCommand {
     void resolveType5();
     void resolveType6();
     void resolveType7();
+    void resolveType8();
 
     string dumpStr();
 };

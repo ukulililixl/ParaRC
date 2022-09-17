@@ -98,6 +98,13 @@ class ECTask {
             string stripename, 
             unordered_map<int, int> cid2refs,
             int ecw, int blkbytes, int pktbytes);
+    void buildFetchCompute3(int type,
+            unsigned int loc,
+            unordered_map<unsigned int, vector<int>> ip2cidlist,
+            vector<ComputeTask*> computelist,
+            string stripename, 
+            unordered_map<int, int> cid2refs,
+            int ecw, int blkbytes, int pktbytes, string blockname);
     void buildConcatenate2(int type,
             unsigned int loc,
             unordered_map<unsigned int, vector<int>> ip2cidlist,

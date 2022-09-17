@@ -32,6 +32,7 @@ AGCommand::AGCommand(char* reqStr) {
     case 5: resolveType5(); break;
     case 6: resolveType6(); break;
     case 7: resolveType7(); break;
+    case 8: resolveType8(); break;
     //case 10: resolveType10(); break;
     //case 11: resolveType11(); break;
     default: break;
@@ -759,6 +760,73 @@ void AGCommand::resolveType7() {
     _taskid = readInt();
     // 11. offset
     _offset = readInt();
+}
+
+void AGCommand::buildType8(int type,
+        unsigned int sendip,
+        unordered_map<unsigned int, vector<int>> ip2cidlist,
+        vector<ComputeTask*> ctlist,
+        string stripename,
+        unordered_map<int, int> cid2refs,
+        int ecw,
+        int blkbytes,
+        int pktbytes,
+        int taskid, string blockname) {
+
+    // set up parameters
+    _type = type;
+    _sendIp = sendip;
+    _ip2cidlist = ip2cidlist;
+    _ctlist;
+    _stripeName = stripename;
+    _cid2refs = cid2refs;
+    _ecw = ecw;
+    _blkbytes = blkbytes;
+    _pktbytes = pktbytes;
+    _taskid = taskid;
+    _blockName = blockname;
+
+    // 1. type
+    writeInt(type);
+    // 2. number of fetching streams
+    writeInt(ip2cidlist.size());
+    // 3. number of compute tasks
+    writeInt(ctlist.size());
+    // 4. stripename
+    writeString(stripename);
+    // 5. number of output cids
+    writeInt(cid2refs.size());
+    // 6. ecw
+    writeInt(ecw);
+    // 7. blkbytes
+    writeInt(blkbytes);
+    // 8. pktbytes
+    writeInt(pktbytes);
+    // 9. taskid
+    writeInt(taskid);
+    // 10. blockname
+    writeString(blockname);
+}
+
+void AGCommand::resolveType8() {
+    // 2. number of fetching streams
+    _nFetchStream = readInt();
+    // 3. number of compute tasks
+    _nCompute = readInt();
+    // 4. stripename 
+    _stripeName = readString();
+    // 5. number of output cids
+    _nOutCids = readInt();
+    // 6. ecw
+    _ecw = readInt();
+    // 7. blkbytes
+    _blkbytes = readInt();
+    // 8. pktbytes
+    _pktbytes = readInt();
+    // 9. taskid
+    _taskid = readInt();
+    // 10. blockname
+    _blockName = readString();
 }
 
 string AGCommand::dumpStr() {

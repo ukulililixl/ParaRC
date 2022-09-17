@@ -48,6 +48,7 @@ void Worker::doProcess() {
         case 5: readAndCompute(agCmd); break;
         case 6: readAndCacheWithOffset(agCmd); break;
         case 7: readAndComputeWithOffset(agCmd); break;
+        case 8: fetchAndCompute4(agCmd); break;
         default:break;
       }
 //      gettimeofday(&time2, NULL);
@@ -570,6 +571,178 @@ void Worker::fetchAndCompute3(AGCommand* agcmd) {
     gettimeofday(&time3, NULL);
     cout << "Worker::fetchAndCompute3.compute duration: " << DistUtil::duration(time2, time3) << endl;
     cacheThread.join();
+
+    // free
+    free(redisCtx);
+    for (auto item: fetchmap) {
+        delete item.second;
+    }
+//    delete cachequeue;
+}
+
+void Worker::fetchAndCompute4(AGCommand* agcmd) {
+    cout << "Worker::fetchAndCompute4" << endl;
+    struct timeval time1, time2, time3;
+    gettimeofday(&time1, NULL);
+
+    int nFetchStream = agcmd->getNFetchStream();
+    int nCompute = agcmd->getNCompute();
+    string stripename = agcmd->getStripeName();
+    int nOutCids = agcmd->getNOutCids();
+    int ecw = agcmd->getECW();
+    int blkbytes = agcmd->getBlkBytes();
+    int pktbytes = agcmd->getPktBytes();
+    int taskid = agcmd->getTaskid();
+    string blockname = agcmd->getBlockName();
+    
+    cout << "Worker::fetchAndCompute4:nFetchStream = " << nFetchStream << endl;
+    cout << "Worker::fetchAndCompute4:nCompute = " << nCompute << endl;
+    cout << "Worker::fetchAndCompute4:stripename = " << stripename << endl;
+    cout << "Worker::fetchAndCompute4:nOutCids = " << nOutCids << endl;
+    cout << "Worker::fetchAndCompute4:ecw = " << ecw << endl;
+    cout << "Worker::fetchAndCompute4:blkbytes = " << blkbytes << endl;
+    cout << "Worker::fetchAndCompute4:pktbytes = " << pktbytes << endl;
+    cout << "Worker::fetchAndCompute4:taskid = " << taskid << endl;
+
+    redisContext* redisCtx = RedisUtil::createContext(_conf -> _localIp);
+    redisReply* rReply;
+
+    // fetch 
+    unordered_map<unsigned int, vector<int>> ip2cidlist;
+    unordered_map<unsigned int, BlockingQueue<DataPacket*>*> fetchmap;
+    string rkey = stripename + ":task"+to_string(taskid)+":fetch";
+    for (int i=0; i<nFetchStream; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        FetchCommand* fetchCmd = new FetchCommand(reqStr);
+        unsigned int ip = fetchCmd->getFetchIp();
+        vector<int> cidlist = fetchCmd->getCidList();
+        ip2cidlist.insert(make_pair(ip, cidlist));
+
+        //cout << "fetch from " << RedisUtil::ip2Str(ip) << ": ";
+        //for (auto tmpcid: cidlist)
+        //    cout << tmpcid << " ";
+        //cout << endl;
+
+        BlockingQueue<DataPacket*>* readqueue = new BlockingQueue<DataPacket*>();
+        fetchmap.insert(make_pair(ip, readqueue));
+
+        freeReplyObject(rReply);
+        fetchCmd->setCmd(NULL, 0);
+        delete fetchCmd;
+    }
+
+    // read compute commands
+    vector<ComputeTask*> computeTaskList;
+    rkey = stripename + ":task" + to_string(taskid) + ":compute";
+    for (int i=0; i<nCompute; i++) {
+        rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+        char* reqStr = rReply -> element[1] -> str;
+        ComputeCommand* computeCmd = new ComputeCommand(reqStr);
+        vector<int> srclist = computeCmd->getSrcList();
+        vector<int> dstlist = computeCmd->getDstList();
+        vector<vector<int>> coefs = computeCmd->getCoefs();
+
+        ComputeTask* ct = new ComputeTask(srclist, dstlist, coefs);
+        computeTaskList.push_back(ct);
+
+        // cout << "Compute: ( ";
+        // for (auto tmpid: srclist)
+        //     cout << tmpid << " ";
+        // cout << ")->( ";
+        // for (auto tmpid: dstlist)
+        //     cout << tmpid << " ";
+        // cout << ")" << endl;
+
+        freeReplyObject(rReply);
+        computeCmd->setCmd(NULL, 0);
+        delete computeCmd;
+    }
+
+    // read cache command
+    rkey = stripename + ":task" + to_string(taskid) + ":cache";
+    rReply = (redisReply*)redisCommand(redisCtx, "blpop %s 0", rkey.c_str());
+    char* reqStr = rReply -> element[1] -> str;
+    CacheCommand* cacheCmd = new CacheCommand(reqStr);
+    unordered_map<int, int> cacheRefs = cacheCmd->getCid2Refs();
+    cacheCmd->setCmd(NULL, 0);
+    freeReplyObject(rReply);
+    delete cacheCmd;
+
+    BlockingQueue<DataPacket*>* cachequeue = new BlockingQueue<DataPacket*>();
+    vector<int> cachecidlist;
+    for (auto item: cacheRefs) {
+        int cid = item.first;
+        cachecidlist.push_back(cid);
+    }
+
+    // create fetchthreads
+    gettimeofday(&time2, NULL);
+    vector<thread> fetchThreads = vector<thread>(ip2cidlist.size());
+    int fetchThreadsIdx = 0;
+    for (auto item: ip2cidlist) {
+        unsigned int ip = item.first;
+        vector<int> cidlist = item.second;
+        BlockingQueue<DataPacket*>* queue = fetchmap[ip];
+        fetchThreads[fetchThreadsIdx++] = thread([=]{fetchWorker3(queue, stripename, cidlist, ip, ecw, blkbytes, pktbytes);});
+    }
+
+    // create compute thread
+    thread computeThread = thread([=]{computeWorker3(fetchmap, ip2cidlist, cachequeue, cachecidlist, computeTaskList, ecw, blkbytes, pktbytes);});
+
+    //// create cache thread
+    //thread cacheThread = thread([=]{cacheWorker3(cachequeue, cachecidlist, cacheRefs, ecw, stripename, blkbytes, pktbytes);});
+
+    // persist
+    string fullpath = _conf->_blkDir + "/" + blockname + ".repair";
+    int subpktbytes = pktbytes / ecw;
+    int pktnum = blkbytes / pktbytes;
+
+    ofstream ofs(fullpath);
+    ofs.close();
+    ofs.open(fullpath, ios::app);
+
+    for (int i=0; i<pktnum; i++) {
+        for (int tmpi=0; tmpi<cachecidlist.size(); tmpi++) {
+            int cid = cachecidlist[tmpi];
+            int ref = cacheRefs[cid];
+            assert (ref == 1);
+            DataPacket* curPkt = cachequeue->pop();
+            int len = curPkt->getDatalen();
+            if (len) {
+                ofs.write(curPkt->getData(), len);
+            } else {
+                break;
+            }
+            delete curPkt;
+        }
+    }
+    ofs.close();
+
+
+    // join
+    for (int i=0; i<fetchThreads.size(); i++) {
+        fetchThreads[i].join();
+    }
+    gettimeofday(&time3, NULL);
+    cout << "Worker::fetchAndCompute4.fetch data duration: " << DistUtil::duration(time2, time3) << endl;
+
+    computeThread.join();
+    gettimeofday(&time3, NULL);
+    cout << "Worker::fetchAndCompute4.compute duration: " << DistUtil::duration(time2, time3) << endl;
+    //cacheThread.join();
+    //
+
+    // flag
+    // finish
+    redisReply* wReply;
+    redisContext* waitCtx = RedisUtil::createContext(_conf->_localIp);
+    string wkey = "writefinish:" + blockname;
+    int tmpval = htonl(1);
+    wReply = (redisReply*)redisCommand(waitCtx, "rpush %s %b", wkey.c_str(), (char*)&tmpval, sizeof(tmpval));
+    freeReplyObject(wReply);
+    redisFree(waitCtx);
+
 
     // free
     free(redisCtx);

@@ -70,6 +70,85 @@ ECDAG* RDPRDOR::Encode() {
     return ecdag;
 }
 
+// ECDAG* RDPRDOR::Decode(vector<int> from, vector<int> to) {
+//     ECDAG* ecdag = new ECDAG();
+// 
+//     // make sure that idx in to are in the same node
+//     int fnodeidx = to[0] / _w;
+//     bool canrepair = true;
+//     for (int i=1; i<to.size(); i++) {
+//         if (to[i]/_w != fnodeidx) {
+//             canrepair = false;
+//             break;
+//         }
+//     }
+// 
+//     if (!canrepair) {
+//         cout << "ERROR::RDPRDOR only repairs single failures!" << endl;
+//         return NULL;
+//     }
+// 
+//     if (fnodeidx != _n-1) {
+//         // figure out the indices that should be repaired by diagonal parity
+//         vector<int> diagidx = diagRepair(fnodeidx);
+//         for (auto item: diagidx) 
+//             cout << "idx " << item << " should be repaired by diag" << endl;
+// 
+//         // repair by row parity sub-blocks
+//         vector<int> repairlist;
+//         for (int i=0; i<_w; i++) {
+//             int torepair = fnodeidx * _w + i;
+//             repairlist.push_back(torepair);
+//             vector<int> data;
+//             vector<int> coef;
+// 
+//             cout << "torepair " << torepair << endl;
+//             if (find(diagidx.begin(), diagidx.end(), torepair) == diagidx.end()) {
+//                 // repair by row parity
+//                 for (int j=0; j<_p ; j++) {
+//                     if (j == fnodeidx)
+//                         continue;
+//                     int curidx = j*_w + i;
+//                     data.push_back(curidx);
+//                     coef.push_back(1);
+//                 }
+//                 ecdag->Join(torepair, data, coef);
+//             } else {
+//                 // repair by diag parity
+//                 int d = _idx2diag[torepair]; 
+//                 for (auto item: _diag2data[d]) {
+//                     if (item == torepair)
+//                         continue;
+//                     data.push_back(item);
+//                     coef.push_back(1);
+//                 }
+//                 data.push_back(_diag2code[d]);
+//                 coef.push_back(1);
+//                 ecdag->Join(torepair, data, coef);
+//             }
+//         }
+//         //ecdag->BindX(repairlist);
+//     } else {
+//         // repair by diag parity sub-blocks
+//         int colid = _n-1;
+//         vector<int> repairlist;
+//         for (int rowid=0; rowid<_w; rowid++) {
+//             int repairidx = colid*_w+rowid;
+//             repairlist.push_back(repairidx);
+//             int d = (colid + rowid) % _p;
+//             vector<int> data = _diag2data[d];
+//             vector<int> coef;
+//             for (int i=0; i<data.size(); i++)
+//                 coef.push_back(1);
+//             ecdag->Join(repairidx, data, coef);
+//         }
+//         //ecdag->BindX(repairlist);
+//     }
+// 
+//     return ecdag;
+// }
+
+
 ECDAG* RDPRDOR::Decode(vector<int> from, vector<int> to) {
     ECDAG* ecdag = new ECDAG();
 
@@ -84,16 +163,11 @@ ECDAG* RDPRDOR::Decode(vector<int> from, vector<int> to) {
     }
 
     if (!canrepair) {
-        cout << "ERROR::RDPRDOR only repairs single failures!" << endl;
+        cout << "ERROR::RDP only repairs single failures!" << endl;
         return NULL;
     }
 
     if (fnodeidx != _n-1) {
-        // figure out the indices that should be repaired by diagonal parity
-        vector<int> diagidx = diagRepair(fnodeidx);
-        for (auto item: diagidx) 
-            cout << "idx " << item << " should be repaired by diag" << endl;
-
         // repair by row parity sub-blocks
         vector<int> repairlist;
         for (int i=0; i<_w; i++) {
@@ -101,33 +175,16 @@ ECDAG* RDPRDOR::Decode(vector<int> from, vector<int> to) {
             repairlist.push_back(torepair);
             vector<int> data;
             vector<int> coef;
-
-            cout << "torepair " << torepair << endl;
-            if (find(diagidx.begin(), diagidx.end(), torepair) == diagidx.end()) {
-                // repair by row parity
-                for (int j=0; j<_p ; j++) {
-                    if (j == fnodeidx)
-                        continue;
-                    int curidx = j*_w + i;
-                    data.push_back(curidx);
-                    coef.push_back(1);
-                }
-                ecdag->Join(torepair, data, coef);
-            } else {
-                // repair by diag parity
-                int d = _idx2diag[torepair]; 
-                for (auto item: _diag2data[d]) {
-                    if (item == torepair)
-                        continue;
-                    data.push_back(item);
-                    coef.push_back(1);
-                }
-                data.push_back(_diag2code[d]);
+            for(int j=0; j<_p; j++) {
+                if (j == fnodeidx)
+                    continue;
+                int curidx = j*_w + i;
+                data.push_back(curidx);
                 coef.push_back(1);
-                ecdag->Join(torepair, data, coef);
             }
+            ecdag->Join(torepair, data, coef);
         }
-        //ecdag->BindX(repairlist);
+        // ecdag->BindX(repairlist);
     } else {
         // repair by diag parity sub-blocks
         int colid = _n-1;
@@ -142,11 +199,14 @@ ECDAG* RDPRDOR::Decode(vector<int> from, vector<int> to) {
                 coef.push_back(1);
             ecdag->Join(repairidx, data, coef);
         }
-        //ecdag->BindX(repairlist);
+        // ecdag->BindX(repairlist);
     }
 
     return ecdag;
 }
+
+
+
 
 vector<int> RDPRDOR::diagRepair(int failnode) {
 

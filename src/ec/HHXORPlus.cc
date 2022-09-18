@@ -27,8 +27,8 @@ HHXORPlus::HHXORPlus(int n, int k, int w, vector<string> param) {
 
     // generate encoding matrix
     _rs_encode_matrix = (int *)malloc(_n * _k * sizeof(int));
-    // generate_vandermonde_matrix(_rs_encode_matrix, _n, _k, 8);
-    generate_cauchy_matrix(_rs_encode_matrix, _n, _k, 8);
+    generate_vandermonde_matrix(_rs_encode_matrix, _n, _k, 8);
+    // generate_cauchy_matrix(_rs_encode_matrix, _n, _k, 8);
 
     // divide data into groups
     int num_groups = n - k - 1;

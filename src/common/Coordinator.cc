@@ -80,13 +80,23 @@ void Coordinator::degradeRead(CoorCommand* coorCmd) {
     string blockName = coorCmd->getBlockName();
     string method = coorCmd->getMethod();
 
+    StripeMeta* stripemeta = _stripeStore->getStripeMetaFromBlockName(blockName);
+    string code = stripemeta->getCodeName();
+
     if (find(_conf->_clientIPs.begin(), _conf->_clientIPs.end(), clientIp) == _conf->_clientIPs.end()) {
         clientIp = _conf->_clientIPs[0];       
     }
 
     if (method == "dist") {
-        repairBlockDist2(blockName, clientIp, true, false);
+        if (code == "Clay")
+            repairBlockDist1(blockName, clientIp, true, false);
+        else
+            repairBlockDist2(blockName, clientIp, true, false);
     } else if (method == "conv") {
+        // if (code == "Clay")
+        //     repairBlockConv(blockName, clientIp, true, false);
+        // else
+        //     repairBlockConv2(blockName, clientIp, true, false);
         repairBlockConv2(blockName, clientIp, true, false);
     }
 }
@@ -352,7 +362,9 @@ void Coordinator::repairBlockListConv(vector<string> blocklist) {
 void Coordinator::repairBlockListConvStandby(vector<string> blocklist, unsigned int clientIp) {
     cout << "Coordinator::repairBlockListConvStandby" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        repairBlockConv(blocklist[i], clientIp, true, true);
+        // xiaolu comment 20220717
+        //repairBlockConv(blocklist[i], clientIp, true, true);
+        repairBlockConv2(blocklist[i], clientIp, true, true);
     }
 }
 

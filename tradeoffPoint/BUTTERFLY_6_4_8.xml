@@ -1,0 +1,16 @@
+<tradeoff>
+<attribute><name>code</name><value>BUTTERFLY</value></attribute>
+<attribute><name>ecn</name><value>6</value></attribute>
+<attribute><name>eck</name><value>4</value></attribute>
+<attribute><name>ecw</name><value>8</value></attribute>
+<attribute><name>digits</name><value>1</value></attribute>
+<attribute><name>point</name>
+<value>0:25322532</value>
+<value>1:23232303</value>
+<value>2:10114444</value>
+<value>3:00004444</value>
+<value>4:35353035</value>
+<value>5:23030303111122223333</value>
+</attribute>
+</tradeoff>
+

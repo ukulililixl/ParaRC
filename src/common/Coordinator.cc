@@ -362,7 +362,6 @@ void Coordinator::repairBlockListConv(vector<string> blocklist) {
 void Coordinator::repairBlockListConvStandby(vector<string> blocklist, unsigned int clientIp) {
     cout << "Coordinator::repairBlockListConvStandby" << endl;
     for (int i=0; i<blocklist.size(); i++) {
-        // xiaolu comment 20220717
         //repairBlockConv(blocklist[i], clientIp, true, true);
         repairBlockConv2(blocklist[i], clientIp, true, true);
     }
@@ -1511,15 +1510,6 @@ void Coordinator::repairNodeDist(unsigned int nodeip, string code, unordered_map
         }
     }
 
-    // // xiaolu comment start
-    // int idx=0;
-    // for (auto item: blk2meta) {
-    //     string blk = item.first;
-    //     rpgroups[idx].push_back(blk);
-    //     idx=(idx+1)%rpthreads;
-    // }
-    // // xiaolu comment end
-
     struct timeval time1, time2, time3;
     gettimeofday(&time1, NULL);
     // 1. create threads
@@ -1548,7 +1538,6 @@ void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map
         rpgroups.push_back(tmplist);
     }
 
-    // xiaolu add 0905
     vector<string> blklist;
     for (auto item: blk2meta) {
         blklist.push_back(item.first);
@@ -1560,16 +1549,6 @@ void Coordinator::repairNodeConv(unsigned int nodeip, string code, unordered_map
         int idx = i%rpthreads;
         rpgroups[idx].push_back(blklist[i]);
     }
-    // xiaolu add ends
-
-    // xiaolu comment 0905
-    // int idx=0;
-    // for (auto item: blk2meta) {
-    //     string blk = item.first;
-    //     rpgroups[idx].push_back(blk);
-    //     idx=(idx+1)%rpthreads;
-    // }
-    // xiaolu comment end
 
     for (int i=0; i<rpgroups.size(); i++) {
         cout << "group " << i << ": ";

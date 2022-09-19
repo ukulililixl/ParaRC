@@ -163,7 +163,6 @@ ECDAG* Clay::Encode() {
 
     vector<int> erased_chunks;
     
-    // xiaolu comment
     for (int idx=_k+_nu; idx<_n+_nu; idx++) {
         erased_chunks.push_back(idx);
     }

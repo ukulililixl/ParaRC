@@ -90,18 +90,9 @@ ECBase* StripeMeta::createECClass() {
   } else if (_codeName == "RSPIPE") {
       cout << "StripeMeta::createECClass RSPIPE" << endl;
       toret = new RSPIPE(_ecN, _ecK, _ecW, {});
-  } else if (_codeName == "MISER") {
-      cout << "StripeMeta::createECClass MISER" << endl;
-      toret = new MISER(_ecN, _ecK, _ecW, {});
   } else if (_codeName == "BUTTERFLY") {
       cout << "StripeMeta::createECClass BUTTERFLY" << endl;
       toret = new BUTTERFLY(_ecN, _ecK, _ecW, {});
-  }  else if (_codeName == "RDPRDOR") {
-      cout << "StripeMeta::createECClass RDPRDOR" << endl;
-      toret = new RDPRDOR(_ecN, _ecK, _ecW, {});
-  } else if (_codeName == "HHXORPlus") {
-      cout << "StripeMeta::createECClass HHXORPlus" << endl;
-      toret = new HHXORPlus(_ecN, _ecK, _ecW, {});
   }
   return toret;
 }

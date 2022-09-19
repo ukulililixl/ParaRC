@@ -6,7 +6,6 @@
 #include "util/DistUtil.hh"
 
 #include "ec/Clay.hh"
-#include "ec/MISER.hh"
 #include "ec/BUTTERFLY.hh"
 
 #include "dist/Solution.hh"
@@ -627,14 +626,10 @@ int main(int argc, char** argv) {
   int repairIdx = atoi(argv[5]);
   string terminatestr = argv[6];
   
-  // XL: do we need number of available nodes?
-
   ECBase* ec;
   vector<string> param;
   if (code == "Clay")
     ec = new Clay(n, k, w, {to_string(n-1)});
-  else if (code == "MISER")
-    ec = new MISER(n, k, w, param);
   else if (code == "Butterfly")
     ec = new BUTTERFLY(n, k, w, param);
   else {

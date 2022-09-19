@@ -18,11 +18,11 @@ $> ./compile.sh
 ### Generate MLP
 
 ```bash
-$> ./TradeoffAnalysis [code] [n] [k] [w] [repairIdx]
+$> ./GenMLP [code] [n] [k] [w] [repairIdx]
 ```
 
 For example, to generate a color combination for (14,12) Clay code to repair the
-first block, we run `./TradeoffAnalysis Clay 14 12 256 0`
+first block, we run `./GenMLP Clay 14 12 256 0`
 
 #### Encode data
 

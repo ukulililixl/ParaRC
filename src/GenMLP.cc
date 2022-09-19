@@ -15,7 +15,7 @@ using namespace std;
 #define CLUSTERSIZE 32768
 
 void usage() {
-  cout << "Usage: ./TradeoffAnalysis" << endl;
+  cout << "Usage: ./GenMLP" << endl;
   cout << "    1. code" << endl;
   cout << "    2. n" << endl;
   cout << "    3. k" << endl;

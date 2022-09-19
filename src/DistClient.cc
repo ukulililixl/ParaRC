@@ -10,7 +10,7 @@ using namespace std;
 
 void usage() {
   cout << "       ./DistClient degradeRead blockname method" << endl;
-  cout << "       ./DistClient standbyRepair ip code method" << endl;
+  cout << "       ./DistClient nodeRepair ip code method" << endl;
 }
 
 void degradeRead(string blockname, string method) {
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
         string blockname(argv[2]);
         string method(argv[3]);
         degradeRead(blockname, method);
-    } else if (reqType == "standbyRepair") {
+    } else if (reqType == "nodeRepair") {
         if (argc != 5) {
             usage();
             return -1;

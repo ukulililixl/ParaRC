@@ -42,6 +42,6 @@ For example, to test parallel repair of Clay codes, we run `./DistClient degrade
 
 #### Test full-node recovery
 
-* `./DistClient standbyRepair [node] [method]` 
+* `./DistClient nodeRepair [node] [method]` 
 
-For example, to test full-node recovery of Clay codes, we run `./DistClient standbyRepair 192.168.0.2 Clay dist`
+For example, to test full-node recovery of Clay codes, we run `./DistClient nodeRepair 192.168.0.2 Clay dist`

@@ -6,6 +6,15 @@
 $> ./compile.sh
 ```
 
+### Configuration
+
+* PRS Generator
+    * ecs.r7.2xlarge in Alibaba Cloud
+* Controller and agent
+    * ecs.r7.xlarge in Alibaba Cloud
+* Configuration files
+    * There is an example under `./conf/sysSetting.xml`
+
 ### Generate MLP
 
 ```bash
@@ -14,8 +23,6 @@ $> ./TradeoffAnalysis [code] [n] [k] [w] [repairIdx]
 
 For example, to generate a color combination for (14,12) Clay code to repair the
 first block, we run `./TradeoffAnalysis Clay 14 12 256 0`
-
-### Run ParaRC
 
 #### Encode data
 

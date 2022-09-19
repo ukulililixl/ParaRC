@@ -30,7 +30,7 @@ Config::Config(std::string& filepath) {
                     _rack2Ips.insert(make_pair(rack, curRack));
                 }
             }
-        } else if (attName == "clients.addr"){
+        } else if (attName == "fullnode.addr"){
             for (ele = ele -> NextSiblingElement("value"); ele != NULL; ele = ele -> NextSiblingElement("value")) {
                 std::string networkloc = ele -> GetText();
                 std::string tmpstring = networkloc.substr(1);

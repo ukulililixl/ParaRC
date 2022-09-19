@@ -22,7 +22,7 @@
 <value>/default/192.168.1.20</value>
 <value>/default/192.168.1.21</value>
 </attribute>
-<attribute><name>clients.addr</name>
+<attribute><name>fullnode.addr</name>
 <value>/default/192.168.1.22</value>
 </attribute>
 <attribute><name>controller.thread.num</name><value>20</value></attribute>

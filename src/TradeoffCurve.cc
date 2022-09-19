@@ -21,7 +21,6 @@ void usage() {
   cout << "    3. k" << endl;
   cout << "    4. w" << endl;
   cout << "    5. repairIdx" << endl;
-  cout << "    6. terminate str [100|110|101|111]" << endl;
 }  
 
 void stat(unordered_map<int, int> sidx2ip, vector<int> curres, vector<int> itm_idx, ECDAG* ecdag, int* bdwt, int* maxload) {
@@ -624,7 +623,6 @@ int main(int argc, char** argv) {
   int k = atoi(argv[3]);
   int w = atoi(argv[4]);
   int repairIdx = atoi(argv[5]);
-  string terminatestr = argv[6];
   
   ECBase* ec;
   vector<string> param;
@@ -765,7 +763,6 @@ int main(int argc, char** argv) {
 
   struct timeval time1, time2;
   gettimeofday(&time1, NULL);
-  //Solution* mlp = getMLP(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, terminatestr);
   Solution* mlp = genSol(itm_idx, candidates, sidx2ip, ecdag, round, w, k*w, realLeaves);
   gettimeofday(&time2, NULL);
   double latency = DistUtil::duration(time1, time2);

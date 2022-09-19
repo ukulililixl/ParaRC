@@ -10,8 +10,8 @@
 #   gen_files [true|false]
 #   gen_blocks [true|false]
 #   gen_meta [true|false]
-# 
-# 
+#
+#
 # NOTE: before running the script, you should manually set OEC and Hadoop configs (including ip, block sizes, packet sizes and etc.)
 
 import os
@@ -33,12 +33,17 @@ CODE=sys.argv[2]
 ECN=int(sys.argv[3])
 ECK=int(sys.argv[4])
 ECW=int(sys.argv[5])
-BLOCKMB=int(sys.argv[6])
-PACKETKB=int(sys.argv[7])
-gen_files=(sys.argv[8] == "true")
-gen_blocks=(sys.argv[9] == "true")
-gen_meta=(sys.argv[10] == "true")
+#BLOCKMB=int(sys.argv[6])
+#PACKETKB=int(sys.argv[7])
+#gen_files=(sys.argv[8] == "true")
+#gen_blocks=(sys.argv[9] == "true")
+#gen_meta=(sys.argv[10] == "true")
 
+BLOCKMB=256
+PACKETKB=64
+gen_files=True
+gen_block=True
+gen_meta=True
 
 
 # NOTE: fill in ips of the cluster
@@ -134,7 +139,7 @@ if gen_blocks == True:
             OEC_code = CODE
         # go to the first client node
         cmd = "ssh {} \"cd {}; ./OECClient write input_{}_{} /{}-{}-{} {}_{}_{} online {}\"".format(
-            datanodes[0], oec_proj_dir, 
+            datanodes[0], oec_proj_dir,
             str(filesize_MB), str(i),
             CODE, str(BLOCKMB), str(i),
             OEC_code, str(ECN), str(ECK),
@@ -143,7 +148,7 @@ if gen_blocks == True:
         os.system(cmd)
 
         time.sleep(2)
-        
+
         # run redis flushall between each two runs
         print("flush redis for {}-th stripe".format(str(i)))
         for node_ip in clusternodes:
@@ -165,7 +170,7 @@ if gen_meta == True:
     for i in range(NSTRIPES):
         cmd = "cd {}; python3 dumpmeta.py -code {} -n {} -k {} -w {} -bs {} -ps {} -filename /{}-{}-{} -meta_filename {}-{}-{}".format(
             script_dir, CODE, ECN, ECK, ECW,
-            block_bytes, packet_bytes, 
+            block_bytes, packet_bytes,
             CODE, BLOCKMB, i,
             CODE, BLOCKMB, i,
         )

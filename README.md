@@ -28,7 +28,10 @@ first block, we run
 
 #### Encode data
 
-* ParaRC leverages [OpenEC](https://github.com/ukulililixl/openec) to encode data in HDFS-3. Please refer to the document of OpenEC to encode data in HDFS.
+* ParaRC leverages [OpenEC](https://github.com/ukulililixl/openec) to encode data in HDFS-3. Please refer to the document of OpenEC to deploy HDFS-3 and OpenEC.
+* Please run the following script to encode data in HDFS-3 by (14,10) Clay code with w=256.
+    * `python script/gendata.py 20 Clay 14 10 256`
+    * This script will encode 20 stripes with (14,10) Clay code with w=256.
 
 #### Start ParaRC
 

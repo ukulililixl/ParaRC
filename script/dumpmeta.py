@@ -138,7 +138,7 @@ def main():
 
     # proj dir
     proj_dir="{}/SPDist".format(home_dir)
-    script_dir = "{}/script_kycheng".format(proj_dir)
+    script_dir = "{}/script".format(proj_dir)
     config_dir = "{}/conf".format(proj_dir)
     config_filename = "sysSetting.xml"
     blk_dir = "{}/blkDir".format(proj_dir)
@@ -153,7 +153,7 @@ def main():
     # print(block_map)
 
     # generate xml file to block records (check filename)
-    # Note: in HDFS, files are named starting with "/", remove this
+    # Note: in HDFS, files are named starting with "/"
     meta_file_path = stripeStore_dir + "/" + filename[1:] + ".xml"
 
     # build XML file

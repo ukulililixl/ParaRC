@@ -28,7 +28,7 @@ if len(sys.argv) != 11:
     usage()
     exit()
 
-NSTRIPES=int(sys.argv[1])+1
+NSTRIPES=int(sys.argv[1])
 CODE=sys.argv[2]
 ECN=int(sys.argv[3])
 ECK=int(sys.argv[4])
@@ -87,7 +87,7 @@ cmd = r'echo ~'
 home_dir_str, stderr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).communicate()
 home_dir = home_dir_str.decode().strip()
 # proj dir
-proj_dir="{}/SPDist".format(home_dir)
+proj_dir="{}/ParaRC".format(home_dir)
 script_dir = "{}/script".format(proj_dir)
 block_dir="{}/blkDir".format(proj_dir)
 stripestore_dir="{}/stripeStore".format(proj_dir)

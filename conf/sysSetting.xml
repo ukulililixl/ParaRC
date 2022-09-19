@@ -30,8 +30,8 @@
 <attribute><name>cmddist.thread.num</name><value>10</value></attribute>
 <attribute><name>local.addr</name><value>192.168.1.1</value></attribute>
 <attribute><name>block.directory</name><value>/home/pararc/hadoop-3.3.4-src/hadoop-dist/target/hadoop-3.3.4/dfs/data/current</value></attribute>
-<attribute><name>stripestore.directory</name><value>/home/pararc/spdist/SPDist/stripeStore</value></attribute>
-<attribute><name>tradeoffpoint.directory</name><value>/home/pararc/spdist/SPDist/tradeoffPoint</value></attribute>
+<attribute><name>stripestore.directory</name><value>/home/pararc/ParaRC/stripeStore</value></attribute>
+<attribute><name>tradeoffpoint.directory</name><value>/home/pararc/ParaRC/tradeoffPoint</value></attribute>
 <attribute><name>eccluster.size</name><value>10</value></attribute>
 <attribute><name>repair.thread.num</name><value>4</value></attribute>
 </setting>

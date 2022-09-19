@@ -137,7 +137,7 @@ def main():
     home_dir = get_home_dir()
 
     # proj dir
-    proj_dir="{}/SPDist".format(home_dir)
+    proj_dir="{}/ParaRC".format(home_dir)
     script_dir = "{}/script".format(proj_dir)
     config_dir = "{}/conf".format(proj_dir)
     config_filename = "sysSetting.xml"

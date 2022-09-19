@@ -2,7 +2,7 @@
 cmake_minimum_required (VERSION 3.1)
 
 # project name
-project (spdist_exe)
+project (ParaRC_exe)
 
 add_subdirectory(common)
 add_subdirectory(dist)

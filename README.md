@@ -1,4 +1,4 @@
-# SPDist
+# ParaRC
 
 ### Compile
 

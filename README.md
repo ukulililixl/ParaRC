@@ -331,18 +331,3 @@ We run OpenEC to write a stripe of blocks in HDFS-3.
     * `python script/gendata.py 20 Clay 14 10 256`
     * This script will encode 20 stripes with (14,10) Clay code with w=256.
 
-#### Start ParaRC
-
-* `python script/start.py`
-
-#### Test degraded read
-
-* `./DistClient degradeRead [blockname] [method]`
-
-For example, to test parallel repair of Clay codes, we run `./DistClient degradeRead block-0 dist`
-
-#### Test full-node recovery
-
-* `./DistClient nodeRepair [node] [method]` 
-
-For example, to test full-node recovery of Clay codes, we run `./DistClient nodeRepair 192.168.0.2 Clay dist`

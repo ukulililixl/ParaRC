@@ -13,11 +13,14 @@ Config::Config(std::string& filepath) {
             _coorIp = inet_addr(ele -> NextSiblingElement("value") -> GetText());
         } else if (attName == "agents.addr") {
             for (ele = ele -> NextSiblingElement("value"); ele != NULL; ele = ele -> NextSiblingElement("value")) {
-                std::string networkloc = ele -> GetText();
-                std::string tmpstring = networkloc.substr(1);
-                size_t pos = tmpstring.find("/");
-                std::string rack = tmpstring.substr(0, pos);
-                std::string ipstr = tmpstring.substr(pos+1);
+                //std::string networkloc = ele -> GetText();
+                //std::string tmpstring = networkloc.substr(1);
+                //size_t pos = tmpstring.find("/");
+                //std::string rack = tmpstring.substr(0, pos);
+                //std::string ipstr = tmpstring.substr(pos+1);
+
+                std::string rack = "default";
+                std::string ipstr = ele -> GetText();
                 unsigned int ip = inet_addr(ipstr.c_str());
                 _agentsIPs.push_back(ip);
                 _ip2Rack.insert(make_pair(ip, rack));
@@ -32,11 +35,14 @@ Config::Config(std::string& filepath) {
             }
         } else if (attName == "fullnode.addr"){
             for (ele = ele -> NextSiblingElement("value"); ele != NULL; ele = ele -> NextSiblingElement("value")) {
-                std::string networkloc = ele -> GetText();
-                std::string tmpstring = networkloc.substr(1);
-                size_t pos = tmpstring.find("/");
-                std::string rack = tmpstring.substr(0, pos);
-                std::string ipstr = tmpstring.substr(pos+1);
+                //std::string networkloc = ele -> GetText();
+                //std::string tmpstring = networkloc.substr(1);
+                //size_t pos = tmpstring.find("/");
+                //std::string rack = tmpstring.substr(0, pos);
+                //std::string ipstr = tmpstring.substr(pos+1);
+                
+                std::string rack = "default";
+                std::string ipstr = ele -> GetText();
                 unsigned int ip = inet_addr(ipstr.c_str());
                 _clientIPs.push_back(ip);
                 _ip2Rack.insert(make_pair(ip, rack));
@@ -69,14 +75,17 @@ Config::Config(std::string& filepath) {
             _ssDir = std::string(ele->NextSiblingElement("value")->GetText());
         } else if (attName == "tradeoffpoint.directory") {
             _tpDir = std::string(ele->NextSiblingElement("value")->GetText());
-        } else if (attName == "eccluster.size") {
-            _clusterSize = std::stoi(ele -> NextSiblingElement("value") -> GetText());  
-        } else if (attName == "repair.thread.num") {
-            _rpThreads = std::stoi(ele -> NextSiblingElement("value") -> GetText());
+        // } else if (attName == "eccluster.size") {
+        //     _clusterSize = std::stoi(ele -> NextSiblingElement("value") -> GetText());  
+        // } else if (attName == "repair.thread.num") {
+        //     _rpThreads = std::stoi(ele -> NextSiblingElement("value") -> GetText());
         } else if (attName == "network.bandwidth") {
             _netbdwt = std::stoi(ele -> NextSiblingElement("value") -> GetText());
         }
     }
+
+    _clusterSize = 10;
+    _rpThreads = 4;
 
 //   _fsFactory.insert(make_pair(_fsType, _fsParam));
 }

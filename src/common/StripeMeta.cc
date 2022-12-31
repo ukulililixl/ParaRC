@@ -35,7 +35,7 @@ StripeMeta::StripeMeta(std::string& stripename, std::string& filepath) {
       }
     } else if (attName == "blockbytes") {
         _blkbytes = std::stoll(ele -> NextSiblingElement("value") -> GetText());
-    } else if (attName == "pktbytes") {
+    } else if (attName == "subpktbytes") {
         _pktbytes = std::stoi(ele -> NextSiblingElement("value") -> GetText());
     }
   }

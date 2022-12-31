@@ -17,11 +17,13 @@ add_executable(DistClient DistClient.cc)
 add_executable(BruteForce BruteForce.cc)
 add_executable(GenMLP GenMLP.cc)
 add_executable(CodeTest CodeTest.cc)
+add_executable(GenData GenData.cc)
 
 target_link_libraries(DistCoordinator common pthread protocol ec)
 target_link_libraries(DistAgent common pthread ec)
 target_link_libraries(DistClient common pthread protocol)
 target_link_libraries(BruteForce common ec protocol)
 target_link_libraries(GenMLP common ec protocol dist)
+target_link_libraries(GenData common ec protocol dist)
 target_link_libraries(CodeTest common ec)
 

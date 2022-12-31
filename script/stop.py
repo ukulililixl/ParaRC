@@ -16,28 +16,28 @@ for line in f:
 res=concactstr.split("<attribute>")
 
 slavelist=[]
+fstype=""
 for attr in res:
     if attr.find("agents.addr") != -1:
-        valuestart=attr.find("<value>")
+	valuestart=attr.find("<value>")
 	valueend=attr.find("</attribute>")
 	attrtmp=attr[valuestart:valueend]
 	slavestmp=attrtmp.split("<value>")
 	for slaveentry in slavestmp:
 	    if slaveentry.find("</value>") != -1:
-                entrysplit=slaveentry.split("/")
-                slave=entrysplit[2][0:-1]
-	        slavelist.append(slave)
+		entrysplit=slaveentry.split("<")
+		slave=entrysplit[0]
+		slavelist.append(slave)
     if attr.find("fullnode.addr") != -1:
         valuestart=attr.find("<value>")
-	valueend=attr.find("</attribute>")
+        valueend=attr.find("</attribute>")
 	attrtmp=attr[valuestart:valueend]
 	slavestmp=attrtmp.split("<value>")
-	for slaveentry in slavestmp:
-	    if slaveentry.find("</value>") != -1:
-                entrysplit=slaveentry.split("/")
-                slave=entrysplit[2][0:-1]
-	        slavelist.append(slave)
-
+        for slaveentry in slavestmp:
+            if slaveentry.find("</value>") != -1:
+	        entrysplit=slaveentry.split("<")
+ 		slave=entrysplit[0]
+		slavelist.append(slave)
 
 # stop
 

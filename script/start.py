@@ -19,9 +19,6 @@ res=concactstr.split("<attribute>")
 slavelist=[]
 fstype=""
 for attr in res:
-    if attr.find("dss.type") != -1:
-       attrtmp=attr.split("<value>")[1]
-       fstype=attrtmp.split("</value>")[0]
     if attr.find("agents.addr") != -1:
         valuestart=attr.find("<value>")
 	valueend=attr.find("</attribute>")
@@ -29,8 +26,8 @@ for attr in res:
 	slavestmp=attrtmp.split("<value>")
 	for slaveentry in slavestmp:
 	    if slaveentry.find("</value>") != -1:
-	        entrysplit=slaveentry.split("/")
-                slave=entrysplit[2][0:-1]
+	        entrysplit=slaveentry.split("<")
+                slave=entrysplit[0]
 	        slavelist.append(slave)
     if attr.find("fullnode.addr") != -1:
         valuestart=attr.find("<value>")
@@ -39,8 +36,8 @@ for attr in res:
 	slavestmp=attrtmp.split("<value>")
 	for slaveentry in slavestmp:
 	    if slaveentry.find("</value>") != -1:
-	        entrysplit=slaveentry.split("/")
-                slave=entrysplit[2][0:-1]
+	        entrysplit=slaveentry.split("<")
+                slave=entrysplit[0]
 	        slavelist.append(slave)
 
 # start

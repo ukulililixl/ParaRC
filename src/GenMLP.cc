@@ -613,7 +613,7 @@ Solution* getMLP(vector<int> itm_idx, vector<int> candidates,
 
 int main(int argc, char** argv) {
 
-  if (argc != 7) {
+  if (argc != 6) {
     usage();
     return 0;
   }

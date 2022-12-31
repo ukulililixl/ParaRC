@@ -1,32 +1,330 @@
 # ParaRC
 
-### Compile
+ParaRC can run in `standalone` mode, which we can test the parallel repair without the integration to a distributed storage system, and a `hdfs-3 integration` mode, which we can test parallel repair with hdfs-3. We first introduce the standalone mode, and then the hdfs-3 integration mode. 
+
+To run ParaRC in the standalone mode, we need to finish the following steps:
+
+* Prepare a cluster in Alibaba Cloud
+* Compile ParaRC
+* Prepare configuration files for each machine
+* Generate the MLP in the offline
+* Generate a stripe of blocks
+* Start ParaRC
+* Test parallel repair
+
+To run ParaRC in the hdfs-3 integration mode, the only difference step is in `Generate a stripe of blocks`. We introduce as follows:
+
+* Generate a stripe of blocks in HDFS-3
+
+
+
+### Prepare a cluster in Alibaba Cloud
+
+###### Cluster Configuration
+
+Here is a sample configuration of the cluster in Alibaba Cloud that can evaluate the (14,10) Clay code.
+
+| Machine       | Number | Alibaba Machine Type | IP                                                           |
+| ------------- | ------ | -------------------- | ------------------------------------------------------------ |
+| PRS Generator | 1      | ecs.r7.2xlarge       | 172.17.139.121                                               |
+| Controller    | 1      | ecs.r7.xlarge        | 172.17.139.136                                               |
+| Agent         | 15     | ecs.r7.xlarge        | 172.17.139.127; 172.17.139.130; 172.17.139.133; 172.17.139.134; 172.17.139.124; 172.17.139.126; 172.17.139.138; 172.17.139.125; 172.17.139.129; 172.17.139.137; 172.17.139.128; 172.17.139.135; 172.17.139.139; 172.17.139.131; 172.17.139.132. |
+
+Among the 15 agents, the last one (172.17.139.132) serves as the new node that replaces a failed node.
+
+Here is the description for configuration parameters. Suppose the default username of each machine is `pararc`.
+
+###### Pre-requisite
+
+* isa-l library
+
+  ```bash
+  $> git clone https://github.com/01org/isa-l.git
+  $> cd isa-l/
+  $> ./autogen.sh
+  $> ./configure
+  $> make
+  $> sudo make install
+  ```
+
+* cmake
+
+  ```bash
+  $> sudo apt-get install cmake
+  ```
+
+### Compile ParaRC
+
+Please download the source code in `/home/pararc/ParaRC`.  Then compile the source code by :
 
 ```bash
+$> cd /home/pararc/ParaRC
 $> ./compile.sh
 ```
 
-### Configuration
+### Prepare configuration files for each machine
 
-* PRS Generator
-    * ecs.r7.2xlarge in Alibaba Cloud
-* Controller and agent
-    * ecs.r7.xlarge in Alibaba Cloud
-* Configuration files
-    * There is an example under `./conf/sysSetting.xml`
+Each machine requires a configuration file `/home/pararc/ParaRC/conf/sysSettings.xml`. We show the configruation parameters in the following table:
 
-### Generate MLP
+| Parameters              | Description                                                  | Example                                                      |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| prsgenerator.addr       | The IP address of the PRS Generator.                         | `172.17.139.121`                                             |
+| controller.addr         | The IP address of the controller.                            | `172.17.139.136`                                             |
+| agents.addr             | The IP address of all agents.                                | `172.17.139.127`; `172.17.139.130`; `172.17.139.133`; `172.17.139.134`; `172.17.139.124`; `172.17.139.126; 172.17.139.138`; `172.17.139.125`; `172.17.139.129`; `172.17.139.137`; `172.17.139.128`; `172.17.139.135`; `172.17.139.139`; `172.17.139.131`. |
+| fullnode.addr           | The IP address of the new node.                              | `172.17.139.132`                                             |
+| controller.thread.num   | The number of threads in the controller.                     | `20`                                                         |
+| agent.thread.num        | The number of threads in each agent.                         | `20`                                                         |
+| cmddist.thread.num      | The number of threads to distribute the commands.            | `10`                                                         |
+| local.addr              | The local IP address of a machine.                           | `172.17.139.136 ` for the controller; `172.17.139.127` for the first agent. |
+| block.directory         | The directory to store blocks.                               | `/home/pararc/ParaRC/blkDir` for standalone mode; `/home/pararc/hadoop-3.3.4-src/hadoop-dist/target/hadoop-3.3.4/dfs/data/current` for hdfs-3 integration mode. |
+| stripestore.directory   | The directory to store stripe metadata.                      | `/home/pararc/ParaRC/stripeStore`                            |
+| tradeoffpoint.directory | The directory to store the MLP generated by PRS Generator offline. | `/home/pararc/ParaRC/tradeoffPoint`                          |
+| pararc.mode             | The mode of ParaRC                                           | `standalone` for standalone mode; `hdfs3` for hdfs-3 integration mode. |
+
+Here is a sample of the configuration file in the controller in `/home/pararc/ParaRC/conf/sysSettings.xml`
+
+```xml
+ <setting>                                                      
+ <attribute><name>prsgenerator.addr</name><value>172.17.139.121</value></attribute>
+ <attribute><name>controller.addr</name><value>172.17.139.136</value></attribute> 
+ <attribute><name>agents.addr</name>                                   
+ <value>172.17.139.127</value>                                         
+ <value>172.17.139.130</value>                                           
+ <value>172.17.139.133</value>                                          
+ <value>172.17.139.134</value>                                           
+ <value>172.17.139.124</value>                                            
+ <value>172.17.139.126</value>                                           
+ <value>172.17.139.138</value>                                           
+ <value>172.17.139.125</value>                                            
+ <value>172.17.139.129</value>                                          
+ <value>172.17.139.137</value>                                          
+ <value>172.17.139.128</value>                                           
+ <value>172.17.139.135</value>                                          
+ <value>172.17.139.139</value>                                          
+ <value>172.17.139.131</value>                                          
+ </attribute>                                                           
+ <attribute><name>fullnode.addr</name>                                 
+ <value>172.17.139.132</value>                                         
+ </attribute>                                                          
+ <attribute><name>controller.thread.num</name><value>20</value></attribute>
+ <attribute><name>agent.thread.num</name><value>20</value></attribute>    
+ <attribute><name>cmddist.thread.num</name><value>10</value></attribute> 
+ <attribute><name>local.addr</name><value>172.17.139.136</value></attribute> 
+ <attribute><name>block.directory</name><value>/home/pararc/ParaRC/blkDir</value></attribute>
+ <attribute><name>stripestore.directory</name><value>/home/pararc/ParaRC/stripeStore</value></attribute>
+ <attribute><name>tradeoffpoint.directory</name><value>/home/pararc/ParaRC/tradeoffPoint</value></attribute>
+ <attribute><name>pararc.mode</name><value>standalone</value></attribute>
+ </setting>       
+```
+
+For configuration files in agents, please also prepare a configuration file under `/home/pararc/ParaRC/conf`. 
+
+### Generate the MLP in the offline
+
+To generate MLP for an (n, k) MSR code, we need to do:
+
+* Run `GenMLP` for `n` times to generate MLP to repair the n blocks in a stripe in the `PRS Generator`.
+* Prepare a MLP file that records the MLPs for future access in the `Controller`
+
+To generate a MLP, please run the following command in the PRS Generator:
 
 ```bash
 $> ./GenMLP [code] [n] [k] [w] [repairIdx]
 ```
 
-For example, to generate a color combination for (14,12) Clay code to repair the
-first block, we run 
+* code
+  * The code that we generate MLP for.
+  * We can set it as `Clay` for Clay codes.
+* n
+  * The erasure coding parameter `n`
+  * For example, `n=14` for (14,10) Clay code.
+* k
+  * The erasure coding parameter k
+  * For example, `k=10` for (14,10) Clay code.
+* w
+  * The sub-packetization level.
+  * For example, `w=256` for (14,10) Clay code.
+* repairIdx
+  * The index of the block that we repair in a stripe.
+  * For example, `repairIdx = 0` when we generate MLP to repair the first block in a stripe.
 
-`./GenMLP Clay 14 12 256 0`
+* Example
+  * `./GenMLP Clay 14 12 256 0`
 
-#### Encode data
+After running this command, we will get a string, which represents the MLP we generate to repair block with index `0`. The string specifies the color of a intermediate vertex that represents a intermediate sub-block or a repaired sub-block. 
+
+After we generate n MLPs, we generate a MLP file, which is a `.xml` file in the `tradeoffpoint.directory`. The parameters in the MLP file are as follows:
+
+| Parameter | Description                                                  | Example           |
+| --------- | ------------------------------------------------------------ | ----------------- |
+| code      | Type of an erasure code.                                     | Clay              |
+| ecn       | Erasure coding parameter n.                                  | 14                |
+| eck       | Erasure coding parameter k.                                  | 10                |
+| ecw       | Sub-packetization level.                                     | 256               |
+| digits    | The number of digits that represents a color. For example, as `n = 14`, there are 14 possible colors in total, such that we need to represent each color by a two-digit number, from `0` to `13`. | 2                 |
+| point     | A MLP to repair index i is represented as `i:coloring string`, where `i` is the index of a block, and `coloring string` is the coloring result for each intermediate vertex. | 0: 0000......1301 |
+
+Please refer to the sample MLP files we generate for the (14,10) Clay code in `/home/pararc/ParaRC/tradeoffPoint` .
+
+### Generate a stripe of blocks
+
+To generate a stripe of blocks, we need to do:
+
+* Run `GenData` to generate n blocks erasure-coded by a MSR code in the `Controller`.
+* Distribute the n blocks to n different agents.
+* Generate a metadata file to record the metadata information of the stripe in `stripeStore.directory`.
+
+Here is the command to generate a stripe of blocks: 
+
+`$> ./GenData [code] [n] [k] [w] [stripeidx] [blockbytes] [subpktbytes]`
+
+* code
+  * The name of an erasure code.
+  * For example, `Clay` for Clay codes.
+* n
+  * The erasure coding parameter n.
+  * For example, `n=14` for (14,10) Clay code.
+* k
+  * The erasure coding parameter k.
+  * For example, `k=10` for (14,10) Clay code.
+* w
+  * The sub-packetization level 
+  * For example, `w=256` for (14,10) Clay code.
+* stripeidx
+  * The index of the stripe.
+  * For example, `stripeidx=0` for the first stripe we generate.
+* blockbytes
+  * The size of a block in bytes.
+  * For example, `blockbytes=268435456` for the block size of 256 MiB.
+* subpktbytes
+  * The size of a sub-packet in bytes.
+  * For example, `subpktbytes=65536` for the sub-packet size of 64 KiB.'
+
+For example, we generate a stripe of (14,10) Clay-coded stripe as follows:
+
+```bash
+$> ./GenData Clay 14 10 256 0 268435456 65536
+```
+
+Now we have a stripe of blocks in `block.directory`:
+
+```bash
+$> ls blkDir
+stripe-0-0  stripe-0-1  stripe-0-10  stripe-0-11  stripe-0-12  stripe-0-13  stripe-0-2  stripe-0-3  stripe-0-4  stripe-0-5  stripe-0-6  stripe-0-7  stripe-0-8  stripe-0-9
+```
+
+The name of a block follows the format of `stripe-stripeidx-blockidx`. For example, `stripe-0-9` specifies that this block is in stripe `0`, and it is with the block index `9`. 
+
+Then, we distribute blocks to 14 different agents:
+
+```bash
+$> for i in {0..13}
+> do
+> nodeid=`expr $i + 1`
+> scp stripe-0-$i agent$nodeid:/home/pararc/ParaRC/blkDir
+> done
+```
+
+Now, the 14 agents, from agent1 to agent14, all have a block in `block.directory`.
+
+Finally, we generate the metadata file `Clay-0.xml`, meaning that this stripe is erasure-coded by Clay code, and the stripe index is `0`. The parameters in a metadata file is as follows:
+
+| Parameters  | Description                                                  | Example                                                      |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| code        | The name of the erasure code.                                | `Clay`                                                       |
+| ecn         | The erasure coding parameter n.                              | `14` for (14,10) Clay code.                                  |
+| eck         | The erasure coding parameter k.                              | `10` for (14,10) Clay code.                                  |
+| ecw         | The sub-packetization level.                                 | `256` for (14,10) Clay code.                                 |
+| stripename  | The name of a stripe.                                        | `Clay-0` in our example.                                     |
+| blocklist   | The list of blocks in the stripe, including the name of each block, and IP of  corresponding node that stores each block. | `stripe-0-0:172.17.139.127`;`stripe-0-1:172.17.139.130`;`stripe-0-2:172.17.139.133`;`stripe-0-3:172.17.139.134`; `stripe-0-4:172.17.139.124`;`stripe-0-5:172.17.139.126`;`stripe-0-6:172.17.139.138`;`stripe-0-7:172.17.139.125`;`stripe-0-8:172.17.139.129`;`stripe-0-9:172.17.139.137`; `stripe-0-10:172.17.139.128`;`stripe-0-11:172.17.139.135`;`stripe-0-12:172.17.139.139`;`stripe-0-13:172.17.139.131` |
+| blockbytes  | The size of a block in bytes.                                | 268435456 for 256 MIB.                                       |
+| subpktbytes | The size of a sub-packet in bytes.                           | 65536 for 64 KiB sub-packet.                                 |
+
+Here is the sample metadata file `Clay-0.xml`:
+
+```xml
+ <stripe>
+ <attribute><name>code</name><value>Clay</value></attribute>              
+ <attribute><name>ecn</name><value>14</value></attribute>                
+ <attribute><name>eck</name><value>10</value></attribute>                
+ <attribute><name>ecw</name><value>256</value></attribute>               
+ <attribute><name>stripename</name><value>Clay-0</value></attribute>   
+ <attribute><name>blocklist</name>                                      
+ <value>stripe-0-0:172.17.139.127</value>                               
+ <value>stripe-0-1:172.17.139.130</value>                               
+ <value>stripe-0-2:172.17.139.133</value>                                
+ <value>stripe-0-3:172.17.139.134</value>                                
+ <value>stripe-0-4:172.17.139.124</value>                                
+ <value>stripe-0-5:172.17.139.126</value>                                
+ <value>stripe-0-6:172.17.139.138</value>                               
+ <value>stripe-0-7:172.17.139.125</value>                               
+ <value>stripe-0-8:172.17.139.129</value>                               
+ <value>stripe-0-9:172.17.139.137</value>                               
+ <value>stripe-0-10:172.17.139.128</value>                               
+ <value>stripe-0-11:172.17.139.135</value>                              
+ <value>stripe-0-12:172.17.139.139</value>                              
+ <value>stripe-0-13:172.17.139.131</value>                              
+ <value></value>                                                         
+ </attribute>                                                           
+ <attribute><name>blockbytes</name><value>268435456</value></attribute> 
+ <attribute><name>subpktbytes</name><value>65536</value></attribute>      
+ </stripe>                                                                        
+```
+
+### Start ParaRC
+
+Run the following command in the controller to start ParaRC.
+
+```bash
+$> python script/start.py
+```
+
+### Test parallel repair
+
+In the new node, we can test the parallel repair to repair a block:
+
+```bash
+$> ./DistClient degradeRead [blockname] [method]
+```
+
+* blockname
+  * The name of a block
+  * For example, "stripe-0-0" in our example to repair the first block
+* method
+  * `dist` for parallel repair; `conv` for conventional centralized repair
+
+For example, we run the following command to test the parallel repair:
+
+```bash
+$> ./DistClient degradeRead stripe-0-0 dist
+```
+
+Note that to test for different method, please re-start the system to avoid the case that data are cached in each agent.
+
+To test for full-node recovery, please prepare multiple stripes when generate blocks. Then run the following command to repair all the blocks in a failed node:
+
+```bash
+$> ./DistClient nodeRepair [ip] [code] [method]
+```
+
+* ip
+  * The ip of the failed node
+  * For example, `172.17.139.127` for agent1
+* code
+  * The erasure code for stripes
+  * For example, `Clay`
+* method
+  * `dist` for parallel repair; `conv` for conventional centralized repair
+
+For example, we run the following command to repair agent1
+
+```bash
+$> ./DistClient nodeRepair 172.17.139.127 Clay dist
+```
+
+#### Generate a stripe of blocks in HDFS-3
+
+We run OpenEC to write a stripe of blocks in HDFS-3. 
 
 * ParaRC leverages [OpenEC](https://github.com/ukulililixl/openec) to encode data in HDFS-3. Please refer to the document of OpenEC to deploy HDFS-3 and OpenEC.
 * Please run the following script to encode data in HDFS-3 by (14,10) Clay code with w=256.

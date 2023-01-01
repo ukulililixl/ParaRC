@@ -1,6 +1,6 @@
 # ParaRC
 
-ParaRC can run in `standalone` mode, which we can test the parallel repair without the integration to a distributed storage system, and a `hdfs-3 integration` mode, which we can test parallel repair with hdfs-3. We first introduce the standalone mode, and then the hdfs-3 integration mode. 
+ParaRC can run in `standalone` mode, which we can test the parallel repair without the integration to a distributed storage system, and a `HDFS3 integration` mode, which we can test parallel repair with Hadoop-3.3.4. We first introduce the standalone mode, and then the HDFS3 integration mode. 
 
 To run ParaRC in the standalone mode, we need to finish the following steps:
 
@@ -12,29 +12,39 @@ To run ParaRC in the standalone mode, we need to finish the following steps:
 * Start ParaRC
 * Test parallel repair
 
-To run ParaRC in the hdfs-3 integration mode, the only difference step is in `Generate a stripe of blocks`. We introduce as follows:
+To run ParaRC in the HDFS3 integration mode, we need to finish the following steps:
 
-* Generate a stripe of blocks in HDFS-3
+* Prepare a cluster in Alibaba Cloud *
+* Compile ParaRC
+* Deploy Hadoop-3.3.4 with OpenEC *
 
+* Prepare configuration files for each machine *
+* Generate the MLP in the offline
+* Generate a stripe of blocks in Hadoop-3.3.4 *
+* Start ParaRC
+* Test parallel repair
 
+Note that the steps marked with * in the HDFS3 integration mode are different with those in the standalone mode.
+
+## Standalone Mode
 
 ### Prepare a cluster in Alibaba Cloud
 
 ###### Cluster Configuration
 
-Here is a sample configuration of the cluster in Alibaba Cloud that can evaluate the (14,10) Clay code.
-
 | Machine       | Number | Alibaba Machine Type | IP                                                           |
 | ------------- | ------ | -------------------- | ------------------------------------------------------------ |
-| PRS Generator | 1      | ecs.r7.2xlarge       | 172.17.139.121                                               |
-| Controller    | 1      | ecs.r7.xlarge        | 172.17.139.136                                               |
-| Agent         | 15     | ecs.r7.xlarge        | 172.17.139.127; 172.17.139.130; 172.17.139.133; 172.17.139.134; 172.17.139.124; 172.17.139.126; 172.17.139.138; 172.17.139.125; 172.17.139.129; 172.17.139.137; 172.17.139.128; 172.17.139.135; 172.17.139.139; 172.17.139.131; 172.17.139.132. |
+| PRS Generator | 1      | ecs.r7.2xlarge       | 192.168.0.1                                                  |
+| Controller    | 1      | ecs.r7.xlarge        | 192.168.0.2                                                  |
+| Agent         | 15     | ecs.r7.xlarge        | 192.168.0.3; 192.168.0.4; 192.168.0.5; 192.168.0.6; 192.168.0.7; 192.168.0.8; 192.1;68.0.9; 192.168.0.10; 192.168.0.11; 192.168.0.12; 192.168.0.13; 192.168.0.14; 192.168.0.15; 192.168.0.16; 192.168.0.17; |
 
-Among the 15 agents, the last one (172.17.139.132) serves as the new node that replaces a failed node.
+Among the 15 agents, the last one (192.168.0.17) serves as the new node that replaces a failed node. 
 
-Here is the description for configuration parameters. Suppose the default username of each machine is `pararc`.
+In each machine, we create a default username called `pararc`.
 
 ###### Pre-requisite
+
+We need to install some third party libraries to compile and run ParaRC.
 
 * isa-l library
 
@@ -68,14 +78,14 @@ Each machine requires a configuration file `/home/pararc/ParaRC/conf/sysSettings
 
 | Parameters              | Description                                                  | Example                                                      |
 | ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| prsgenerator.addr       | The IP address of the PRS Generator.                         | `172.17.139.121`                                             |
-| controller.addr         | The IP address of the controller.                            | `172.17.139.136`                                             |
-| agents.addr             | The IP address of all agents.                                | `172.17.139.127`; `172.17.139.130`; `172.17.139.133`; `172.17.139.134`; `172.17.139.124`; `172.17.139.126; 172.17.139.138`; `172.17.139.125`; `172.17.139.129`; `172.17.139.137`; `172.17.139.128`; `172.17.139.135`; `172.17.139.139`; `172.17.139.131`. |
-| fullnode.addr           | The IP address of the new node.                              | `172.17.139.132`                                             |
+| prsgenerator.addr       | The IP address of the PRS Generator.                         | `192.168.0.1`                                                |
+| controller.addr         | The IP address of the controller.                            | `192.168.0.2;`                                               |
+| agents.addr             | The IP address of all agents.                                | `192.168.0.3; 192.168.0.4; 192.168.0.5; 192.168.0.6; 192.168.0.7; 192.168.0.8; 192.1;68.0.9; 192.168.0.10; 192.168.0.11; 192.168.0.12; 192.168.0.13; 192.168.0.14; 192.168.0.15; 192.168.0.16.` |
+| fullnode.addr           | The IP address of the new node.                              | `192.168.0.17;`                                              |
 | controller.thread.num   | The number of threads in the controller.                     | `20`                                                         |
 | agent.thread.num        | The number of threads in each agent.                         | `20`                                                         |
 | cmddist.thread.num      | The number of threads to distribute the commands.            | `10`                                                         |
-| local.addr              | The local IP address of a machine.                           | `172.17.139.136 ` for the controller; `172.17.139.127` for the first agent. |
+| local.addr              | The local IP address of a machine.                           | `192.168.0.2 ` for the controller; `192.168.0.3` for the first agent. |
 | block.directory         | The directory to store blocks.                               | `/home/pararc/ParaRC/blkDir` for standalone mode; `/home/pararc/hadoop-3.3.4-src/hadoop-dist/target/hadoop-3.3.4/dfs/data/current` for hdfs-3 integration mode. |
 | stripestore.directory   | The directory to store stripe metadata.                      | `/home/pararc/ParaRC/stripeStore`                            |
 | tradeoffpoint.directory | The directory to store the MLP generated by PRS Generator offline. | `/home/pararc/ParaRC/tradeoffPoint`                          |
@@ -84,37 +94,37 @@ Each machine requires a configuration file `/home/pararc/ParaRC/conf/sysSettings
 Here is a sample of the configuration file in the controller in `/home/pararc/ParaRC/conf/sysSettings.xml`
 
 ```xml
- <setting>                                                      
- <attribute><name>prsgenerator.addr</name><value>172.17.139.121</value></attribute>
- <attribute><name>controller.addr</name><value>172.17.139.136</value></attribute> 
- <attribute><name>agents.addr</name>                                   
- <value>172.17.139.127</value>                                         
- <value>172.17.139.130</value>                                           
- <value>172.17.139.133</value>                                          
- <value>172.17.139.134</value>                                           
- <value>172.17.139.124</value>                                            
- <value>172.17.139.126</value>                                           
- <value>172.17.139.138</value>                                           
- <value>172.17.139.125</value>                                            
- <value>172.17.139.129</value>                                          
- <value>172.17.139.137</value>                                          
- <value>172.17.139.128</value>                                           
- <value>172.17.139.135</value>                                          
- <value>172.17.139.139</value>                                          
- <value>172.17.139.131</value>                                          
- </attribute>                                                           
- <attribute><name>fullnode.addr</name>                                 
- <value>172.17.139.132</value>                                         
- </attribute>                                                          
+ <setting>
+ <attribute><name>prsgenerator.addr</name><value>192.168.0.1</value></attribute>
+ <attribute><name>controller.addr</name><value>192.168.0.2</value></attribute>
+ <attribute><name>agents.addr</name>
+ <value>192.168.0.3</value>
+ <value>192.168.0.4</value>
+ <value>192.168.0.5</value>
+ <value>192.168.0.6</value>
+ <value>192.168.0.7</value>
+ <value>192.168.0.8</value>
+ <value>192.168.0.9</value>
+ <value>192.168.0.10</value>
+ <value>192.168.0.11</value>
+ <value>192.168.0.12</value>
+ <value>192.168.0.13</value>
+ <value>192.168.0.14</value>
+ <value>192.168.0.15</value>
+ <value>192.168.0.16</value>
+ </attribute>
+ <attribute><name>fullnode.addr</name>
+ <value>192.168.0.17</value>
+ </attribute>
  <attribute><name>controller.thread.num</name><value>20</value></attribute>
- <attribute><name>agent.thread.num</name><value>20</value></attribute>    
- <attribute><name>cmddist.thread.num</name><value>10</value></attribute> 
- <attribute><name>local.addr</name><value>172.17.139.136</value></attribute> 
- <attribute><name>block.directory</name><value>/home/pararc/ParaRC/blkDir</value></attribute>
- <attribute><name>stripestore.directory</name><value>/home/pararc/ParaRC/stripeStore</value></attribute>
- <attribute><name>tradeoffpoint.directory</name><value>/home/pararc/ParaRC/tradeoffPoint</value></attribute>
+ <attribute><name>agent.thread.num</name><value>20</value></attribute>
+ <attribute><name>cmddist.thread.num</name><value>10</value></attribute>
+ <attribute><name>local.addr</name><value>192.168.0.2</value></attribute>
+ <attribute><name>block.directory</name><value>/home/lixl/ParaRC/blkDir</value></attribute>
+ <attribute><name>stripestore.directory</name><value>/home/lixl/ParaRC/stripeStore</value></attribute>
+ <attribute><name>tradeoffpoint.directory</name><value>/home/lixl/ParaRC/tradeoffPoint</value></attribute>
  <attribute><name>pararc.mode</name><value>standalone</value></attribute>
- </setting>       
+ </setting>
 ```
 
 For configuration files in agents, please also prepare a configuration file under `/home/pararc/ParaRC/conf`. 
@@ -229,46 +239,46 @@ Now, the 14 agents, from agent1 to agent14, all have a block in `block.directory
 
 Finally, we generate the metadata file `Clay-0.xml`, meaning that this stripe is erasure-coded by Clay code, and the stripe index is `0`. The parameters in a metadata file is as follows:
 
-| Parameters  | Description                                                  | Example                                                      |
-| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| code        | The name of the erasure code.                                | `Clay`                                                       |
-| ecn         | The erasure coding parameter n.                              | `14` for (14,10) Clay code.                                  |
-| eck         | The erasure coding parameter k.                              | `10` for (14,10) Clay code.                                  |
-| ecw         | The sub-packetization level.                                 | `256` for (14,10) Clay code.                                 |
-| stripename  | The name of a stripe.                                        | `Clay-0` in our example.                                     |
-| blocklist   | The list of blocks in the stripe, including the name of each block, and IP of  corresponding node that stores each block. | `stripe-0-0:172.17.139.127`;`stripe-0-1:172.17.139.130`;`stripe-0-2:172.17.139.133`;`stripe-0-3:172.17.139.134`; `stripe-0-4:172.17.139.124`;`stripe-0-5:172.17.139.126`;`stripe-0-6:172.17.139.138`;`stripe-0-7:172.17.139.125`;`stripe-0-8:172.17.139.129`;`stripe-0-9:172.17.139.137`; `stripe-0-10:172.17.139.128`;`stripe-0-11:172.17.139.135`;`stripe-0-12:172.17.139.139`;`stripe-0-13:172.17.139.131` |
-| blockbytes  | The size of a block in bytes.                                | 268435456 for 256 MIB.                                       |
-| subpktbytes | The size of a sub-packet in bytes.                           | 65536 for 64 KiB sub-packet.                                 |
+| Parameters  | Description                                                  | Example                        |
+| ----------- | ------------------------------------------------------------ | ------------------------------ |
+| code        | The name of the erasure code.                                | `Clay`                         |
+| ecn         | The erasure coding parameter n.                              | `14` for (14,10) Clay code.    |
+| eck         | The erasure coding parameter k.                              | `10` for (14,10) Clay code.    |
+| ecw         | The sub-packetization level.                                 | `256` for (14,10) Clay code.   |
+| stripename  | The name of a stripe.                                        | `Clay-0` in our example.       |
+| blocklist   | The list of blocks in the stripe, including the name of each block, and IP of  corresponding node that stores each block. | `stripe-0-0:192.168.0.3`...... |
+| blockbytes  | The size of a block in bytes.                                | 268435456 for 256 MIB.         |
+| subpktbytes | The size of a sub-packet in bytes.                           | 65536 for 64 KiB sub-packet.   |
 
 Here is the sample metadata file `Clay-0.xml`:
 
 ```xml
  <stripe>
- <attribute><name>code</name><value>Clay</value></attribute>              
- <attribute><name>ecn</name><value>14</value></attribute>                
- <attribute><name>eck</name><value>10</value></attribute>                
- <attribute><name>ecw</name><value>256</value></attribute>               
- <attribute><name>stripename</name><value>Clay-0</value></attribute>   
- <attribute><name>blocklist</name>                                      
- <value>stripe-0-0:172.17.139.127</value>                               
- <value>stripe-0-1:172.17.139.130</value>                               
- <value>stripe-0-2:172.17.139.133</value>                                
- <value>stripe-0-3:172.17.139.134</value>                                
- <value>stripe-0-4:172.17.139.124</value>                                
- <value>stripe-0-5:172.17.139.126</value>                                
- <value>stripe-0-6:172.17.139.138</value>                               
- <value>stripe-0-7:172.17.139.125</value>                               
- <value>stripe-0-8:172.17.139.129</value>                               
- <value>stripe-0-9:172.17.139.137</value>                               
- <value>stripe-0-10:172.17.139.128</value>                               
- <value>stripe-0-11:172.17.139.135</value>                              
- <value>stripe-0-12:172.17.139.139</value>                              
- <value>stripe-0-13:172.17.139.131</value>                              
- <value></value>                                                         
- </attribute>                                                           
- <attribute><name>blockbytes</name><value>268435456</value></attribute> 
- <attribute><name>subpktbytes</name><value>65536</value></attribute>      
- </stripe>                                                                        
+ <attribute><name>code</name><value>Clay</value></attribute>
+ <attribute><name>ecn</name><value>14</value></attribute>
+ <attribute><name>eck</name><value>10</value></attribute>
+ <attribute><name>ecw</name><value>256</value></attribute>
+ <attribute><name>stripename</name><value>Clay-0</value></attribute>
+ <attribute><name>blocklist</name>
+ <value>stripe-0-0:192.168.0.3</value>
+ <value>stripe-0-1:192.168.0.4</value>
+ <value>stripe-0-2:192.168.0.5</value>
+ <value>stripe-0-3:192.168.0.6</value>
+ <value>stripe-0-4:192.168.0.7</value>
+ <value>stripe-0-5:192.168.0.8</value>
+ <value>stripe-0-6:192.168.0.9</value>
+ <value>stripe-0-7:192.168.0.10</value>
+ <value>stripe-0-8:192.168.0.11</value>
+ <value>stripe-0-9:192.168.0.12</value>
+ <value>stripe-0-10:192.168.0.13</value>
+ <value>stripe-0-11:192.168.0.14</value>
+ <value>stripe-0-12:192.168.0.15</value>
+ <value>stripe-0-13:192.168.0.16</value>
+ <value></value>
+ </attribute>
+ <attribute><name>blockbytes</name><value>268435456</value></attribute>
+ <attribute><name>subpktbytes</name><value>65536</value></attribute>
+ </stripe>   
 ```
 
 ### Start ParaRC
@@ -309,7 +319,7 @@ $> ./DistClient nodeRepair [ip] [code] [method]
 
 * ip
   * The ip of the failed node
-  * For example, `172.17.139.127` for agent1
+  * For example, `192.168.0.3` for agent1
 * code
   * The erasure code for stripes
   * For example, `Clay`
@@ -319,15 +329,157 @@ $> ./DistClient nodeRepair [ip] [code] [method]
 For example, we run the following command to repair agent1
 
 ```bash
-$> ./DistClient nodeRepair 172.17.139.127 Clay dist
+$> ./DistClient nodeRepair 192.168.0.3 Clay dist
 ```
 
-#### Generate a stripe of blocks in HDFS-3
+## HDFS3 integration mode
 
-We run OpenEC to write a stripe of blocks in HDFS-3. 
+The HDFS3 integration of ParaRC is built with OpenEC atop Hadoop-3.3.4. Note that only the steps marked with * are different with those in standalone mode. We focus on the steps marked with * in this part.
 
-* ParaRC leverages [OpenEC](https://github.com/ukulililixl/openec) to encode data in HDFS-3. Please refer to the document of OpenEC to deploy HDFS-3 and OpenEC.
-* Please run the following script to encode data in HDFS-3 by (14,10) Clay code with w=256.
-    * `python script/gendata.py 20 Clay 14 10 256`
-    * This script will encode 20 stripes with (14,10) Clay code with w=256.
+* Prepare a cluster in Alibaba Cloud *
+* Compile ParaRC
+* Deploy Hadoop-3.3.4 with OpenEC *
+
+* Prepare configuration files for each machine *
+* Generate the MLP in the offline
+* Generate a stripe of blocks in Hadoop-3.3.4 *
+* Start ParaRC
+* Test parallel repair
+
+### Prepare a cluster in Alibaba Cloud
+
+We can use the same cluster we applied in the standalone mode. The following tables shows how we deploy run ParaRC with Hadoop-3.3.4, OpenEC.
+
+| ParaRC        | OpenEC     | Hadoop    |
+| ------------- | ---------- | --------- |
+| PRS Generator | -          | -         |
+| Controller    | Controller | NameNode  |
+| Agents        | Agents     | DataNodes |
+
+### Deploy Hadoop-3.3.4 with OpenEC
+
+In the source code of ParaRC, we have a patch for OpenEC:
+
+```bash
+$> ls openec-pararc-patch
+hdfs3-integration  openec-patch
+```
+
+* hdfs3-integration
+  * Source code patch and installation scripts for Hadoop-3.3.4
+* openec-patch
+  * Source code patch for OpenEC
+
+We first deploy Hadoop-3.3.4 in the cluster, then follows OpenEC.
+
+###### Build Hadoop-3.3.4 with ParaRC patch
+
+We first download the source code of Hadoop-3.3.4 in `/home/pararc/hadoop-3.3.4-src` in the `NameNode`. Then we install the pararc patch with Hadoop-3.3.4:
+
+```bash
+$> cd /home/pararc/ParaRC/openec-pararc-patch/hdfs3-integration
+$> ./install.sh
+```
+
+After running the `install.sh`, we copy the pararc patch to the source code of Hadoop-3.3.4 and compile the source code of Hadoop-3.3.4. 
+
+###### Configure Hadoop-3.3.4
+
+We follow the document of the configuration for Hadoop-3.0.0 in OpenEC to configure Hadoop-3.3.4. We show the difference here:
+
+* As the default username is `pararc`, please change accordingly in configuration files.
+
+* Please use the IPs generated in Alibaba Cloud in your account when configuring Hadoop-3.3.4
+
+* In `hdfs-site.xml`
+
+  | Parameter     | Description                                                  | Example                                                      |
+  | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | dfs.blocksize | The size of a block in bytes.                                | 268435456 for block size with 256 MiB.                       |
+  | oec.pktsize   | The size of a packet in bytes. Note that for a MSR code with sub-packetization level w, the size of a packet is w times the size of a sub-packet. | 16777216 for (14,10) Clay code, where w=256, sub-packet size is 64 KiB. |
+
+After we generate all the configuration files, please follow the document for Hadoop-3.0.0 provided in OpenEC to deploy Hadoop-3.3.4 in the cluster.
+
+###### Build OpenEC with ParaRC patch
+
+We first download the source code of OpenEC in `/home/pararc/openec` in the `Controller`. Then we install the ParaRC patch with OpenEC.
+
+```bash
+$> cd /home/pararc/ParaRC/openec-pararc-patch/openec-patch
+$> cp -r ./* /home/pararc/openec/src
+$> cd /home/pararc/openec/
+$> cmake . -DFS TYPE:STRING=HDFS3
+$> make
+```
+
+Now we have built the source code of OpenEC with ParaRC patch.
+
+###### Configure OpenEC
+
+We follow the document of the configuration in OpenEC with the following differences:
+
+* ec.policy
+
+  | Parameter | Description                                                  | Example    |
+  | --------- | ------------------------------------------------------------ | ---------- |
+  | ecid      | Unique id for an erasure code.                               | clay_14_10 |
+  | class     | Class name of erasure code implementation.                   | Clay       |
+  | n         | Parameter n for the erasure code.                            | 14         |
+  | k         | Parameter k for the erasure code.                            | 10         |
+  | w         | Sub-packetization level.                                     | 256        |
+  | opt       | Optimization level for OpenEC . We do not use optimization in OpenEC. | -1         |
+
+* As the default username is `pararc`, please change accordingly in configuration files.
+
+* Please use the IPs generated in Alibaba Cloud in your account when configuring OpenEC.
+
+After we generate the configuration files, please follow the document in OpenEC to deploy OpenEC in the cluster.
+
+### Prepare configuration files for each machine
+
+In the configuration files of ParaRC, we have the following differences compared with the configuration in the standalone mode.
+
+| Parameters      | Description                    | Example                                                      |
+| --------------- | ------------------------------ | ------------------------------------------------------------ |
+| block.directory | The directory to store blocks. | `/home/pararc/hadoop-3.3.4-src/hadoop-dist/target/hadoop-3.3.4/dfs/data/current` for hdfs-3 integration mode. |
+
+#### Generate a stripe of blocks in Hadoop-3.3.4
+
+We prepare a script `script/gendata.py` to generate blocks in Hadoop-3.3.4.
+
+The usage of this script is:
+
+```bash
+$> python script/gendata.py [nStripes] [code] [n] [k] [w]
+```
+
+* nStripes
+
+  * The number of stripes to generate.
+
+* code
+
+  * The name of the erasure code.
+
+* n
+
+  * The erasure coding parameter n.
+
+* k
+
+  * The erasure coding parameter k.
+
+* w
+
+  * The sub-packetization level.
+
+* Example
+
+  ```bash
+  $> python script/gendata.py 1 Clay 14 10 256
+  ```
+
+After running this script, we generate a stripe of blocks as well as corresponding metadata file.
+
+Finally, we follow the steps in standalone mode to test the parallel repair.
 

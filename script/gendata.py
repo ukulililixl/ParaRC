@@ -5,11 +5,6 @@
 #   n
 #   k
 #   w
-#   blockMiB
-#   packetKiB
-#   gen_files [true|false]
-#   gen_blocks [true|false]
-#   gen_meta [true|false]
 #
 #
 # NOTE: before running the script, you should manually set OEC and Hadoop configs (including ip, block sizes, packet sizes and etc.)
@@ -21,7 +16,8 @@ import subprocess
 import time
 
 def usage():
-    print("python gendata.py num_stripes code[RSPIPE|Clay] n k w blockMiB packetKiB gen_files[true|false] gen_blocks[true|false] gen_meta[true|false]")
+    #print("python gendata.py num_stripes code[RSPIPE|Clay] n k w blockMiB packetKiB gen_files[true|false] gen_blocks[true|false] gen_meta[true|false]")
+    print("python gendata.py num_stripes code[RSPIPE|Clay] n k w")
 
 
 if len(sys.argv) != 11:
@@ -48,28 +44,22 @@ gen_meta=True
 
 # NOTE: fill in ips of the cluster
 clusternodes=[
-    "192.168.1.1",
-    "192.168.1.2",
-    "192.168.1.3",
-    "192.168.1.4",
-    "192.168.1.5",
-    "192.168.1.6",
-    "192.168.1.7",
-    "192.168.1.8",
-    "192.168.1.9",
-    "192.168.1.10",
-    "192.168.1.11",
-    "192.168.1.12",
-    "192.168.1.13",
-    "192.168.1.14",
-    "192.168.1.15",
-    "192.168.1.16",
-    "192.168.1.17",
-    "192.168.1.18",
-    "192.168.1.19",
-    "192.168.1.20",
-    "192.168.1.21",
-    "192.168.1.22",
+    "192.168.0.2",
+    "192.168.0.3",
+    "192.168.0.4",
+    "192.168.0.5",
+    "192.168.0.6",
+    "192.168.0.7",
+    "192.168.0.8",
+    "192.168.0.9",
+    "192.168.0.10",
+    "192.168.0.11",
+    "192.168.0.12",
+    "192.168.0.13",
+    "192.168.0.14",
+    "192.168.0.15",
+    "192.168.0.16",
+    "192.168.0.17",
 ]
 
 controller=clusternodes[0]
